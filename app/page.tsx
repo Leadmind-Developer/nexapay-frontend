@@ -87,24 +87,27 @@ export default function LandingPage() {
         </div>
 
         {/* 🧭 Main Area */}
-        <main className="flex-1 sm:ml-32 flex flex-col relative">
+        <main className="flex-1 sm:ml-32 flex flex-col relative w-full">
           {/* 🔝 Fixed Header (tracks height automatically) */}
           <div
             ref={headerRef}
-            className="fixed top-0 left-0 sm:left-32 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm"
+            className="fixed top-0 left-0 sm:left-32 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm w-full"
           >
             <Header />
           </div>
 
           {/* 🚀 Page Content below header */}
-          <div style={{ paddingTop: `${headerHeight}px` }} className="flex-grow">
-            {/* Hero Section */}
-            <section className="max-w-7xl mx-auto px-4 mb-24">
+          <div style={{ paddingTop: `${headerHeight}px` }} className="flex-grow w-full">
+            {/* Hero Section - full width on mobile */}
+            <section className="w-full max-w-full px-4 sm:max-w-7xl sm:px-4 mb-24">
               <Hero />
             </section>
 
             {/* Core Landing Sections */}
-            <section id="main-content" className="max-w-7xl mx-auto px-4 pb-16 space-y-20">
+            <section
+              id="main-content"
+              className="w-full max-w-full sm:max-w-7xl sm:px-4 mx-auto pb-16 space-y-20"
+            >
               {/* Full Services on sm+ */}
               <div ref={servicesRef} className="hidden sm:block">
                 <Services />
