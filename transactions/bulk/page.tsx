@@ -1,4 +1,6 @@
-// /app/transactions/bulk/page.tsx
+// ./app/transactions/bulk/page.tsx
+"use client";
+
 import BulkForm from "@/components/transactions/BulkForm";
 import SEO from "@/components/SEO";
 import { Metadata } from "next";
@@ -13,7 +15,7 @@ export default function BulkPage() {
     <div className="container mx-auto p-6 space-y-6">
       <SEO title="Enterprise Bulk Transactions" />
       <h2 className="text-2xl font-bold mb-4">Enterprise Bulk Transactions</h2>
-      <BulkForm /> {/* Client component */}
+      <BulkForm />
     </div>
   );
 }

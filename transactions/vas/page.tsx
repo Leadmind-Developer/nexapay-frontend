@@ -1,3 +1,5 @@
+"use client";
+
 import VASForm from "@/components/transactions/VASForm";
 import SEO from "@/components/SEO";
 import { Metadata } from "next";

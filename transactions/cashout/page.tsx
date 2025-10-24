@@ -1,3 +1,5 @@
+"use client";
+
 import CashOutForm from "@/components/transactions/CashOutForm";
 import SEO from "@/components/SEO";
 import { Metadata } from "next";

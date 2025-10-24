@@ -1,3 +1,5 @@
+"use client";
+
 import CollectionForm from "@/components/transactions/CollectionForm";
 import SEO from "@/components/SEO";
 import { Metadata } from "next";

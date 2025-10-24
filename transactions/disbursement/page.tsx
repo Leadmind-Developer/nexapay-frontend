@@ -1,3 +1,5 @@
+"use client";
+
 import DisbursementForm from "@/components/transactions/DisbursementForm";
 import SEO from "@/components/SEO";
 import { Metadata } from "next";
