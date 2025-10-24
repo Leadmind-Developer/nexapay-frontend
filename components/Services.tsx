@@ -73,7 +73,7 @@ export default function Services() {
     }
   };
 
-  // Setup Socket.IO for live updates
+  // Setup Socket.IO
   useEffect(() => {
     const socketClient = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
     setSocket(socketClient);
@@ -84,9 +84,7 @@ export default function Services() {
 
     fetchTransactions();
 
-    return () => {
-      socketClient.disconnect();
-    };
+    return () => socketClient.disconnect();
   }, []);
 
   // Submit handler
@@ -119,16 +117,16 @@ export default function Services() {
   };
 
   return (
-    <section className="py-20 bg-gray-50 text-center">
-      <h2 className="text-3xl font-bold mb-6">Pay Bills & Buy Airtime/Data</h2>
+    <section className="py-12 bg-gray-50 text-center px-4 sm:px-6 lg:px-8">
+      <h2 className="text-2xl sm:text-3xl font-bold mb-6">Pay Bills & Buy Airtime/Data</h2>
 
       {/* Provider Toggle */}
-      <div className="flex justify-center gap-4 mb-10">
+      <div className="flex justify-center gap-3 flex-wrap mb-8">
         {(["SmartCash", "VTpass"] as ProviderType[]).map((p) => (
           <button
             key={p}
             onClick={() => setProvider(p)}
-            className={`px-6 py-2 rounded-full font-semibold transition ${
+            className={`px-4 sm:px-6 py-2 rounded-full font-semibold w-full sm:w-auto transition ${
               provider === p ? "bg-indigo-600 text-white" : "bg-white text-gray-700 shadow"
             }`}
           >
@@ -137,8 +135,8 @@ export default function Services() {
         ))}
       </div>
 
-      {/* Service Categories — fits one line on large screens */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10 px-4">
+      {/* Service Categories */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         {SERVICE_CATEGORIES.map((s, idx) => (
           <motion.div
             key={s.type}
@@ -154,8 +152,8 @@ export default function Services() {
               selectedService === s.type ? "bg-indigo-600 text-white" : "bg-white text-gray-800"
             }`}
           >
-            <h3 className="text-base font-semibold mb-1">{s.label}</h3>
-            <ul className="text-xs space-y-0.5">
+            <h3 className="text-base font-semibold mb-2">{s.label}</h3>
+            <ul className="text-sm space-y-1 overflow-x-auto whitespace-nowrap">
               {s.options.map((opt) => (
                 <li
                   key={opt}
@@ -164,7 +162,7 @@ export default function Services() {
                     setSelectedService(s.type);
                     setSelectedOption(opt);
                   }}
-                  className={`py-1 px-2 rounded cursor-pointer transition ${
+                  className={`inline-block py-1 px-3 rounded-full cursor-pointer transition ${
                     selectedOption === opt
                       ? "bg-indigo-800 text-white"
                       : "hover:bg-indigo-100 hover:text-indigo-700"
@@ -182,7 +180,7 @@ export default function Services() {
       {selectedOption && (
         <form
           onSubmit={handleSubmit}
-          className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg mb-10 text-left"
+          className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg mb-8 text-left"
         >
           <h3 className="text-xl font-semibold mb-4 text-center">
             {SERVICE_CATEGORIES.find((s) => s.type === selectedService)?.label}
@@ -205,7 +203,7 @@ export default function Services() {
               }
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full mb-4 p-2 border rounded"
+              className="w-full mb-4 p-3 border rounded focus:ring-2 focus:ring-indigo-400"
               required
             />
           )}
@@ -216,7 +214,7 @@ export default function Services() {
               placeholder="Data Plan Code"
               value={formData.planCode}
               onChange={(e) => setFormData({ ...formData, planCode: e.target.value })}
-              className="w-full mb-4 p-2 border rounded"
+              className="w-full mb-4 p-3 border rounded focus:ring-2 focus:ring-indigo-400"
             />
           )}
 
@@ -225,14 +223,14 @@ export default function Services() {
             placeholder="Amount (₦)"
             value={formData.amount}
             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-            className="w-full mb-4 p-2 border rounded"
+            className="w-full mb-4 p-3 border rounded focus:ring-2 focus:ring-indigo-400"
             required
             min="50"
           />
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition font-semibold"
+            className="w-full bg-indigo-600 text-white py-3 rounded hover:bg-indigo-700 transition font-semibold"
           >
             Pay Now
           </button>
@@ -257,45 +255,43 @@ export default function Services() {
       )}
 
       {/* Recent Transactions */}
-      <div className="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-lg">
-        <h3 className="text-2xl font-semibold mb-4">Recent Transactions</h3>
+      <div className="max-w-full sm:max-w-5xl mx-auto bg-white p-4 sm:p-6 rounded-lg shadow-lg overflow-x-auto">
+        <h3 className="text-xl sm:text-2xl font-semibold mb-4">Recent Transactions</h3>
         {transactions.length === 0 ? (
           <p className="text-gray-500">No recent transactions found.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border border-gray-200">
-              <thead>
-                <tr className="bg-gray-100 text-left">
-                  <th className="py-2 px-4">Service</th>
-                  <th className="py-2 px-4">Provider</th>
-                  <th className="py-2 px-4">Amount</th>
-                  <th className="py-2 px-4">Status</th>
-                  <th className="py-2 px-4">Date</th>
+          <table className="min-w-full border border-gray-200 text-sm sm:text-base">
+            <thead>
+              <tr className="bg-gray-100 text-left">
+                <th className="py-2 px-2 sm:px-4">Service</th>
+                <th className="py-2 px-2 sm:px-4">Provider</th>
+                <th className="py-2 px-2 sm:px-4">Amount</th>
+                <th className="py-2 px-2 sm:px-4">Status</th>
+                <th className="py-2 px-2 sm:px-4">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map((tx) => (
+                <tr key={tx.id} className="border-t hover:bg-gray-50 transition">
+                  <td className="py-2 px-2 sm:px-4">{tx.service}</td>
+                  <td className="py-2 px-2 sm:px-4">{tx.provider}</td>
+                  <td className="py-2 px-2 sm:px-4">₦{tx.amount}</td>
+                  <td
+                    className={`py-2 px-2 sm:px-4 font-semibold ${
+                      tx.status === "SUCCESS"
+                        ? "text-green-600"
+                        : tx.status === "FAILED"
+                        ? "text-red-600"
+                        : "text-yellow-600"
+                    }`}
+                  >
+                    {tx.status}
+                  </td>
+                  <td className="py-2 px-2 sm:px-4">{new Date(tx.date).toLocaleString()}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id} className="border-t hover:bg-gray-50 transition">
-                    <td className="py-2 px-4">{tx.service}</td>
-                    <td className="py-2 px-4">{tx.provider}</td>
-                    <td className="py-2 px-4">₦{tx.amount}</td>
-                    <td
-                      className={`py-2 px-4 font-semibold ${
-                        tx.status === "SUCCESS"
-                          ? "text-green-600"
-                          : tx.status === "FAILED"
-                          ? "text-red-600"
-                          : "text-yellow-600"
-                      }`}
-                    >
-                      {tx.status}
-                    </td>
-                    <td className="py-2 px-4">{new Date(tx.date).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </section>
