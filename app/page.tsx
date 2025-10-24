@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import SEO from "@/components/SEO";
 import Header from "@/components/Header";
@@ -18,9 +18,12 @@ import LandingSidebar from "@/components/LandingSidebar";
 export default function LandingPage() {
   const router = useRouter();
   const headerRef = useRef<HTMLDivElement | null>(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
+  const servicesRef = useRef<HTMLDivElement | null>(null);
 
-  // Redirect logged-in users
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [servicesHeight, setServicesHeight] = useState(0);
+
+  // ✅ Redirect logged-in users
   useEffect(() => {
     try {
       const token = localStorage.getItem("token");
@@ -30,16 +33,34 @@ export default function LandingPage() {
     }
   }, [router]);
 
-  // Track header height for spacing
+  // 🧭 Track header height dynamically
   useEffect(() => {
     if (!headerRef.current) return;
 
     const updateHeight = () => setHeaderHeight(headerRef.current?.offsetHeight || 0);
 
     updateHeight();
-
     const observer = new ResizeObserver(updateHeight);
     observer.observe(headerRef.current);
+
+    window.addEventListener("resize", updateHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
+
+  // 🧭 Track Services height for mobile placeholder
+  useEffect(() => {
+    if (!servicesRef.current) return;
+
+    const updateHeight = () => setServicesHeight(servicesRef.current?.offsetHeight || 0);
+
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(servicesRef.current);
+
     window.addEventListener("resize", updateHeight);
 
     return () => {
@@ -50,7 +71,7 @@ export default function LandingPage() {
 
   return (
     <>
-      {/* SEO */}
+      {/* 🌐 SEO */}
       <SEO
         title="NexaPay - Simplify Payments, Build Smarter"
         description="NexaPay helps you manage transactions, payments, and integrations securely — built for individuals, developers, and businesses."
@@ -58,33 +79,38 @@ export default function LandingPage() {
         canonical="https://nexapay.app"
       />
 
-      {/* Layout */}
-      <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-        {/* Sidebar hidden on mobile */}
-        <div className="hidden md:block">
-          <LandingSidebar />
-        </div>
+      {/* ⚙️ Unified Layout */}
+      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+        {/* 📍 Sidebar */}
+        <LandingSidebar />
 
-        {/* Main Content */}
-        <main className="flex-1 relative">
-          {/* Fixed Header */}
+        {/* 🧭 Main Area */}
+        <main className="flex-1 ml-32 flex flex-col relative">
+          {/* 🔝 Fixed Header (tracks height automatically) */}
           <div
             ref={headerRef}
-            className="fixed top-0 left-0 right-0 md:left-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm"
+            className="fixed top-0 left-32 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm"
           >
             <Header />
           </div>
 
-          {/* Content below header */}
-          <div style={{ paddingTop: `${headerHeight}px` }} className="flex flex-col">
+          {/* 🚀 Page Content below header */}
+          <div style={{ paddingTop: `${headerHeight}px` }} className="flex-grow">
             {/* Hero Section */}
             <section className="max-w-7xl mx-auto px-4 mb-24">
               <Hero />
             </section>
 
-            {/* Core Sections */}
+            {/* Core Landing Sections */}
             <section id="main-content" className="max-w-7xl mx-auto px-4 pb-16 space-y-20">
-              <Services />
+              {/* Full Services on sm+ */}
+              <div ref={servicesRef} className="hidden sm:block">
+                <Services />
+              </div>
+
+              {/* Placeholder on mobile */}
+              <div className="block sm:hidden" style={{ height: `${servicesHeight}px` }} />
+
               <Steps />
               <Features />
               <Testimonials />
@@ -92,10 +118,10 @@ export default function LandingPage() {
               <DeveloperAPI />
               <CTA />
             </section>
-
-            {/* Footer */}
-            <Footer />
           </div>
+
+          {/* ⚓ Footer */}
+          <Footer />
         </main>
       </div>
     </>
