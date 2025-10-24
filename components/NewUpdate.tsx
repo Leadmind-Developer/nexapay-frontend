@@ -13,7 +13,6 @@ export default function NewUpdate({
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
 
-  // Rotating messages
   const messages = [
     <>
       Need a free bills payment website like <span className="font-semibold">NexaApp</span>?{" "}
@@ -25,14 +24,14 @@ export default function NewUpdate({
       </Link>
     </>,
     <>
-      Ready to crowdfund your project or cause? <span className="font-semibold">launch</span> your campaign now!.
+      Ready to crowdfund your project or cause? <span className="font-semibold">launch</span> your campaign now!{" "}
       <Link
         href="/contact"
         className="underline font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
       >
-         Click here 
+        Click here
       </Link>
-    </>,  
+    </>,
     <>
       Need a quick loan?{" "}
       <Link
@@ -58,11 +57,11 @@ export default function NewUpdate({
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentMessage((prev) => (prev + 1) % messages.length);
-    }, 5000); // 5 seconds
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Track and report height changes to parent
+  // Track height changes
   useEffect(() => {
     if (!ref.current || !onHeightChange) return;
 
@@ -95,7 +94,7 @@ export default function NewUpdate({
           role="status"
           aria-live="polite"
         >
-          {/* Logo on the left with bounce animation */}
+          {/* Logo */}
           <motion.img
             src="/logo.png"
             alt="NexaApp Logo"
@@ -105,21 +104,25 @@ export default function NewUpdate({
             transition={{ duration: 0.6, ease: "easeOut" }}
           />
 
-          {/* Rotating message in the center */}
-          <div className="flex-1 flex justify-center items-center gap-2 text-center mx-2">
+          {/* Rotating message */}
+          <div className="flex-1 flex items-center mx-2 overflow-hidden">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={currentMessage}
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 5 }}
-                transition={{ duration: 0.4 }}
-                className="flex items-center gap-2 text-sm leading-tight"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.5 }}
+                className="flex items-center gap-2 text-sm leading-tight whitespace-nowrap"
               >
                 <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
                   New
                 </span>
-                {messages[currentMessage]}
+
+                {/* Scrollable text on small screens */}
+                <div className="overflow-x-auto max-w-full scrollbar-none">
+                  {messages[currentMessage]}
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>
