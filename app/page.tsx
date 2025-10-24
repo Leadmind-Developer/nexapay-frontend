@@ -20,7 +20,7 @@ export default function LandingPage() {
   const headerRef = useRef<HTMLDivElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
 
-  // ✅ Redirect logged-in users
+  // Redirect logged-in users
   useEffect(() => {
     try {
       const token = localStorage.getItem("token");
@@ -30,21 +30,16 @@ export default function LandingPage() {
     }
   }, [router]);
 
-  // 🧭 Dynamically track total header height (including update bar)
+  // Track header height for spacing
   useEffect(() => {
     if (!headerRef.current) return;
 
-    const updateHeight = () => {
-      const height = headerRef.current?.offsetHeight || 0;
-      setHeaderHeight(height);
-    };
+    const updateHeight = () => setHeaderHeight(headerRef.current?.offsetHeight || 0);
 
     updateHeight();
 
     const observer = new ResizeObserver(updateHeight);
     observer.observe(headerRef.current);
-
-    // Also update on window resize
     window.addEventListener("resize", updateHeight);
 
     return () => {
@@ -55,7 +50,7 @@ export default function LandingPage() {
 
   return (
     <>
-      {/* 🌐 SEO */}
+      {/* SEO */}
       <SEO
         title="NexaPay - Simplify Payments, Build Smarter"
         description="NexaPay helps you manage transactions, payments, and integrations securely — built for individuals, developers, and businesses."
@@ -63,36 +58,32 @@ export default function LandingPage() {
         canonical="https://nexapay.app"
       />
 
-      {/* ⚙️ Unified Layout */}
-      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-        {/* 📍 Sidebar */}
-        <LandingSidebar />
+      {/* Layout */}
+      <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+        {/* Sidebar hidden on mobile */}
+        <div className="hidden md:block">
+          <LandingSidebar />
+        </div>
 
-        {/* 🧭 Main Area */}
-        <main className="flex-1 ml-32 flex flex-col relative">
-          {/* 🔝 Fixed Header (tracks height automatically) */}
+        {/* Main Content */}
+        <main className="flex-1 relative">
+          {/* Fixed Header */}
           <div
             ref={headerRef}
-            className="fixed top-0 left-32 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm"
+            className="fixed top-0 left-0 right-0 md:left-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm"
           >
             <Header />
           </div>
 
-          {/* 🚀 Page Content below header */}
-          <div
-            style={{ paddingTop: `${headerHeight}px` }}
-            className="flex-grow"
-          >
+          {/* Content below header */}
+          <div style={{ paddingTop: `${headerHeight}px` }} className="flex flex-col">
             {/* Hero Section */}
             <section className="max-w-7xl mx-auto px-4 mb-24">
               <Hero />
             </section>
 
-            {/* Core Landing Sections */}
-            <section
-              id="main-content"
-              className="max-w-7xl mx-auto px-4 pb-16 space-y-20"
-            >
+            {/* Core Sections */}
+            <section id="main-content" className="max-w-7xl mx-auto px-4 pb-16 space-y-20">
               <Services />
               <Steps />
               <Features />
@@ -101,10 +92,10 @@ export default function LandingPage() {
               <DeveloperAPI />
               <CTA />
             </section>
-          </div>
 
-          {/* ⚓ Footer */}
-          <Footer />
+            {/* Footer */}
+            <Footer />
+          </div>
         </main>
       </div>
     </>
