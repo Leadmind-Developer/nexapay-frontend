@@ -81,15 +81,17 @@ export default function LandingPage() {
 
       {/* ⚙️ Unified Layout */}
       <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-        {/* 📍 Sidebar */}
-        <LandingSidebar />
+        {/* 📍 Sidebar - hidden on mobile */}
+        <div className="hidden sm:block">
+          <LandingSidebar />
+        </div>
 
         {/* 🧭 Main Area */}
-        <main className="flex-1 ml-32 flex flex-col relative">
+        <main className="flex-1 sm:ml-32 flex flex-col relative">
           {/* 🔝 Fixed Header (tracks height automatically) */}
           <div
             ref={headerRef}
-            className="fixed top-0 left-32 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm"
+            className="fixed top-0 left-0 sm:left-32 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm"
           >
             <Header />
           </div>
@@ -108,7 +110,7 @@ export default function LandingPage() {
                 <Services />
               </div>
 
-              {/* Placeholder on mobile */}
+              {/* Placeholder on mobile to maintain spacing */}
               <div className="block sm:hidden" style={{ height: `${servicesHeight}px` }} />
 
               <Steps />
