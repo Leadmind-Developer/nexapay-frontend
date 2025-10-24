@@ -1,12 +1,14 @@
-
-
 "use client";
 
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Zap, Smartphone, Tv, PlugZap, Apple } from "lucide-react";
 
-export default function Hero() {
+interface HeroProps {
+  headerHeight: number;
+}
+
+export default function Hero({ headerHeight }: HeroProps) {
   const [service, setService] = useState("Airtime");
 
   const services = [
@@ -17,13 +19,15 @@ export default function Hero() {
   ];
 
   return (
-    <section className="relative overflow-hidden py-20 min-h-[600px] sm:py-24">
-      {/* Background image only for large screens */}
+    <section
+      className="relative overflow-hidden min-h-[600px] w-full"
+      style={{ paddingTop: `${headerHeight + 32}px` }} // 32px extra spacing below header
+    >
+      {/* Background image for large screens */}
       <div
         className="hidden lg:block absolute inset-0 bg-contain bg-right bg-no-repeat"
         style={{
-          top: "80px",
-          bottom: 0,
+          top: `${headerHeight}px`,
           width: "50%",
           backgroundImage: "url('/hero-bg.png')",
         }}
@@ -39,7 +43,8 @@ export default function Hero() {
         transition={{ repeat: Infinity, duration: 6 }}
       />
 
-      <div className="relative z-10 max-w-3xl mx-auto px-6 sm:px-12 lg:px-16 text-center lg:text-left">
+      {/* Hero Content */}
+      <div className="relative z-10 w-full max-w-full px-6 sm:px-12 lg:px-16 text-center lg:text-left mx-auto">
         {/* Headings */}
         <motion.h1
           initial={{ opacity: 0, y: -25 }}
@@ -63,7 +68,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.8 }}
-          className="text-base sm:text-lg md:text-xl mb-8 sm:mb-10 leading-relaxed text-indigo-900"
+          className="text-base sm:text-lg md:text-xl mb-8 sm:mb-10 leading-relaxed text-indigo-900 max-w-3xl mx-auto lg:mx-0"
         >
           Buy airtime, data, electricity, or cable TV instantly — directly on our site, mobile app, via WhatsApp, or Telegram.
         </motion.p>
@@ -73,7 +78,7 @@ export default function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="flex justify-center flex-wrap gap-3 mb-8"
+          className="flex justify-center lg:justify-start flex-wrap gap-3 mb-8"
         >
           {services.map((s) => (
             <button
@@ -96,7 +101,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.8 }}
-          className="flex justify-center gap-4 flex-wrap"
+          className="flex justify-center lg:justify-start gap-4 flex-wrap"
         >
           <a
             href="https://wa.me/2348012345678?text=Hi%20I%20want%20to%20buy%20some%20services"
