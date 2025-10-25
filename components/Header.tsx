@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import NewUpdate from "@/components/NewUpdate";
 import TopNavBar from "@/components/TopNavBar";
-import Hero from "@/components/mobile/Hero";  // Import Hero component for mobile
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -28,9 +27,10 @@ export default function Header() {
     return () => observer.disconnect();
   }, []);
 
-  // Set CSS variable for header height (used for spacing on main content)
+  // 🧭 Set CSS variable for Sidebar alignment
   useEffect(() => {
-    const totalHeight = newUpdateHeight + 120; // desktop header approx height
+    // Rough total header height: new update bar + nav area + top navbar
+    const totalHeight = newUpdateHeight + 120; // tweak ±10 if needed
     document.documentElement.style.setProperty(
       "--header-height",
       `${totalHeight}px`
@@ -46,7 +46,7 @@ export default function Header() {
 
       {/* 🧭 Main Header */}
       <div className="backdrop-blur-md bg-indigo-900/95 shadow-sm transition-all duration-300">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 py-3 md:py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
           {/* 🔹 Logo */}
           <Link
             href="/"
@@ -56,7 +56,10 @@ export default function Header() {
           </Link>
 
           {/* 🌐 Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6" aria-label="Main Navigation">
+          <nav
+            className="hidden md:flex items-center gap-8"
+            aria-label="Main Navigation"
+          >
             <Link href="#services" className="text-gray-200 hover:text-white transition">
               Services
             </Link>
@@ -68,7 +71,7 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* 👥 Desktop Auth Buttons */}
+          {/* 👥 Auth Buttons */}
           <div className="hidden md:flex items-center gap-4">
             <Link
               href="/login"
@@ -104,7 +107,10 @@ export default function Header() {
               transition={{ duration: 0.2 }}
               className="md:hidden bg-indigo-900/95 border-t border-indigo-800 shadow-sm backdrop-blur-md"
             >
-              <nav className="flex flex-col items-center gap-4 py-5" aria-label="Mobile Navigation">
+              <nav
+                className="flex flex-col items-center gap-4 py-5"
+                aria-label="Mobile Navigation"
+              >
                 {["Services", "Agents", "Developer API"].map((item) => (
                   <Link
                     key={item}
@@ -137,16 +143,13 @@ export default function Header() {
           )}
         </AnimatePresence>
 
-        {/* 🧭 TopNavBar (desktop only, aligns with sidebar) */}
-        <div className="hidden md:block border-t border-indigo-800">
-          <div className="ml-32">
+        {/* 🧭 TopNavBar (aligned with sidebar) */}
+        <div className="border-t border-indigo-800">
+          <div className="ml-32"> {/* 👈 Match sidebar width */}
             <TopNavBar />
           </div>
         </div>
       </div>
-
-      {/* Hero component (mobile) */}
-      <Hero headerHeight={newUpdateHeight} /> {/* Pass headerHeight to Hero */}
     </header>
   );
 }
