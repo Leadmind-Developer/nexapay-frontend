@@ -1,142 +1,141 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Sparkles, Zap, Smartphone, Tv, PlugZap, Apple } from "lucide-react";
 
-export default function NewUpdate({
-  onHeightChange,
-}: {
-  onHeightChange?: (height: number) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(true);
+interface HeroProps {
+  headerHeight: number;
+}
 
-  const messages = [
-    <>
-      Need a free bills payment website like <span className="font-semibold">NexaApp</span>?{" "}
-      <Link
-        href="/contact"
-        className="underline font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-      >
-        Click here
-      </Link>
-    </>,
-    <>
-      Ready to crowdfund your project or cause? <span className="font-semibold">launch</span> your campaign now!{" "}
-      <Link
-        href="/contact"
-        className="underline font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-      >
-        Click here
-      </Link>
-    </>,
-    <>
-      Need a quick loan?{" "}
-      <Link
-        href="/contact"
-        className="underline font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-      >
-        Click here
-      </Link>
-    </>,
-    <>
-      Do you want to build a saving culture? Earn <span className="font-semibold">10% interest</span> on your savings.
-    </>,
+export default function Hero({ headerHeight }: HeroProps) {
+  const [service, setService] = useState("Airtime");
+
+  const services = [
+    { name: "Airtime", icon: <Smartphone className="w-5 h-5" /> },
+    { name: "Data", icon: <Zap className="w-5 h-5" /> },
+    { name: "Electricity", icon: <PlugZap className="w-5 h-5" /> },
+    { name: "Cable", icon: <Tv className="w-5 h-5" /> },
   ];
 
-  const [currentMessage, setCurrentMessage] = useState(0);
-
-  useEffect(() => {
-    const dismissed = localStorage.getItem("newUpdateDismissed");
-    if (dismissed === "true") setVisible(false);
-  }, []);
-
-  // Cycle messages every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentMessage((prev) => (prev + 1) % messages.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Track height changes
-  useEffect(() => {
-    if (!ref.current || !onHeightChange) return;
-
-    const updateHeight = () => onHeightChange(ref.current?.offsetHeight || 0);
-    updateHeight();
-
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(ref.current);
-
-    return () => observer.disconnect();
-  }, [onHeightChange]);
-
-  const handleClose = () => {
-    setVisible(false);
-    localStorage.setItem("newUpdateDismissed", "true");
-  };
-
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          ref={ref}
-          initial={{ opacity: 0, y: -15 }}
+    <section
+      className="relative overflow-hidden min-h-[600px] w-full flex items-center justify-center"
+      style={{ paddingTop: `${headerHeight + 32}px` }} // dynamic header padding
+    >
+      {/* Background image for large screens */}
+      <div
+        className="hidden lg:block absolute inset-0 bg-contain bg-right bg-no-repeat"
+        style={{
+          top: `${headerHeight}px`,
+          width: "50%",
+          backgroundImage: "url('/hero-bg.png')",
+        }}
+      />
+
+      {/* Gradient overlay for all screens */}
+      <div className="absolute inset-0 bg-gradient-to-r from-indigo-200/90 to-white lg:to-transparent"></div>
+
+      {/* Shimmer effect */}
+      <motion.div
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-yellow-200/20 via-transparent to-transparent"
+        animate={{ opacity: [0.3, 0.6, 0.3] }}
+        transition={{ repeat: Infinity, duration: 6 }}
+      />
+
+      {/* Hero Content */}
+      <div className="relative z-10 w-full max-w-3xl px-6 sm:px-12 lg:px-16 text-center">
+        {/* Headings */}
+        <motion.h1
+          initial={{ opacity: 0, y: -25 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3 }}
-          className="sticky top-0 z-[60] flex items-center justify-between px-4 py-2
-                     bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900
-                     text-blue-900 dark:text-blue-100 border-b border-blue-200 dark:border-blue-700"
-          role="status"
-          aria-live="polite"
+          transition={{ duration: 0.8 }}
+          className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-4 leading-tight text-indigo-900"
         >
-          {/* Logo */}
-          <motion.img
-            src="/logo.png"
-            alt="NexaApp Logo"
-            className="w-6 h-6 rounded-full flex-shrink-0"
-            initial={{ y: -5 }}
-            animate={{ y: [0, -5, 0] }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          />
+          Simplify Your Payments with
+        </motion.h1>
 
-          {/* Rotating message */}
-          <div className="flex-1 flex items-center mx-2 overflow-hidden">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={currentMessage}
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.5 }}
-                className="flex items-center gap-2 text-sm leading-tight whitespace-nowrap"
-              >
-                <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
-                  New
-                </span>
+        <motion.h1
+          initial={{ opacity: 0, y: -25 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.8 }}
+          className="text-3xl sm:text-4xl md:text-5xl font-extrabold mb-6 leading-tight text-yellow-400 inline-flex items-center justify-center gap-1"
+        >
+          NexaPay <Sparkles className="w-5 h-5 inline" />
+        </motion.h1>
 
-                {/* Scrollable text on small screens */}
-                <div className="overflow-x-auto max-w-full scrollbar-none">
-                  {messages[currentMessage]}
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.8 }}
+          className="text-base sm:text-lg md:text-xl mb-8 sm:mb-10 leading-relaxed text-indigo-900"
+        >
+          Buy airtime, data, electricity, or cable TV instantly — directly on our site, mobile app, via WhatsApp, or Telegram.
+        </motion.p>
 
-          {/* Close button */}
-          <button
-            onClick={handleClose}
-            className="ml-2 p-1 text-blue-800 dark:text-blue-200 hover:text-blue-600 dark:hover:text-blue-400 transition"
-            aria-label="Dismiss update banner"
-          >
-            <X size={14} />
-          </button>
+        {/* Service buttons */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="flex justify-center flex-wrap gap-3 mb-8"
+        >
+          {services.map((s) => (
+            <button
+              key={s.name}
+              onClick={() => setService(s.name)}
+              className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold transition-all text-sm sm:text-base ${
+                service === s.name
+                  ? "bg-white text-indigo-700 shadow-lg"
+                  : "bg-indigo-500/40 hover:bg-indigo-400/60 border border-white/20"
+              }`}
+            >
+              {s.icon}
+              {s.name}
+            </button>
+          ))}
         </motion.div>
-      )}
-    </AnimatePresence>
+
+        {/* Action buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.8 }}
+          className="flex justify-center gap-4 flex-wrap"
+        >
+          <a
+            href="https://wa.me/2348012345678?text=Hi%20I%20want%20to%20buy%20some%20services"
+            target="_blank"
+            className="bg-green-500 px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition flex items-center gap-2 text-white text-sm sm:text-base"
+          >
+            WhatsApp
+          </a>
+          <a
+            href="https://t.me/NexaPayBot"
+            target="_blank"
+            className="bg-blue-500 px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition flex items-center gap-2 text-white text-sm sm:text-base"
+          >
+            Telegram
+          </a>
+          <a
+            href="https://apps.apple.com/app/idYOUR_APP_ID"
+            target="_blank"
+            className="bg-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition flex items-center gap-2 text-white text-sm sm:text-base"
+          >
+            <Apple className="w-5 h-5" /> iOS
+          </a>
+          <a
+            href="https://play.google.com/store/apps/details?id=YOUR_APP_PACKAGE"
+            target="_blank"
+            className="bg-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-900 transition flex items-center gap-2 text-white text-sm sm:text-base"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 512 512" fill="currentColor">
+              <path d="M325.3 234.3L104.1 21.9c-5.9-5.9-15.3-5.3-20.3 1.3C77.5 28.3 64 52.6 64 80v352c0 27.4 13.5 51.7 19.8 57.8 5 6.6 14.4 7.2 20.3 1.3l221.2-212.4c8-7.7 8-20.7 0-28.4zM345.3 278.7c0 13.3-10.7 24-24 24h-16v-48h16c13.3 0 24 10.7 24 24z"/>
+            </svg>
+            Android
+          </a>
+        </motion.div>
+      </div>
+    </section>
   );
 }
