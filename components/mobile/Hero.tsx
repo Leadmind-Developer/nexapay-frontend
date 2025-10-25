@@ -1,17 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Zap, Smartphone, Tv, PlugZap, Apple } from "lucide-react";
-import Link from "next/link";
 
-// Add headerHeight as a prop
-interface HeroProps {
-  headerHeight: number;
-}
-
-export default function Hero({ headerHeight }: HeroProps) {
+// Remove headerHeight prop and handle it inside the component
+export default function Hero() {
   const [service, setService] = useState("Airtime");
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   const services = [
     { name: "Airtime", icon: <Smartphone className="w-5 h-5" /> },
@@ -20,8 +16,29 @@ export default function Hero({ headerHeight }: HeroProps) {
     { name: "Cable", icon: <Tv className="w-5 h-5" /> },
   ];
 
+  const headerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (headerRef.current) {
+      const updateHeight = () => {
+        setHeaderHeight(headerRef.current?.offsetHeight || 0);
+      };
+      updateHeight();
+
+      const resizeObserver = new ResizeObserver(updateHeight);
+      resizeObserver.observe(headerRef.current);
+
+      // Clean up the observer on unmount
+      return () => resizeObserver.disconnect();
+    }
+  }, []);
+
   return (
-    <section className="relative overflow-hidden py-24 min-h-[600px]" style={{ paddingTop: `${headerHeight}px` }}>
+    <section
+      ref={headerRef} // Reference to measure height
+      className="relative overflow-hidden py-24 min-h-[600px]"
+      style={{ paddingTop: `${headerHeight}px` }} // Dynamic padding based on headerHeight
+    >
       {/* Background image on mobile */}
       <div
         className="absolute inset-0 bg-contain bg-center bg-no-repeat sm:hidden"
