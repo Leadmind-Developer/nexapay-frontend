@@ -7,10 +7,10 @@ import Link from "next/link";
 
 // Add headerHeight as a prop
 interface HeroProps {
-  headerHeight: number; // Expect headerHeight as a number
+  headerHeight: number;
 }
 
-export default function Hero({ headerHeight = 0 }: HeroProps) { // Default value for headerHeight
+export default function Hero({ headerHeight }: HeroProps) {
   const [service, setService] = useState("Airtime");
 
   const services = [
