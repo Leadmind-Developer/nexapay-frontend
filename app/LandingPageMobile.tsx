@@ -63,6 +63,7 @@ export default function LandingPageMobile() {
 
         {/* Page content */}
         <div style={{ paddingTop: `${headerHeight}px` }} className="flex flex-col w-full">
+          {/* Pass the headerHeight prop to Hero */}
           <Hero headerHeight={headerHeight} />
           <Services />
           <Steps />
