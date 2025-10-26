@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 
 const testimonials = [
-  { name: "Alice", message: "NexaPay is super fast and reliable. I pay all my bills instantly!" },
-  { name: "Bob", message: "Love the WhatsApp and Telegram payment options. Very convenient!" },
+  { name: "Tosin", message: "NexaPay is super fast and reliable. I pay all my bills instantly!" },
+  { name: "Timi", message: "Love the WhatsApp and Telegram payment options. Very convenient!" },
   { name: "Chidi", message: "Customer support is top-notch, and the app is easy to use." },
 ];
 
