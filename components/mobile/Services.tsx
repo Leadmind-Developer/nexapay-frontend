@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { io, Socket } from "socket.io-client";
-import { useTheme } from "next-themes"; // 👈 For theme awareness
 
 type ServiceType = "AIRTIME" | "DATA" | "CABLE" | "ELECTRICITY" | "INSURANCE";
 type ProviderType = "SmartCash" | "VTpass";
@@ -55,9 +54,6 @@ const SERVICE_CATEGORIES: {
 ];
 
 export default function Services() {
-  const { theme } = useTheme(); // 👈 Detect theme
-  const isDark = theme === "dark";
-
   const [selectedService, setSelectedService] = useState<ServiceType>("AIRTIME");
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [provider, setProvider] = useState<ProviderType>("SmartCash");
@@ -121,11 +117,7 @@ export default function Services() {
   };
 
   return (
-    <section
-      className={`min-h-screen py-16 px-4 transition-colors duration-300 ${
-        isDark ? "bg-gray-950 text-gray-100" : "bg-gray-50 text-gray-900"
-      }`}
-    >
+    <section className="min-h-screen py-16 px-4 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
       <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6">
         Pay Bills & Buy Airtime/Data
       </h2>
@@ -136,13 +128,12 @@ export default function Services() {
           <button
             key={p}
             onClick={() => setProvider(p)}
-            className={`px-5 py-2 rounded-full text-sm sm:text-base font-medium transition-all ${
-              provider === p
-                ? "bg-indigo-600 text-white shadow-md"
-                : isDark
-                ? "bg-gray-800 text-gray-300"
-                : "bg-white text-gray-700 border"
-            }`}
+            className={`px-5 py-2 rounded-full text-sm sm:text-base font-medium transition-all
+              ${
+                provider === p
+                  ? "bg-indigo-600 text-white shadow-md"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border dark:border-gray-700"
+              }`}
           >
             {p}
           </button>
@@ -161,11 +152,7 @@ export default function Services() {
             setSelectedService(e.target.value as ServiceType);
             setSelectedOption("");
           }}
-          className={`w-full p-3 rounded-md border text-sm ${
-            isDark
-              ? "bg-gray-900 border-gray-700 text-gray-200"
-              : "bg-white border-gray-300 text-gray-800"
-          }`}
+          className="w-full p-3 rounded-md border text-sm bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200"
         >
           {SERVICE_CATEGORIES.map((s) => (
             <option key={s.type} value={s.type}>
@@ -184,11 +171,7 @@ export default function Services() {
           id="option"
           value={selectedOption}
           onChange={(e) => setSelectedOption(e.target.value)}
-          className={`w-full p-3 rounded-md border text-sm ${
-            isDark
-              ? "bg-gray-900 border-gray-700 text-gray-200"
-              : "bg-white border-gray-300 text-gray-800"
-          }`}
+          className="w-full p-3 rounded-md border text-sm bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200"
         >
           <option value="">-- Choose Option --</option>
           {SERVICE_CATEGORIES.find((s) => s.type === selectedService)?.options.map((opt) => (
@@ -205,9 +188,7 @@ export default function Services() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           onSubmit={handleSubmit}
-          className={`max-w-sm mx-auto rounded-lg p-5 shadow-lg mb-10 ${
-            isDark ? "bg-gray-900 border border-gray-800" : "bg-white border border-gray-200"
-          }`}
+          className="max-w-sm mx-auto rounded-lg p-5 shadow-lg mb-10 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800"
         >
           <h3 className="text-lg font-semibold mb-4 text-center">
             {selectedOption} ({provider})
@@ -225,11 +206,7 @@ export default function Services() {
             }
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className={`w-full mb-3 p-3 rounded border text-sm ${
-              isDark
-                ? "bg-gray-800 border-gray-700 text-gray-200"
-                : "bg-gray-50 border-gray-300 text-gray-800"
-            }`}
+            className="w-full mb-3 p-3 rounded border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200"
             required
           />
 
@@ -239,11 +216,7 @@ export default function Services() {
               placeholder="Data Plan Code"
               value={formData.planCode}
               onChange={(e) => setFormData({ ...formData, planCode: e.target.value })}
-              className={`w-full mb-3 p-3 rounded border text-sm ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 text-gray-200"
-                  : "bg-gray-50 border-gray-300 text-gray-800"
-              }`}
+              className="w-full mb-3 p-3 rounded border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200"
             />
           )}
 
@@ -252,11 +225,7 @@ export default function Services() {
             placeholder="Amount (₦)"
             value={formData.amount}
             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-            className={`w-full mb-4 p-3 rounded border text-sm ${
-              isDark
-                ? "bg-gray-800 border-gray-700 text-gray-200"
-                : "bg-gray-50 border-gray-300 text-gray-800"
-            }`}
+            className="w-full mb-4 p-3 rounded border text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200"
             required
             min={50}
           />
@@ -288,22 +257,18 @@ export default function Services() {
       )}
 
       {/* Recent Transactions */}
-      <div
-        className={`max-w-lg mx-auto rounded-lg p-5 shadow-lg mb-10 ${
-          isDark ? "bg-gray-900 border border-gray-800" : "bg-white border border-gray-200"
-        }`}
-      >
+      <div className="max-w-lg mx-auto rounded-lg p-5 shadow-lg mb-10 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
         <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
         {transactions.length === 0 ? (
-          <p className="text-gray-500 text-sm">No recent transactions yet.</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            No recent transactions yet.
+          </p>
         ) : (
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
             {transactions.map((tx) => (
               <div
                 key={tx.id}
-                className={`flex justify-between items-center p-3 rounded-md text-sm ${
-                  isDark ? "bg-gray-800" : "bg-gray-50"
-                }`}
+                className="flex justify-between items-center p-3 rounded-md text-sm bg-gray-50 dark:bg-gray-800"
               >
                 <div>
                   <p className="font-medium">{tx.service}</p>
