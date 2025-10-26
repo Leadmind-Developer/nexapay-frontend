@@ -10,10 +10,10 @@ export default function NewUpdate({
 }: {
   onHeightChange?: (height: number) => void;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null); // Correct ref type
+  const ref = useRef<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(true);
+  const [currentMessage, setCurrentMessage] = useState(0);
 
-  // Rotating messages
   const messages = [
     <>
       Need a free bills payment website like <span className="font-semibold">NexaApp</span>?{" "}
@@ -25,14 +25,14 @@ export default function NewUpdate({
       </Link>
     </>,
     <>
-      Ready to crowdfund your project or cause? <span className="font-semibold">launch</span> your campaign now!.
+      Ready to crowdfund your project or cause? <span className="font-semibold">Launch</span> your campaign now!{" "}
       <Link
         href="/contact"
         className="underline font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
       >
-         Click here 
+        Click here
       </Link>
-    </>,  
+    </>,
     <>
       Need a quick loan?{" "}
       <Link
@@ -47,35 +47,27 @@ export default function NewUpdate({
     </>,
   ];
 
-  const [currentMessage, setCurrentMessage] = useState(0);
-
+  // Handle visibility
   useEffect(() => {
     const dismissed = localStorage.getItem("newUpdateDismissed");
     if (dismissed === "true") setVisible(false);
   }, []);
 
-  // Cycle messages every 5 seconds
+  // Cycle messages every 6 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentMessage((prev) => (prev + 1) % messages.length);
-    }, 5000); // 5 seconds
+    }, 6000);
     return () => clearInterval(interval);
   }, []);
 
-  // Track and report height changes to parent
+  // Notify parent when height changes
   useEffect(() => {
     if (!ref.current || !onHeightChange) return;
-
-    const updateHeight = () => {
-      // Check if ref.current is not null and get the height
-      onHeightChange(ref.current?.offsetHeight || 0);
-    };
-
+    const updateHeight = () => onHeightChange(ref.current?.offsetHeight || 0);
     updateHeight();
-
     const observer = new ResizeObserver(updateHeight);
     observer.observe(ref.current);
-
     return () => observer.disconnect();
   }, [onHeightChange]);
 
@@ -96,7 +88,7 @@ export default function NewUpdate({
           className="sticky top-0 z-[60] flex items-center justify-between px-4 py-2 
                      bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 
                      text-blue-900 dark:text-blue-100 border-b border-blue-200 dark:border-blue-700
-                     sm:px-6 sm:py-3" // Adjust padding for mobile
+                     sm:px-6 sm:py-3"
           role="status"
           aria-live="polite"
         >
@@ -110,18 +102,18 @@ export default function NewUpdate({
             transition={{ duration: 0.6, ease: "easeOut" }}
           />
 
-          {/* Rotating message in the center */}
-          <div className="flex-1 flex justify-center items-center gap-2 text-center mx-2">
+          {/* Scrolling Message Center */}
+          <div className="flex-1 flex justify-center items-center mx-2 overflow-hidden relative">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={currentMessage}
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 5 }}
-                transition={{ duration: 0.4 }}
-                className="flex items-center gap-2 text-sm leading-tight"
+                className="whitespace-nowrap flex items-center gap-2 text-sm leading-tight"
+                initial={{ x: "100%" }}
+                animate={{ x: "-100%" }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 10, ease: "linear" }} // slow smooth scroll
               >
-                <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm mr-2">
                   New
                 </span>
                 {messages[currentMessage]}
@@ -129,7 +121,7 @@ export default function NewUpdate({
             </AnimatePresence>
           </div>
 
-          {/* Close button */}
+          {/* Close Button */}
           <button
             onClick={handleClose}
             className="ml-2 p-1 text-blue-800 dark:text-blue-200 hover:text-blue-600 dark:hover:text-blue-400 transition"
