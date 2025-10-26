@@ -38,7 +38,7 @@ export default function Header() {
       </div>
 
       {/* 🧭 Main Header */}
-      <div className="backdrop-blur-md bg-indigo-900/95 shadow-sm transition-all duration-300">
+      <div className="backdrop-blur-md bg-indigo-900/95 dark:bg-indigo-950/90 shadow-md transition-all duration-300 border-b border-indigo-800/60">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
           {/* 🔹 Logo */}
           <Link
@@ -51,7 +51,7 @@ export default function Header() {
           {/* 📱 Mobile Menu Toggle */}
           <button
             onClick={() => setOpen((prev) => !prev)}
-            className="text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded-md p-1 md:hidden"
+            className="text-gray-200 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 rounded-full p-2 md:hidden active:scale-90 transition-transform duration-150"
             aria-label="Toggle navigation menu"
           >
             {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -66,7 +66,7 @@ export default function Header() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2 }}
-              className="bg-indigo-900/95 border-t border-indigo-800 shadow-sm backdrop-blur-md md:hidden"
+              className="bg-indigo-900/95 dark:bg-indigo-950/90 border-t border-indigo-800 shadow-lg backdrop-blur-md md:hidden"
             >
               <nav className="flex flex-col items-center gap-4 py-5">
                 {["Services", "Agents", "Developer API"].map((item) => (
@@ -74,24 +74,25 @@ export default function Header() {
                     key={item}
                     href={`#${item.toLowerCase().replace(" ", "")}`}
                     onClick={() => setOpen(false)}
-                    className="text-gray-200 hover:text-white transition"
+                    className="text-gray-200 hover:text-white font-medium transition-colors"
                   >
                     {item}
                   </Link>
                 ))}
 
-                <div className="flex gap-4 mt-3">
+                {/* 🔘 Auth Buttons */}
+                <div className="flex gap-3 mt-4">
                   <Link
                     href="/login"
                     onClick={() => setOpen(false)}
-                    className="text-gray-200 hover:text-white"
+                    className="px-5 py-2 rounded-full border border-indigo-500/70 text-indigo-200 hover:bg-indigo-600 hover:text-white font-medium shadow-sm hover:shadow-indigo-500/20 transition-all duration-200 active:scale-95"
                   >
                     Login
                   </Link>
                   <Link
                     href="/register"
                     onClick={() => setOpen(false)}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-full font-medium hover:bg-indigo-700 transition"
+                    className="px-5 py-2 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold hover:from-indigo-500 hover:to-indigo-400 shadow-md hover:shadow-indigo-400/30 transition-all duration-200 active:scale-95"
                   >
                     Register
                   </Link>
@@ -103,7 +104,7 @@ export default function Header() {
       </div>
 
       {/* 🧭 Top Navigation below Header */}
-      <div className="border-t border-indigo-800 bg-indigo-950">
+      <div className="border-t border-indigo-800/70 bg-indigo-950 dark:bg-indigo-950">
         <TopNavBar />
       </div>
     </header>
