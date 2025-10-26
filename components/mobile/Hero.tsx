@@ -20,8 +20,8 @@ export default function Hero() {
     if (headerRef.current) {
       const updateHeight = () =>
         setHeaderHeight(headerRef.current?.offsetHeight || 0);
-
       updateHeight();
+
       const resizeObserver = new ResizeObserver(updateHeight);
       resizeObserver.observe(headerRef.current);
       return () => resizeObserver.disconnect();
@@ -32,23 +32,26 @@ export default function Hero() {
     <section
       ref={headerRef}
       style={{ paddingTop: `${headerHeight}px` }}
-      className="relative overflow-hidden py-20 sm:py-24 min-h-[550px]
+      className="relative overflow-hidden pt-8 pb-16 sm:pt-20 sm:pb-24 min-h-[520px]
                  bg-white dark:bg-gradient-to-b dark:from-gray-950 dark:to-gray-900
                  flex flex-col justify-center"
     >
-      {/* ✅ Mobile Background Image (auto-adjusts, hidden on sm+) */}
-      <div
+      {/* ✅ Animated Mobile Background Image */}
+      <motion.div
         className="absolute inset-0 bg-center bg-no-repeat bg-contain sm:hidden"
         style={{
           backgroundImage: "url('/hero-bg.png')",
           backgroundSize: "contain",
         }}
-      ></div>
+        initial={{ opacity: 0, scale: 1.05 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1.2, ease: "easeOut" }}
+      />
 
       {/* ✅ Gradient overlay for readability */}
       <div className="absolute inset-0 bg-gradient-to-b from-white/90 to-white dark:from-gray-950/90 dark:to-gray-900/95"></div>
 
-      {/* ✅ Subtle animated shimmer */}
+      {/* ✅ Subtle shimmer accent */}
       <motion.div
         className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))]
                    from-indigo-300/20 via-transparent to-transparent"
@@ -57,7 +60,7 @@ export default function Hero() {
       />
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 text-center">
-        {/* Title */}
+        {/* Heading */}
         <motion.h1
           initial={{ opacity: 0, y: -25 }}
           animate={{ opacity: 1, y: 0 }}
@@ -87,7 +90,7 @@ export default function Hero() {
           Buy airtime, data, electricity, or cable TV instantly — right here or through our app, WhatsApp, or Telegram.
         </motion.p>
 
-        {/* Service selection */}
+        {/* Service buttons */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -111,7 +114,7 @@ export default function Hero() {
           ))}
         </motion.div>
 
-        {/* Call-to-action buttons */}
+        {/* CTA Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
