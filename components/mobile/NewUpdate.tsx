@@ -96,7 +96,7 @@ export default function NewUpdate({
           <motion.img
             src="/logo.png"
             alt="NexaApp Logo"
-            className="w-6 h-6 rounded-full flex-shrink-0"
+            className="w-6 h-6 rounded-full flex-shrink-0 mr-3" // ⬅ added margin-right for spacing
             initial={{ y: -5 }}
             animate={{ y: [0, -5, 0] }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -104,7 +104,7 @@ export default function NewUpdate({
 
           {/* Static “New” + Scrolling Message */}
           <div className="flex-1 flex justify-center items-center mx-2 overflow-hidden relative">
-            <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm mr-2 flex-shrink-0">
+            <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm mr-3 flex-shrink-0">
               New
             </span>
 
@@ -127,7 +127,7 @@ export default function NewUpdate({
           {/* Close Button */}
           <button
             onClick={handleClose}
-            className="ml-2 p-1 text-blue-800 dark:text-blue-200 hover:text-blue-600 dark:hover:text-blue-400 transition"
+            className="ml-3 p-1 text-blue-800 dark:text-blue-200 hover:text-blue-600 dark:hover:text-blue-400 transition"
             aria-label="Dismiss update banner"
           >
             <X size={14} />
