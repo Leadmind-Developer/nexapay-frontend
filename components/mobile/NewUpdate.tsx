@@ -102,23 +102,26 @@ export default function NewUpdate({
             transition={{ duration: 0.6, ease: "easeOut" }}
           />
 
-          {/* Scrolling Message Center */}
+          {/* Static “New” + Scrolling Message */}
           <div className="flex-1 flex justify-center items-center mx-2 overflow-hidden relative">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={currentMessage}
-                className="whitespace-nowrap flex items-center gap-2 text-sm leading-tight"
-                initial={{ x: "100%" }}
-                animate={{ x: "-100%" }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 10, ease: "linear" }} // slow smooth scroll
-              >
-                <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm mr-2">
-                  New
-                </span>
-                {messages[currentMessage]}
-              </motion.div>
-            </AnimatePresence>
+            <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm mr-2 flex-shrink-0">
+              New
+            </span>
+
+            <div className="overflow-hidden flex-1 relative">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={currentMessage}
+                  className="whitespace-nowrap inline-block text-sm leading-tight"
+                  initial={{ x: "100%" }}
+                  animate={{ x: "-100%" }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 10, ease: "linear" }}
+                >
+                  {messages[currentMessage]}
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Close Button */}
