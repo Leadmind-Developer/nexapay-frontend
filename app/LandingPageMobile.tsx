@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import SEO from "@/components/SEO";
-import Header from "@/components/mobile/Header"; // Mobile version of Header
-import Hero from "@/components/mobile/Hero";   // Mobile version of Hero
+import Header from "@/components/mobile/Header";  // Mobile version of Header
+import Hero from "@/components/mobile/Hero";    // Mobile version of Hero
 import Services from "@/components/mobile/Services"; // Mobile version of Services
 import Steps from "@/components/mobile/Steps";    // Mobile version of Steps
 import Features from "@/components/mobile/Features"; // Mobile version of Features
@@ -63,8 +63,8 @@ export default function LandingPageMobile() {
 
         {/* Page content */}
         <div style={{ paddingTop: `${headerHeight}px` }} className="flex flex-col w-full">
-          {/* Remove headerHeight prop, Hero handles it internally now */}
-          <Hero />
+          {/* Pass the headerHeight prop to Hero */}
+          <Hero headerHeight={headerHeight} />
           <Services />
           <Steps />
           <Features />
