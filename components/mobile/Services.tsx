@@ -73,7 +73,7 @@ export default function Services() {
     }
   };
 
-  // Setup Socket.IO for live updates
+  // Setup Socket.IO
   useEffect(() => {
     const socketClient = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
     setSocket(socketClient);
@@ -119,8 +119,10 @@ export default function Services() {
   };
 
   return (
-    <section className="py-20 bg-gray-50 text-center">
-      <h2 className="text-3xl font-bold mb-6">Pay Bills & Buy Airtime/Data</h2>
+    <section className="py-20 bg-gray-50 dark:bg-gray-900 text-center transition-colors duration-300">
+      <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+        Pay Bills & Buy Airtime/Data
+      </h2>
 
       {/* Provider Toggle */}
       <div className="flex justify-center gap-4 mb-10">
@@ -128,8 +130,10 @@ export default function Services() {
           <button
             key={p}
             onClick={() => setProvider(p)}
-            className={`px-6 py-2 rounded-full font-semibold transition ${
-              provider === p ? "bg-indigo-600 text-white" : "bg-white text-gray-700 shadow"
+            className={`px-6 py-2 rounded-full font-semibold transition-colors duration-200 ${
+              provider === p
+                ? "bg-indigo-600 text-white"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow"
             }`}
           >
             {p}
@@ -137,16 +141,19 @@ export default function Services() {
         ))}
       </div>
 
-      {/* Service Categories (Dropdown for mobile) */}
+      {/* Service Dropdown */}
       <div className="mb-10">
-        <label htmlFor="service" className="block text-lg font-medium text-gray-800 mb-2">
+        <label
+          htmlFor="service"
+          className="block text-lg font-medium text-gray-800 dark:text-gray-200 mb-2"
+        >
           Select Service
         </label>
         <select
           id="service"
           value={selectedService}
           onChange={(e) => setSelectedService(e.target.value as ServiceType)}
-          className="w-full p-3 bg-white border rounded-md shadow-sm"
+          className="w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-sm text-gray-800 dark:text-gray-200"
         >
           {SERVICE_CATEGORIES.map((s) => (
             <option key={s.type} value={s.type}>
@@ -156,37 +163,38 @@ export default function Services() {
         </select>
       </div>
 
-      {/* Option Dropdown (dynamic based on selected service) */}
+      {/* Option Dropdown */}
       <div className="mb-10">
-        <label htmlFor="option" className="block text-lg font-medium text-gray-800 mb-2">
+        <label
+          htmlFor="option"
+          className="block text-lg font-medium text-gray-800 dark:text-gray-200 mb-2"
+        >
           Select Option
         </label>
         <select
           id="option"
           value={selectedOption}
           onChange={(e) => setSelectedOption(e.target.value)}
-          className="w-full p-3 bg-white border rounded-md shadow-sm"
+          className="w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-sm text-gray-800 dark:text-gray-200"
         >
-          {SERVICE_CATEGORIES
-            .find((s) => s.type === selectedService)
-            ?.options.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
+          {SERVICE_CATEGORIES.find((s) => s.type === selectedService)?.options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* Dynamic Payment Form */}
+      {/* Payment Form */}
       {selectedOption && (
         <form
           onSubmit={handleSubmit}
-          className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg mb-10 text-left"
+          className="max-w-md mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg mb-10 text-left transition-colors"
         >
-          <h3 className="text-xl font-semibold mb-4 text-center">
+          <h3 className="text-xl font-semibold mb-4 text-center text-gray-900 dark:text-white">
             {SERVICE_CATEGORIES.find((s) => s.type === selectedService)?.label}
             <br />
-            <span className="text-indigo-600">{selectedOption}</span>
+            <span className="text-indigo-600 dark:text-indigo-400">{selectedOption}</span>
           </h3>
 
           {(selectedService === "AIRTIME" ||
@@ -204,7 +212,7 @@ export default function Services() {
               }
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full mb-4 p-2 border rounded"
+              className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
               required
             />
           )}
@@ -215,7 +223,7 @@ export default function Services() {
               placeholder="Data Plan Code"
               value={formData.planCode}
               onChange={(e) => setFormData({ ...formData, planCode: e.target.value })}
-              className="w-full mb-4 p-2 border rounded"
+              className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
             />
           )}
 
@@ -224,14 +232,14 @@ export default function Services() {
             placeholder="Amount (₦)"
             value={formData.amount}
             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-            className="w-full mb-4 p-2 border rounded"
+            className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
             required
             min="50"
           />
 
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition font-semibold"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded transition font-semibold"
           >
             Pay Now
           </button>
@@ -245,10 +253,10 @@ export default function Services() {
           animate={{ opacity: 1 }}
           className={`mb-6 font-medium ${
             statusMessage.includes("✅")
-              ? "text-green-600"
+              ? "text-green-600 dark:text-green-400"
               : statusMessage.includes("❌")
-              ? "text-red-600"
-              : "text-yellow-600"
+              ? "text-red-600 dark:text-red-400"
+              : "text-yellow-600 dark:text-yellow-400"
           }`}
         >
           {statusMessage}
@@ -256,15 +264,17 @@ export default function Services() {
       )}
 
       {/* Recent Transactions */}
-      <div className="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-lg">
-        <h3 className="text-2xl font-semibold mb-4">Recent Transactions</h3>
+      <div className="max-w-5xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg transition-colors">
+        <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
+          Recent Transactions
+        </h3>
         {transactions.length === 0 ? (
-          <p className="text-gray-500">No recent transactions found.</p>
+          <p className="text-gray-600 dark:text-gray-400">No recent transactions found.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full border border-gray-200">
+            <table className="min-w-full border border-gray-200 dark:border-gray-700">
               <thead>
-                <tr className="bg-gray-100 text-left">
+                <tr className="bg-gray-100 dark:bg-gray-700 text-left text-gray-800 dark:text-gray-200">
                   <th className="py-2 px-4">Service</th>
                   <th className="py-2 px-4">Provider</th>
                   <th className="py-2 px-4">Amount</th>
@@ -274,22 +284,27 @@ export default function Services() {
               </thead>
               <tbody>
                 {transactions.map((tx) => (
-                  <tr key={tx.id} className="border-t hover:bg-gray-50 transition">
+                  <tr
+                    key={tx.id}
+                    className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900 transition"
+                  >
                     <td className="py-2 px-4">{tx.service}</td>
                     <td className="py-2 px-4">{tx.provider}</td>
                     <td className="py-2 px-4">₦{tx.amount}</td>
                     <td
                       className={`py-2 px-4 font-semibold ${
                         tx.status === "SUCCESS"
-                          ? "text-green-600"
+                          ? "text-green-600 dark:text-green-400"
                           : tx.status === "FAILED"
-                          ? "text-red-600"
-                          : "text-yellow-600"
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-yellow-600 dark:text-yellow-400"
                       }`}
                     >
                       {tx.status}
                     </td>
-                    <td className="py-2 px-4">{new Date(tx.date).toLocaleString()}</td>
+                    <td className="py-2 px-4 text-gray-700 dark:text-gray-300">
+                      {new Date(tx.date).toLocaleString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>
