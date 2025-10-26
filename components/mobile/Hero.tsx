@@ -32,7 +32,7 @@ export default function Hero() {
     <section
       ref={headerRef}
       style={{ paddingTop: `${headerHeight}px` }}
-      className="relative overflow-hidden pt-8 pb-16 sm:pt-20 sm:pb-24 min-h-[520px]
+      className="relative overflow-hidden pt-4 pb-8 sm:pt-16 sm:pb-20 min-h-[520px]
                  bg-white dark:bg-gradient-to-b dark:from-gray-950 dark:to-gray-900
                  flex flex-col justify-center"
     >
