@@ -32,18 +32,18 @@ const SERVICE_CATEGORIES: {
     options: ["MTN DATA", "GLO DATA", "AIRTEL DATA", "9MOBILE DATA", "SMILE DATA"],
   },
   {
-    type: "CABLE",
-    label: "Pay TV Subs",
-    options: ["GOTV", "DSTV", "STARTIMES"],
-  },
-  {
     type: "ELECTRICITY",
     label: "Pay Electricity Bill",
     options: ["PHED", "AEDC", "IKEDC", "EKEDC", "KEDCO", "IBEDC", "JEDplc", "KAEDCO"],
   },
   {
+    type: "CABLE",
+    label: "Pay TV Subscription",
+    options: ["GOTV", "DSTV", "STARTIMES"],
+  },
+  {
     type: "INSURANCE",
-    label: "Insurance",
+    label: "Insurance Plans",
     options: [
       "Third Party Motor",
       "Health Insurance - HMO",
@@ -83,10 +83,7 @@ export default function Services() {
     });
 
     fetchTransactions();
-
-    return () => {
-      socketClient.disconnect();
-    };
+    return () => socketClient.disconnect();
   }, []);
 
   // Submit handler
@@ -118,14 +115,28 @@ export default function Services() {
     }
   };
 
+  // Shared fade-up animation
+  const fadeUp = {
+    initial: { opacity: 0, y: 40 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true },
+    transition: { duration: 0.6 },
+  };
+
   return (
     <section className="py-20 bg-gray-50 dark:bg-gray-900 text-center transition-colors duration-300">
-      <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+      <motion.h2
+        {...fadeUp}
+        className="text-3xl font-bold mb-10 text-gray-900 dark:text-white"
+      >
         Pay Bills & Buy Airtime/Data
-      </h2>
+      </motion.h2>
 
       {/* Provider Toggle */}
-      <div className="flex justify-center gap-4 mb-10">
+      <motion.div
+        {...fadeUp}
+        className="flex justify-center gap-4 mb-12 flex-wrap"
+      >
         {(["SmartCash", "VTpass"] as ProviderType[]).map((p) => (
           <button
             key={p}
@@ -139,119 +150,108 @@ export default function Services() {
             {p}
           </button>
         ))}
-      </div>
+      </motion.div>
 
-      {/* Service Dropdown */}
-      <div className="mb-10">
-        <label
-          htmlFor="service"
-          className="block text-lg font-medium text-gray-800 dark:text-gray-200 mb-2"
+      {/* === Service Sections === */}
+      {SERVICE_CATEGORIES.map((service, index) => (
+        <motion.section
+          id={service.type.toLowerCase()}
+          key={service.type}
+          {...fadeUp}
+          transition={{ duration: 0.6, delay: index * 0.2 }}
+          className="py-16 border-t border-gray-200 dark:border-gray-800"
         >
-          Select Service
-        </label>
-        <select
-          id="service"
-          value={selectedService}
-          onChange={(e) => setSelectedService(e.target.value as ServiceType)}
-          className="w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-sm text-gray-800 dark:text-gray-200"
-        >
-          {SERVICE_CATEGORIES.map((s) => (
-            <option key={s.type} value={s.type}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Option Dropdown */}
-      <div className="mb-10">
-        <label
-          htmlFor="option"
-          className="block text-lg font-medium text-gray-800 dark:text-gray-200 mb-2"
-        >
-          Select Option
-        </label>
-        <select
-          id="option"
-          value={selectedOption}
-          onChange={(e) => setSelectedOption(e.target.value)}
-          className="w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-sm text-gray-800 dark:text-gray-200"
-        >
-          {SERVICE_CATEGORIES.find((s) => s.type === selectedService)?.options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Payment Form */}
-      {selectedOption && (
-        <form
-          onSubmit={handleSubmit}
-          className="max-w-md mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg mb-10 text-left transition-colors"
-        >
-          <h3 className="text-xl font-semibold mb-4 text-center text-gray-900 dark:text-white">
-            {SERVICE_CATEGORIES.find((s) => s.type === selectedService)?.label}
-            <br />
-            <span className="text-indigo-600 dark:text-indigo-400">{selectedOption}</span>
+          <h3 className="text-2xl font-bold mb-8 text-gray-900 dark:text-white">
+            {service.label}
           </h3>
 
-          {(selectedService === "AIRTIME" ||
-            selectedService === "DATA" ||
-            selectedService === "ELECTRICITY" ||
-            selectedService === "CABLE") && (
-            <input
-              type="tel"
-              placeholder={
-                selectedService === "ELECTRICITY"
-                  ? "Meter Number"
-                  : selectedService === "CABLE"
-                  ? "Smartcard Number"
-                  : "Phone Number"
-              }
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
-              required
-            />
-          )}
+          <div className="max-w-md mx-auto">
+            <select
+              value={selectedService === service.type ? selectedOption : ""}
+              onChange={(e) => {
+                setSelectedService(service.type);
+                setSelectedOption(e.target.value);
+              }}
+              className="w-full mb-6 p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-sm text-gray-800 dark:text-gray-200"
+            >
+              <option value="">Select an option</option>
+              {service.options.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
 
-          {selectedService === "DATA" && (
-            <input
-              type="text"
-              placeholder="Data Plan Code"
-              value={formData.planCode}
-              onChange={(e) => setFormData({ ...formData, planCode: e.target.value })}
-              className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
-            />
-          )}
+            {selectedService === service.type && selectedOption && (
+              <motion.form
+                onSubmit={handleSubmit}
+                {...fadeUp}
+                transition={{ delay: 0.2 }}
+                className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg text-left"
+              >
+                <h4 className="text-lg font-semibold mb-4 text-center text-indigo-600 dark:text-indigo-400">
+                  {selectedOption}
+                </h4>
 
-          <input
-            type="number"
-            placeholder="Amount (₦)"
-            value={formData.amount}
-            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-            className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
-            required
-            min="50"
-          />
+                {/* Input Fields */}
+                <input
+                  type="text"
+                  placeholder={
+                    service.type === "ELECTRICITY"
+                      ? "Meter Number"
+                      : service.type === "CABLE"
+                      ? "Smartcard Number"
+                      : "Phone Number"
+                  }
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
+                  required
+                />
 
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded transition font-semibold"
-          >
-            Pay Now
-          </button>
-        </form>
-      )}
+                {service.type === "DATA" && (
+                  <input
+                    type="text"
+                    placeholder="Data Plan Code"
+                    value={formData.planCode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, planCode: e.target.value })
+                    }
+                    className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
+                  />
+                )}
+
+                <input
+                  type="number"
+                  placeholder="Amount (₦)"
+                  value={formData.amount}
+                  onChange={(e) =>
+                    setFormData({ ...formData, amount: e.target.value })
+                  }
+                  className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
+                  required
+                  min="50"
+                />
+
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded transition font-semibold"
+                >
+                  Pay Now
+                </button>
+              </motion.form>
+            )}
+          </div>
+        </motion.section>
+      ))}
 
       {/* Status Message */}
       {statusMessage && (
         <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className={`mb-6 font-medium ${
+          {...fadeUp}
+          className={`mt-10 font-medium ${
             statusMessage.includes("✅")
               ? "text-green-600 dark:text-green-400"
               : statusMessage.includes("❌")
@@ -264,7 +264,10 @@ export default function Services() {
       )}
 
       {/* Recent Transactions */}
-      <div className="max-w-5xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg transition-colors">
+      <motion.div
+        {...fadeUp}
+        className="max-w-5xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg mt-16 transition-colors"
+      >
         <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
           Recent Transactions
         </h3>
@@ -311,7 +314,7 @@ export default function Services() {
             </table>
           </div>
         )}
-      </div>
+      </motion.div>
     </section>
   );
 }
