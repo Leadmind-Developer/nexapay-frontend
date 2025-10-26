@@ -1,71 +1,144 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Sparkles, Zap, Smartphone, Tv, PlugZap, Apple } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 
-export default function NewUpdate() {
-  const [service, setService] = useState("Airtime");
+export default function NewUpdate({
+  onHeightChange,
+}: {
+  onHeightChange?: (height: number) => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null); // Correct ref type
+  const [visible, setVisible] = useState(true);
 
-  const services = [
-    { name: "Airtime", icon: <Smartphone className="w-5 h-5" /> },
-    { name: "Data", icon: <Zap className="w-5 h-5" /> },
-    { name: "Electricity", icon: <PlugZap className="w-5 h-5" /> },
-    { name: "Cable", icon: <Tv className="w-5 h-5" /> },
+  // Rotating messages
+  const messages = [
+    <>
+      Need a free bills payment website like <span className="font-semibold">NexaApp</span>?{" "}
+      <Link
+        href="/contact"
+        className="underline font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+      >
+        Click here
+      </Link>
+    </>,
+    <>
+      Ready to crowdfund your project or cause? <span className="font-semibold">launch</span> your campaign now!.
+      <Link
+        href="/contact"
+        className="underline font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+      >
+         Click here 
+      </Link>
+    </>,  
+    <>
+      Need a quick loan?{" "}
+      <Link
+        href="/contact"
+        className="underline font-medium hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+      >
+        Click here
+      </Link>
+    </>,
+    <>
+      Do you want to build a saving culture? Earn <span className="font-semibold">10% interest</span> on your savings.
+    </>,
   ];
 
+  const [currentMessage, setCurrentMessage] = useState(0);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem("newUpdateDismissed");
+    if (dismissed === "true") setVisible(false);
+  }, []);
+
+  // Cycle messages every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentMessage((prev) => (prev + 1) % messages.length);
+    }, 5000); // 5 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  // Track and report height changes to parent
+  useEffect(() => {
+    if (!ref.current || !onHeightChange) return;
+
+    const updateHeight = () => {
+      // Check if ref.current is not null and get the height
+      onHeightChange(ref.current?.offsetHeight || 0);
+    };
+
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(ref.current);
+
+    return () => observer.disconnect();
+  }, [onHeightChange]);
+
+  const handleClose = () => {
+    setVisible(false);
+    localStorage.setItem("newUpdateDismissed", "true");
+  };
+
   return (
-    <section className="relative overflow-hidden min-h-[400px] w-full flex items-center justify-center bg-gradient-to-r from-indigo-50 to-white">
-      {/* Decorative shimmer */}
-      <motion.div
-        className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-yellow-200/20 via-transparent to-transparent"
-        animate={{ opacity: [0.3, 0.6, 0.3] }}
-        transition={{ repeat: Infinity, duration: 6 }}
-      />
-
-      <div className="relative z-10 w-full max-w-3xl px-6 sm:px-12 text-center">
-        <motion.h2
-          initial={{ opacity: 0, y: -25 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-2xl sm:text-3xl font-bold mb-3 text-indigo-900"
-        >
-          🚀 Big Update!
-        </motion.h2>
-
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.8 }}
-          className="text-base sm:text-lg mb-6 text-indigo-800"
-        >
-          We’ve improved NexaPay performance and added new service options —
-          now faster and smoother for all users.
-        </motion.p>
-
-        {/* Service buttons */}
+    <AnimatePresence>
+      {visible && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="flex justify-center flex-wrap gap-3"
+          ref={ref}
+          initial={{ opacity: 0, y: -15 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+          className="sticky top-0 z-[60] flex items-center justify-between px-4 py-2 
+                     bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 
+                     text-blue-900 dark:text-blue-100 border-b border-blue-200 dark:border-blue-700
+                     sm:px-6 sm:py-3" // Adjust padding for mobile
+          role="status"
+          aria-live="polite"
         >
-          {services.map((s) => (
-            <button
-              key={s.name}
-              onClick={() => setService(s.name)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-all text-sm sm:text-base ${
-                service === s.name
-                  ? "bg-white text-indigo-700 shadow-lg"
-                  : "bg-indigo-500/40 hover:bg-indigo-400/60 border border-white/20"
-              }`}
-            >
-              {s.icon}
-              {s.name}
-            </button>
-          ))}
+          {/* Logo on the left */}
+          <motion.img
+            src="/logo.png"
+            alt="NexaApp Logo"
+            className="w-6 h-6 rounded-full flex-shrink-0"
+            initial={{ y: -5 }}
+            animate={{ y: [0, -5, 0] }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          />
+
+          {/* Rotating message in the center */}
+          <div className="flex-1 flex justify-center items-center gap-2 text-center mx-2">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={currentMessage}
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                transition={{ duration: 0.4 }}
+                className="flex items-center gap-2 text-sm leading-tight"
+              >
+                <span className="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                  New
+                </span>
+                {messages[currentMessage]}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Close button */}
+          <button
+            onClick={handleClose}
+            className="ml-2 p-1 text-blue-800 dark:text-blue-200 hover:text-blue-600 dark:hover:text-blue-400 transition"
+            aria-label="Dismiss update banner"
+          >
+            <X size={14} />
+          </button>
         </motion.div>
-      </div>
-    </section>
+      )}
+    </AnimatePresence>
   );
 }
