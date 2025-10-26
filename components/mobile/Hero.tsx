@@ -14,6 +14,27 @@ export default function Hero() {
     { name: "Cable", icon: <Tv className="w-5 h-5" /> },
   ];
 
+  // 🔹 Smooth scroll handler
+  const handleServiceClick = (s: string) => {
+    setService(s);
+    const id = s.toLowerCase(); // expects section IDs like #airtime, #data, etc.
+    const section = document.getElementById(id);
+    if (section) {
+      const headerOffset = parseInt(
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--header-height")
+          .replace("px", "")
+      );
+      const elementPosition = section.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - (headerOffset || 80);
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth",
+      });
+    }
+  };
+
   return (
     <section
       className="relative overflow-hidden pb-16 sm:pb-24 min-h-[520px]
@@ -23,22 +44,19 @@ export default function Hero() {
         paddingTop: "var(--header-height)", // ✅ respects total header height
       }}
     >
-      {/* ✅ Animated Mobile Background Image */}
+      {/* ✅ Mobile background */}
       <motion.div
         className="absolute inset-0 bg-center bg-no-repeat bg-contain sm:hidden"
-        style={{
-          backgroundImage: "url('/hero-bg.png')",
-          backgroundSize: "contain",
-        }}
+        style={{ backgroundImage: "url('/hero-bg.png')" }}
         initial={{ opacity: 0, scale: 1.05 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.2, ease: "easeOut" }}
       />
 
-      {/* ✅ Gradient overlay for readability */}
+      {/* ✅ Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-white/90 to-white dark:from-gray-950/90 dark:to-gray-900/95"></div>
 
-      {/* ✅ Subtle shimmer accent */}
+      {/* ✅ Glow accent */}
       <motion.div
         className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))]
                    from-indigo-300/20 via-transparent to-transparent"
@@ -46,9 +64,8 @@ export default function Hero() {
         transition={{ repeat: Infinity, duration: 6 }}
       />
 
-      {/* ✅ Main Content */}
+      {/* ✅ Content */}
       <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 text-center">
-        {/* Heading */}
         <motion.h1
           initial={{ opacity: 0, y: -25 }}
           animate={{ opacity: 1, y: 0 }}
@@ -58,7 +75,6 @@ export default function Hero() {
           Simplify Your Payments with
         </motion.h1>
 
-        {/* Highlighted brand */}
         <motion.h2
           initial={{ opacity: 0, y: -25 }}
           animate={{ opacity: 1, y: 0 }}
@@ -68,7 +84,6 @@ export default function Hero() {
           NexaPay <Sparkles className="w-5 h-5 inline" />
         </motion.h2>
 
-        {/* Description */}
         <motion.p
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -78,7 +93,7 @@ export default function Hero() {
           Buy airtime, data, electricity, or cable TV instantly — right here or through our app, WhatsApp, or Telegram.
         </motion.p>
 
-        {/* Service buttons */}
+        {/* 🔹 Service Buttons with Smooth Scroll */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -88,7 +103,7 @@ export default function Hero() {
           {services.map((s) => (
             <button
               key={s.name}
-              onClick={() => setService(s.name)}
+              onClick={() => handleServiceClick(s.name)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm sm:text-base transition-all
                 ${
                   service === s.name
@@ -112,7 +127,7 @@ export default function Hero() {
           <a
             href="https://wa.me/2348012345678?text=Hi%20I%20want%20to%20buy%20some%20services"
             target="_blank"
-            className="bg-green-500 hover:bg-green-600 text-white px-7 py-3 rounded-lg font-semibold flex items-center gap-2 text-sm sm:text-base transition"
+            className="bg-green-500 hover:bg-green-600 text-white px-7 py-3 rounded-full font-semibold flex items-center gap-2 text-sm sm:text-base transition"
           >
             WhatsApp
           </a>
@@ -120,7 +135,7 @@ export default function Hero() {
           <a
             href="https://t.me/NexaPayBot"
             target="_blank"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-7 py-3 rounded-lg font-semibold flex items-center gap-2 text-sm sm:text-base transition"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-7 py-3 rounded-full font-semibold flex items-center gap-2 text-sm sm:text-base transition"
           >
             Telegram
           </a>
@@ -128,7 +143,7 @@ export default function Hero() {
           <a
             href="https://apps.apple.com/app/idYOUR_APP_ID"
             target="_blank"
-            className="bg-black hover:bg-gray-800 text-white px-7 py-3 rounded-lg font-semibold flex items-center gap-2 text-sm sm:text-base transition"
+            className="bg-black hover:bg-gray-800 text-white px-7 py-3 rounded-full font-semibold flex items-center gap-2 text-sm sm:text-base transition"
           >
             <Apple className="w-5 h-5" /> iOS
           </a>
@@ -136,13 +151,9 @@ export default function Hero() {
           <a
             href="https://play.google.com/store/apps/details?id=YOUR_APP_PACKAGE"
             target="_blank"
-            className="bg-black hover:bg-gray-900 text-white px-7 py-3 rounded-lg font-semibold flex items-center gap-2 text-sm sm:text-base transition"
+            className="bg-black hover:bg-gray-900 text-white px-7 py-3 rounded-full font-semibold flex items-center gap-2 text-sm sm:text-base transition"
           >
-            <svg
-              className="w-5 h-5"
-              viewBox="0 0 512 512"
-              fill="currentColor"
-            >
+            <svg className="w-5 h-5" viewBox="0 0 512 512" fill="currentColor">
               <path d="M325.3 234.3L104.1 21.9c-5.9-5.9-15.3-5.3-20.3 1.3C77.5 28.3 64 52.6 64 80v352c0 27.4 13.5 51.7 19.8 57.8 5 6.6 14.4 7.2 20.3 1.3l221.2-212.4c8-7.7 8-20.7 0-28.4zM345.3 278.7c0 13.3-10.7 24-24 24h-16v-48h16c13.3 0 24 10.7 24 24z" />
             </svg>
             Android
