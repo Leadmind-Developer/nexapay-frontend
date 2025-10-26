@@ -11,8 +11,15 @@ const features = [
 
 export default function Features() {
   return (
-    <section className="py-20 bg-gray-50 text-center">
-      <h2 className="text-3xl font-bold mb-10">Why Choose NexaPay</h2>
+    <section
+      className="py-20 bg-gray-50 dark:bg-gray-950 text-center transition-colors duration-300"
+    >
+      {/* 🌟 Section Title */}
+      <h2 className="text-3xl font-bold mb-10 text-gray-900 dark:text-white">
+        Why Choose NexaPay
+      </h2>
+
+      {/* 🧩 Feature Grid */}
       <div className="flex flex-wrap justify-center gap-8 max-w-5xl mx-auto px-4">
         {features.map((feature, idx) => (
           <motion.div
@@ -21,11 +28,16 @@ export default function Features() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: idx * 0.2 }}
-            className="bg-white p-6 rounded-lg shadow hover:shadow-lg w-full sm:w-64"
+            className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow
+                       hover:shadow-lg transition w-full sm:w-64"
           >
             <div className="text-4xl mb-4">{feature.icon}</div>
-            <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-            <p className="text-gray-700 text-sm sm:text-base">{feature.desc}</p>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+              {feature.title}
+            </h3>
+            <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
+              {feature.desc}
+            </p>
           </motion.div>
         ))}
       </div>
