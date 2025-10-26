@@ -5,17 +5,17 @@ import { Users, Wallet, Headphones } from "lucide-react";
 
 const agentBenefits = [
   {
-    icon: <Users className="w-10 h-10 text-indigo-600 mb-3" />,
+    icon: Users,
     title: "Earn Commission",
     desc: "Make money on every airtime, data, or bill payment transaction.",
   },
   {
-    icon: <Wallet className="w-10 h-10 text-indigo-600 mb-3" />,
+    icon: Wallet,
     title: "Easy Wallet Funding",
     desc: "Fund your wallet easily via transfer or card payment — anytime.",
   },
   {
-    icon: <Headphones className="w-10 h-10 text-indigo-600 mb-3" />,
+    icon: Headphones,
     title: "Priority Support",
     desc: "Enjoy 24/7 agent support for all transactions and settlements.",
   },
@@ -23,30 +23,69 @@ const agentBenefits = [
 
 export default function Agents() {
   return (
-    <section className="py-10 sm:py-20 bg-white text-center">
-      <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-10">Become a NexaPay Agent</h2>
-      <div className="flex flex-col sm:flex-row sm:flex-wrap justify-center gap-8 max-w-5xl mx-auto px-6">
+    <section
+      className="relative py-16 sm:py-20 
+                 bg-gradient-to-b from-white to-indigo-50 
+                 dark:from-gray-950 dark:to-gray-900 
+                 text-center overflow-hidden"
+    >
+      {/* 🌟 Subtle animated glow background */}
+      <motion.div
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))]
+                   from-indigo-300/20 via-transparent to-transparent pointer-events-none"
+        animate={{ opacity: [0.4, 0.7, 0.4] }}
+        transition={{ duration: 6, repeat: Infinity }}
+      />
+
+      {/* 🏷️ Title */}
+      <motion.h2
+        initial={{ opacity: 0, y: -20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+        className="relative text-2xl sm:text-3xl font-bold mb-8 sm:mb-12 
+                   text-gray-900 dark:text-white z-10"
+      >
+        Become a NexaPay Agent
+      </motion.h2>
+
+      {/* 💼 Benefit Cards */}
+      <div className="relative z-10 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-8 max-w-6xl mx-auto px-6">
         {agentBenefits.map((item, idx) => (
           <motion.div
             key={idx}
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: idx * 0.2 }}
-            className="bg-indigo-50 p-6 rounded-2xl shadow w-full sm:w-72 hover:shadow-lg transition"
+            transition={{ duration: 0.5, delay: idx * 0.15 }}
+            className="bg-white dark:bg-gray-900 
+                       p-6 sm:p-8 rounded-2xl shadow-md hover:shadow-lg 
+                       dark:hover:shadow-indigo-700/10
+                       border border-gray-100 dark:border-gray-800
+                       w-full sm:w-72 transition flex flex-col items-center"
           >
-            <div className="flex flex-col items-center">
-              {item.icon}
-              <h3 className="text-lg sm:text-xl font-semibold mb-2">{item.title}</h3>
-              <p className="text-gray-700 text-sm sm:text-base">{item.desc}</p>
-            </div>
+            <item.icon className="w-10 h-10 text-indigo-600 dark:text-yellow-400 mb-3" />
+            <h3 className="text-lg sm:text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
+              {item.title}
+            </h3>
+            <p className="text-gray-700 dark:text-gray-400 text-sm sm:text-base leading-relaxed">
+              {item.desc}
+            </p>
           </motion.div>
         ))}
       </div>
+
+      {/* 🚀 CTA Button */}
       <motion.a
         href="/agents"
         whileHover={{ scale: 1.05 }}
-        className="mt-8 inline-block bg-indigo-600 text-white px-6 py-3 rounded-full font-medium shadow hover:bg-indigo-700 transition"
+        whileTap={{ scale: 0.98 }}
+        className="relative z-10 mt-10 inline-block 
+                   bg-indigo-600 dark:bg-yellow-400 
+                   text-white dark:text-gray-900 
+                   px-8 py-3 rounded-full font-semibold 
+                   shadow hover:bg-indigo-700 dark:hover:bg-yellow-300
+                   transition"
       >
         Join as an Agent
       </motion.a>
