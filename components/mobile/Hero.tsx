@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Zap, Smartphone, Tv, PlugZap, Apple } from "lucide-react";
 
 export default function Hero() {
   const [service, setService] = useState("Airtime");
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const headerRef = useRef<HTMLDivElement | null>(null);
 
   const services = [
     { name: "Airtime", icon: <Smartphone className="w-5 h-5" /> },
@@ -16,25 +14,14 @@ export default function Hero() {
     { name: "Cable", icon: <Tv className="w-5 h-5" /> },
   ];
 
-  useEffect(() => {
-    if (headerRef.current) {
-      const updateHeight = () =>
-        setHeaderHeight(headerRef.current?.offsetHeight || 0);
-      updateHeight();
-
-      const resizeObserver = new ResizeObserver(updateHeight);
-      resizeObserver.observe(headerRef.current);
-      return () => resizeObserver.disconnect();
-    }
-  }, []);
-
   return (
     <section
-      ref={headerRef}
-      style={{ paddingTop: `${headerHeight}px` }}
-      className="relative overflow-hidden pt-4 pb-8 sm:pt-16 sm:pb-20 min-h-[520px]
+      className="relative overflow-hidden pb-16 sm:pb-24 min-h-[520px]
                  bg-white dark:bg-gradient-to-b dark:from-gray-950 dark:to-gray-900
                  flex flex-col justify-center"
+      style={{
+        paddingTop: "var(--header-height)", // ✅ respects total header height
+      }}
     >
       {/* ✅ Animated Mobile Background Image */}
       <motion.div
@@ -59,6 +46,7 @@ export default function Hero() {
         transition={{ repeat: Infinity, duration: 6 }}
       />
 
+      {/* ✅ Main Content */}
       <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 text-center">
         {/* Heading */}
         <motion.h1
