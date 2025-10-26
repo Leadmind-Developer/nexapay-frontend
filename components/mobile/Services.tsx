@@ -83,7 +83,9 @@ export default function Services() {
     });
 
     fetchTransactions();
-    return () => socketClient.disconnect();
+    return () => {
+      socketClient.disconnect();
+    };
   }, []);
 
   // Submit handler
