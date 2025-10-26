@@ -65,7 +65,7 @@ export default function Header() {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.25 }}
               className="bg-indigo-900/95 dark:bg-indigo-950/90 border-t border-indigo-800 shadow-lg backdrop-blur-md md:hidden"
             >
               <nav className="flex flex-col items-center gap-4 py-5">
@@ -74,7 +74,7 @@ export default function Header() {
                     key={item}
                     href={`#${item.toLowerCase().replace(" ", "")}`}
                     onClick={() => setOpen(false)}
-                    className="text-gray-200 hover:text-white font-medium transition-colors"
+                    className="px-6 py-2 rounded-full border border-indigo-600/40 text-indigo-100 font-medium bg-indigo-800/40 hover:bg-indigo-700/60 hover:border-indigo-500/70 hover:text-white shadow-sm hover:shadow-indigo-500/30 transition-all duration-200 active:scale-95"
                   >
                     {item}
                   </Link>
