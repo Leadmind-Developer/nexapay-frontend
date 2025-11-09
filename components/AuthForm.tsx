@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import OTPInput from "./OTPInput";
+import OTPInput from "@/otp/OTPClient";
 
 interface AuthFormProps {
   mode: "login" | "register";
