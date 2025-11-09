@@ -1,4 +1,3 @@
-// components/AuthForm.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,9 +12,12 @@ interface AuthFormProps {
 type LoginMethod = "phone" | "email" | "userID";
 type Step = "input" | "verify" | "2fa";
 
-export default function AuthForm({ mode }: AuthFormProps) {
+export default function AuthForm({ mode: initialMode }: AuthFormProps) {
+  const [mode, setMode] = useState<AuthFormProps["mode"]>(initialMode);
   const [method, setMethod] = useState<LoginMethod>("phone");
   const [identifier, setIdentifier] = useState("");
+  const [name, setName] = useState(""); // For registration
+  const [phone, setPhone] = useState(""); // Optional
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<Step>("input");
   const [loading, setLoading] = useState(false);
@@ -28,28 +30,21 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
   const router = useRouter();
 
-  // --------------------------
-  // Detect WebAuthn / biometrics support
-  // --------------------------
+  // Detect biometrics support
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
     if (window.PublicKeyCredential) setBiometricAvailable(true);
   }, []);
 
-  // -------------------
-  // Resend timer countdown
-  // -------------------
+  // Resend timer
   useEffect(() => {
     if (resendTimer <= 0) return;
     const interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  // --------------------------
-  // STEP 1: Send OTP / Start login
-  // --------------------------
+  // -------------------------
+  // STEP 1: Send OTP / Start
+  // -------------------------
   async function handleSendOtp() {
     setLoading(true);
     setError("");
@@ -57,8 +52,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
     try {
       const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
-
-      const body = { identifier: identifier.trim(), method };
+      const body =
+        mode === "register"
+          ? { name: name.trim(), email: identifier.trim(), phone, userID: identifier.trim() }
+          : { identifier: identifier.trim(), method };
 
       const res = await api.post(endpoint, body);
       const data = res.data;
@@ -71,10 +68,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
           setMessage("⚡ Additional 2FA required. Please complete verification.");
         } else {
           setStep("verify");
-          setMessage("✅ OTP sent successfully! Check your inbox or SMS.");
+          setMessage("✅ OTP sent successfully!");
           setResendTimer(30);
         }
-      } else setError(data.message || "Failed to send OTP.");
+      } else {
+        setError(data.message || "Failed to send OTP.");
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Error sending OTP.");
     } finally {
@@ -82,9 +81,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
     }
   }
 
-  // --------------------------
-  // STEP 2: Verify OTP / 2FA
-  // --------------------------
+  // -------------------------
+  // STEP 2: Verify OTP
+  // -------------------------
   async function handleVerifyOtp() {
     if (otp.length < 6) return;
 
@@ -95,7 +94,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
     try {
       const endpoint =
         mode === "register" ? "/auth/confirm-registration" : "/auth/confirm-login";
-
       const body = { identifier: identifier.trim(), token: otp };
 
       const res = await api.post(endpoint, body);
@@ -107,14 +105,12 @@ export default function AuthForm({ mode }: AuthFormProps) {
           setPushRequired(!!data.pushRequired);
           setStep("2fa");
           setMessage("⚡ Additional 2FA required. Please complete verification.");
-
-          if (biometricAvailable && data.webauthnChallenge) {
-            await handleBiometricLogin(data.webauthnChallenge);
-          }
         } else {
           finalizeLogin(data.token, data.user);
         }
-      } else setError(data.message || "Invalid OTP. Please try again.");
+      } else {
+        setError(data.message || "Invalid OTP. Try again.");
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid or expired OTP.");
     } finally {
@@ -122,56 +118,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
     }
   }
 
-  // --------------------------
-  // Biometric / WebAuthn login
-  // --------------------------
-  async function handleBiometricLogin(challenge: PublicKeyCredentialRequestOptions) {
-    try {
-      const credential = (await navigator.credentials.get({
-        publicKey: challenge,
-      })) as PublicKeyCredential;
-
-      const assertionResponse = credential.response as AuthenticatorAssertionResponse;
-
-      const authData = {
-        id: credential.id,
-        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
-        type: credential.type,
-        response: {
-          clientDataJSON: btoa(
-            String.fromCharCode(...new Uint8Array(assertionResponse.clientDataJSON))
-          ),
-          authenticatorData: btoa(
-            String.fromCharCode(...new Uint8Array(assertionResponse.authenticatorData))
-          ),
-          signature: btoa(
-            String.fromCharCode(...new Uint8Array(assertionResponse.signature))
-          ),
-          userHandle: assertionResponse.userHandle
-            ? btoa(String.fromCharCode(...new Uint8Array(assertionResponse.userHandle)))
-            : null,
-        },
-      };
-
-      const res = await api.post("/auth/verify-webauthn", {
-        identifier,
-        credential: authData,
-      });
-
-      if (res.data.success && res.data.token) {
-        finalizeLogin(res.data.token, res.data.user);
-      } else {
-        setError(res.data.message || "Biometric verification failed.");
-      }
-    } catch (err: any) {
-      console.error(err);
-      setError("Biometric authentication failed or was cancelled.");
-    }
-  }
-
-  // --------------------------
-  // STEP 3: TOTP / Push 2FA
-  // --------------------------
+  // -------------------------
+  // STEP 3: 2FA / Push / Biometric
+  // -------------------------
   async function handle2FAVerification(totpCode?: string) {
     setLoading(true);
     setError("");
@@ -183,7 +132,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
         totp: totpCode,
         push: pushRequired ? true : undefined,
       });
-
       const data = res.data;
 
       if (data.success && data.token) {
@@ -198,6 +146,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
     }
   }
 
+  // -------------------------
+  // Finalize login
+  // -------------------------
   function finalizeLogin(token: string, user: any) {
     localStorage.setItem("token", token);
     if (user) localStorage.setItem("user", JSON.stringify(user));
@@ -212,67 +163,118 @@ export default function AuthForm({ mode }: AuthFormProps) {
     setTimeout(() => router.push("/dashboard"), 1200);
   }
 
+  // -------------------------
+  // Render form fields
+  // -------------------------
   return (
     <div className="max-w-md mx-auto mt-10 bg-white dark:bg-gray-800 rounded-2xl shadow p-6 space-y-6">
       <h1 className="text-2xl font-semibold text-center text-gray-800 dark:text-white">
         {mode === "register" ? "Create Account" : "Login"}
       </h1>
 
-      <div className="flex justify-center gap-2">
-        {["phone", "email", "userID"].map((type) => (
-          <button
-            key={type}
-            onClick={() => setMethod(type as LoginMethod)}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              method === type
-                ? "bg-blue-600 text-white shadow"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            {type === "phone" ? "Phone" : type === "email" ? "Email" : "UserID"}
-          </button>
-        ))}
-      </div>
+      {/* Toggle mode */}
+      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+        {mode === "register" ? (
+          <>
+            Already have an account?{" "}
+            <button
+              onClick={() => {
+                setMode("login");
+                setStep("input");
+              }}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Login
+            </button>
+          </>
+        ) : (
+          <>
+            Don’t have an account?{" "}
+            <button
+              onClick={() => {
+                setMode("register");
+                setStep("input");
+              }}
+              className="text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Register
+            </button>
+          </>
+        )}
+      </p>
 
-      {/* STEP INPUT */}
+      {/* Registration fields */}
+      {mode === "register" && step === "input" && (
+        <>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Full Name"
+            className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Phone (optional)"
+            className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+          />
+        </>
+      )}
+
+      {/* Login method selector */}
+      {mode === "login" && step === "input" && (
+        <div className="flex justify-center gap-2 mb-3">
+          {["phone", "email", "userID"].map((type) => (
+            <button
+              key={type}
+              onClick={() => setMethod(type as LoginMethod)}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                method === type
+                  ? "bg-blue-600 text-white shadow"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              {type === "phone" ? "Phone" : type === "email" ? "Email" : "UserID"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Identifier input */}
       {step === "input" && (
         <>
           <input
-            type={method === "phone" ? "tel" : method === "email" ? "email" : "text"}
+            type={mode === "login" ? (method === "phone" ? "tel" : "text") : "email"}
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-            placeholder={
-              method === "phone"
-                ? "Enter phone number"
-                : method === "email"
-                ? "Enter email address"
-                : "Enter userID"
-            }
-            className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+            placeholder={mode === "login" ? (method === "phone" ? "Enter phone" : "Email/UserID") : "Email"}
+            className="w-full p-3 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 mb-2"
           />
           <button
             onClick={handleSendOtp}
-            disabled={loading || !identifier.trim()}
+            disabled={loading || (!identifier.trim() && mode === "login") || (mode === "register" && !name.trim() && !identifier.trim())}
             className={`w-full py-3 rounded-lg text-white font-medium ${
-              loading || !identifier.trim()
+              loading
                 ? "bg-blue-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            {loading ? "Sending OTP..." : "Send OTP"}
+            {loading ? "Sending OTP..." : mode === "login" ? "Send OTP" : "Register"}
           </button>
         </>
       )}
 
-      {/* STEP OTP VERIFY */}
+      {/* OTP verify */}
       {step === "verify" && (
         <>
           <OTPInput length={6} value={otp} onChange={setOtp} disabled={loading} />
           <button
             onClick={handleVerifyOtp}
-            disabled={loading || otp.length < 6}
+            disabled={otp.length < 6 || loading}
             className={`w-full py-3 rounded-lg text-white font-medium ${
-              loading || otp.length < 6
+              otp.length < 6 || loading
                 ? "bg-green-400 cursor-not-allowed"
                 : "bg-green-600 hover:bg-green-700"
             }`}
@@ -282,9 +284,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
           <div className="text-center mt-3">
             {resendTimer > 0 ? (
-              <p className="text-sm text-gray-500">
-                Resend available in {resendTimer}s
-              </p>
+              <p className="text-sm text-gray-500">Resend available in {resendTimer}s</p>
             ) : (
               <button
                 onClick={handleSendOtp}
@@ -298,13 +298,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
         </>
       )}
 
-      {/* STEP 2FA */}
+      {/* 2FA */}
       {step === "2fa" && (
         <>
           {totpRequired && (
             <>
               <p className="text-center text-sm mb-2 text-gray-700 dark:text-gray-300">
-                Enter code from your authenticator app
+                Enter code from authenticator app
               </p>
               <OTPInput length={6} value={otp} onChange={setOtp} disabled={loading} />
               <button
@@ -320,7 +320,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
               </button>
             </>
           )}
-
           {pushRequired && (
             <>
               <p className="text-center text-sm mt-4 text-gray-700 dark:text-gray-300">
@@ -328,7 +327,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               </p>
               {biometricAvailable && (
                 <p className="text-center text-sm mt-1 text-gray-500">
-                  You can also use your device biometric (TouchID / FaceID)
+                  You can also use device biometric (TouchID / FaceID)
                 </p>
               )}
               <button
@@ -343,13 +342,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
         </>
       )}
 
-      {/* Messages / Errors */}
-      {message && (
-        <p className="text-center text-sm text-green-600 dark:text-green-400">{message}</p>
-      )}
-      {error && (
-        <p className="text-center text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
+      {/* Messages */}
+      {message && <p className="text-center text-sm text-green-600 dark:text-green-400">{message}</p>}
+      {error && <p className="text-center text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
