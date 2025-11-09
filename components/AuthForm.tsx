@@ -4,17 +4,20 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import OTPInput from "@/app/otp/OTPClient";
+import OTPInput from "@/components/OTPInput";
 
 interface AuthFormProps {
   mode: "login" | "register";
 }
 
+type LoginMethod = "phone" | "email" | "userID";
+type Step = "input" | "verify" | "2fa";
+
 export default function AuthForm({ mode }: AuthFormProps) {
-  const [method, setMethod] = useState<"phone" | "email" | "userID">("phone");
+  const [method, setMethod] = useState<LoginMethod>("phone");
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"input" | "verify" | "2fa">("input");
+  const [step, setStep] = useState<Step>("input");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +35,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
     const token = localStorage.getItem("token");
     if (token) api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-    // Check if WebAuthn is available in browser
     if (window.PublicKeyCredential) setBiometricAvailable(true);
   }, []);
 
@@ -56,12 +58,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
     try {
       const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
 
-      const body =
-        method === "phone"
-          ? { identifier: identifier.trim(), method: "phone" }
-          : method === "email"
-          ? { identifier: identifier.trim(), method: "email" }
-          : { identifier: identifier.trim(), method: "userID" };
+      const body = { identifier: identifier.trim(), method };
 
       const res = await api.post(endpoint, body);
       const data = res.data;
@@ -99,12 +96,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       const endpoint =
         mode === "register" ? "/auth/confirm-registration" : "/auth/confirm-login";
 
-      const body =
-        method === "phone"
-          ? { identifier: identifier.trim(), token: otp }
-          : method === "email"
-          ? { identifier: identifier.trim(), token: otp }
-          : { identifier: identifier.trim(), token: otp };
+      const body = { identifier: identifier.trim(), token: otp };
 
       const res = await api.post(endpoint, body);
       const data = res.data;
@@ -116,7 +108,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
           setStep("2fa");
           setMessage("⚡ Additional 2FA required. Please complete verification.");
 
-          // Auto trigger biometric prompt if available
           if (biometricAvailable && data.webauthnChallenge) {
             await handleBiometricLogin(data.webauthnChallenge);
           }
@@ -134,35 +125,34 @@ export default function AuthForm({ mode }: AuthFormProps) {
   // --------------------------
   // Biometric / WebAuthn login
   // --------------------------
-  async function handleBiometricLogin(challenge: any) {
+  async function handleBiometricLogin(challenge: PublicKeyCredentialRequestOptions) {
     try {
-      const credential = await navigator.credentials.get({
+      const credential = (await navigator.credentials.get({
         publicKey: challenge,
-      }) as PublicKeyCredential;
+      })) as PublicKeyCredential;
+
+      const assertionResponse = credential.response as AuthenticatorAssertionResponse;
 
       const authData = {
         id: credential.id,
         rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
         type: credential.type,
         response: {
-          clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(
-            (credential.response as AuthenticatorAssertionResponse).clientDataJSON
-          ))),
-          authenticatorData: btoa(String.fromCharCode(...new Uint8Array(
-            (credential.response as AuthenticatorAssertionResponse).authenticatorData
-          ))),
-          signature: btoa(String.fromCharCode(...new Uint8Array(
-            (credential.response as AuthenticatorAssertionResponse).signature
-          ))),
-          userHandle: credential.response?.userHandle
-            ? btoa(String.fromCharCode(...new Uint8Array(
-                credential.response.userHandle
-              )))
+          clientDataJSON: btoa(
+            String.fromCharCode(...new Uint8Array(assertionResponse.clientDataJSON))
+          ),
+          authenticatorData: btoa(
+            String.fromCharCode(...new Uint8Array(assertionResponse.authenticatorData))
+          ),
+          signature: btoa(
+            String.fromCharCode(...new Uint8Array(assertionResponse.signature))
+          ),
+          userHandle: assertionResponse.userHandle
+            ? btoa(String.fromCharCode(...new Uint8Array(assertionResponse.userHandle)))
             : null,
         },
       };
 
-      // Send to server for verification
       const res = await api.post("/auth/verify-webauthn", {
         identifier,
         credential: authData,
@@ -232,7 +222,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         {["phone", "email", "userID"].map((type) => (
           <button
             key={type}
-            onClick={() => setMethod(type as "phone" | "email" | "userID")}
+            onClick={() => setMethod(type as LoginMethod)}
             className={`px-4 py-2 rounded-lg font-medium transition ${
               method === type
                 ? "bg-blue-600 text-white shadow"
