@@ -1,18 +1,21 @@
+// components/BiometricLogin.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useBiometricWebSync } from "@/hooks/useBiometricWebSync";
 import { Button } from "@/components/ui/button";
 
+type Status = "idle" | "waiting" | "verified" | "failed";
+
 /**
  * BiometricLogin
- * Waits for backend confirmation (via /auth/verify-biometric)
- * and provides smooth feedback animations.
+ * Waits for backend confirmation (via WebSocket /auth/verify-biometric)
+ * Provides smooth feedback animations and auto-reset.
  */
 export default function BiometricLogin() {
-  const [status, setStatus] = useState<"idle" | "waiting" | "verified" | "failed">("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("Tap below to request biometric login");
 
   const { startBiometricSession, isListening, result } = useBiometricWebSync({
@@ -32,16 +35,18 @@ export default function BiometricLogin() {
     },
   });
 
-  // Reset UI after a few seconds
-  const resetAfterDelay = () => {
+  /** Auto-reset UI after a few seconds */
+  const resetAfterDelay = useCallback(() => {
     setTimeout(() => {
       setStatus("idle");
       setMessage("Tap below to request biometric login");
     }, 4000);
-  };
+  }, []);
 
-  // Auto-update based on hook result
+  /** Sync local status with hook result as a safeguard */
   useEffect(() => {
+    if (!result) return;
+
     if (result === "verified") {
       setStatus("verified");
       setMessage("Biometric verified successfully ✅");
@@ -51,7 +56,7 @@ export default function BiometricLogin() {
       setMessage("Verification failed ❌");
       resetAfterDelay();
     }
-  }, [result]);
+  }, [result, resetAfterDelay]);
 
   return (
     <div className="flex flex-col items-center justify-center py-12 space-y-6">
@@ -63,7 +68,7 @@ export default function BiometricLogin() {
         {message}
       </p>
 
-      {/* Status animation */}
+      {/* Animated status */}
       <AnimatePresence mode="wait">
         {status === "waiting" && (
           <motion.div
