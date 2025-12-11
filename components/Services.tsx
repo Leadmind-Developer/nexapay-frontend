@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { io, Socket } from "socket.io-client";
 
-type ServiceType = "AIRTIME" | "DATA" | "CABLE" | "ELECTRICITY" | "INSURANCE";
-type ProviderType = "SmartCash" | "VTpass";
+type ServiceType = "AIRTIME" | "DATA" | "CABLE" | "ELECTRICITY" | "EDUCATION";
 
 interface Transaction {
   id: string;
@@ -16,53 +15,40 @@ interface Transaction {
   provider: string;
 }
 
+interface Variation {
+  name: string;
+  code: string;
+  price: number;
+}
+
 const SERVICE_CATEGORIES: {
   type: ServiceType;
   label: string;
   options: string[];
 }[] = [
-  {
-    type: "AIRTIME",
-    label: "Buy Phone Airtime",
-    options: ["MTN VTU", "GLO VTU", "Airtel VTU", "9Mobile VTU"],
-  },
-  {
-    type: "DATA",
-    label: "Buy Internet Data",
-    options: ["MTN DATA", "GLO DATA", "AIRTEL DATA", "9MOBILE DATA", "SMILE DATA"],
-  },
-  {
-    type: "CABLE",
-    label: "Pay TV Subs",
-    options: ["GOTV", "DSTV", "STARTIMES"],
-  },
-  {
-    type: "ELECTRICITY",
-    label: "Pay Electricity Bill",
-    options: ["PHED", "AEDC", "IKEDC", "EKEDC", "KEDCO", "IBEDC", "JEDplc", "KAEDCO"],
-  },
-  {
-    type: "INSURANCE",
-    label: "Insurance",
-    options: [
-      "Third Party Motor",
-      "Health Insurance - HMO",
-      "Home Cover",
-      "Personal Accident",
-    ],
-  },
+  { type: "AIRTIME", label: "Buy Phone Airtime", options: ["MTN", "GLO", "Airtel", "9Mobile"] },
+  { type: "DATA", label: "Buy Internet Data", options: ["MTN", "GLO", "Airtel", "9Mobile", "SMILE"] },
+  { type: "CABLE", label: "Pay TV Subscription", options: ["DSTV", "GOTV", "STARTIMES"] },
+  { type: "ELECTRICITY", label: "Pay Electricity Bill", options: ["IKEDC", "EKEDC", "PHED", "AEDC", "KEDCO", "IBEDC", "JED", "KAEDCO"] },
+  { type: "EDUCATION", label: "Buy Education PIN", options: ["WAEC", "JAMB", "NECO", "NABTEB"] },
 ];
 
 export default function Services() {
   const [selectedService, setSelectedService] = useState<ServiceType>("AIRTIME");
   const [selectedOption, setSelectedOption] = useState<string>("");
-  const [provider, setProvider] = useState<ProviderType>("SmartCash");
-  const [formData, setFormData] = useState({ phone: "", amount: "", planCode: "" });
+  const [variations, setVariations] = useState<Variation[]>([]);
+  const [selectedVariation, setSelectedVariation] = useState<string>("");
+  const [formData, setFormData] = useState({
+    phone: "",
+    amount: "",
+    email: "",
+  });
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [loadingVariations, setLoadingVariations] = useState(false);
 
-  // Fetch transactions
+  // Fetch recent transactions
   const fetchTransactions = async () => {
     try {
       const res = await fetch("/api/transactions/recent");
@@ -73,71 +59,100 @@ export default function Services() {
     }
   };
 
-  // Setup Socket.IO for live updates
+  // Fetch variations from backend
+  const fetchVariations = async () => {
+    if (!selectedOption) return setVariations([]);
+    setLoadingVariations(true);
+    try {
+      const res = await fetch(`/api/vtpass/variations?service=${selectedOption}`);
+      const data: Variation[] = await res.json();
+      setVariations(data || []);
+      if (data.length > 0) {
+        // Pre-select the first variation and set its amount automatically
+        setSelectedVariation(data[0].code);
+        setFormData({ ...formData, amount: data[0].price });
+      }
+    } catch (err) {
+      console.error("Failed to fetch variations:", err);
+      setVariations([]);
+    } finally {
+      setLoadingVariations(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVariations();
+  }, [selectedOption]);
+
+  // Socket.IO live updates
   useEffect(() => {
     const socketClient = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
     setSocket(socketClient);
-
-    socketClient.on("transaction:new", (tx: Transaction) => {
-      setTransactions((prev) => [tx, ...prev]);
-    });
-
+    socketClient.on("transaction:new", (tx: Transaction) => setTransactions((prev) => [tx, ...prev]));
     fetchTransactions();
-
-    return () => {
-      socketClient.disconnect();
-    };
+    return () => socketClient.disconnect();
   }, []);
 
-  // Submit handler
+  // Payment handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage("Processing...");
 
     try {
-      const res = await fetch(`/api/${provider.toLowerCase()}/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
+      if (!selectedVariation) throw new Error("Please select a plan");
+      const payload = {
+        email: formData.email,
+        amount: Number(formData.amount),
+        metadata: {
           service: selectedService,
           option: selectedOption,
-        }),
+          phone: formData.phone,
+          variationCode: selectedVariation,
+        },
+      };
+
+      const ref = `tx-${Date.now()}`;
+      const initRes = await fetch("/api/paystack/initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, reference: ref }),
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        setStatusMessage(`✅ Payment successful! Ref: ${data?.transactionId || "N/A"}`);
-        setFormData({ phone: "", amount: "", planCode: "" });
-        setSelectedOption("");
-      } else {
-        setStatusMessage(`❌ Failed: ${data?.message || "An error occurred"}`);
-      }
+      const initData = await initRes.json();
+      if (!initRes.ok) throw new Error(initData.error || "Failed to initialize payment");
+
+      const handler = (window as any).PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
+        email: formData.email,
+        amount: Number(formData.amount) * 100,
+        ref,
+        callback: async (response: any) => {
+          setStatusMessage("Verifying payment...");
+          const verifyRes = await fetch(`/api/paystack/verify/${response.reference}`);
+          const verifyData = await verifyRes.json();
+          if (verifyData.status === "success") {
+            setStatusMessage("✅ Payment successful!");
+            setFormData({ phone: "", amount: "", email: "" });
+            setSelectedOption("");
+            setSelectedVariation("");
+          } else setStatusMessage("❌ Payment failed!");
+        },
+        onClose: () => setStatusMessage("Payment cancelled"),
+      });
+      handler.openIframe();
     } catch (err) {
       setStatusMessage(`⚠️ Error: ${(err as Error).message}`);
     }
   };
 
+  // Form validation: disable submit if fields invalid or variations loading
+  const isFormValid = formData.email && formData.phone && selectedVariation && !loadingVariations;
+
   return (
     <section className="py-20 bg-gray-50 text-center">
-      <h2 className="text-3xl font-bold mb-6">Pay Bills & Buy Airtime/Data</h2>
+      <h2 className="text-3xl font-bold mb-6">Pay Bills & Buy Airtime/Data/Education</h2>
 
-      {/* Provider Toggle */}
-      <div className="flex justify-center gap-4 mb-10">
-        {(["SmartCash", "VTpass"] as ProviderType[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => setProvider(p)}
-            className={`px-6 py-2 rounded-full font-semibold transition ${
-              provider === p ? "bg-indigo-600 text-white" : "bg-white text-gray-700 shadow"
-            }`}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
-
-      {/* Service Categories — fits one line on large screens */}
+      {/* Service Categories */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10 px-4">
         {SERVICE_CATEGORIES.map((s, idx) => (
           <motion.div
@@ -145,6 +160,8 @@ export default function Services() {
             onClick={() => {
               setSelectedService(s.type);
               setSelectedOption("");
+              setVariations([]);
+              setSelectedVariation("");
             }}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -165,9 +182,7 @@ export default function Services() {
                     setSelectedOption(opt);
                   }}
                   className={`py-1 px-2 rounded cursor-pointer transition ${
-                    selectedOption === opt
-                      ? "bg-indigo-800 text-white"
-                      : "hover:bg-indigo-100 hover:text-indigo-700"
+                    selectedOption === opt ? "bg-indigo-800 text-white" : "hover:bg-indigo-100 hover:text-indigo-700"
                   }`}
                 >
                   {opt}
@@ -190,51 +205,72 @@ export default function Services() {
             <span className="text-indigo-600">{selectedOption}</span>
           </h3>
 
-          {(selectedService === "AIRTIME" ||
-            selectedService === "DATA" ||
-            selectedService === "ELECTRICITY" ||
-            selectedService === "CABLE") && (
-            <input
-              type="tel"
-              placeholder={
-                selectedService === "ELECTRICITY"
-                  ? "Meter Number"
-                  : selectedService === "CABLE"
-                  ? "Smartcard Number"
-                  : "Phone Number"
-              }
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full mb-4 p-2 border rounded"
-              required
-            />
-          )}
-
-          {selectedService === "DATA" && (
-            <input
-              type="text"
-              placeholder="Data Plan Code"
-              value={formData.planCode}
-              onChange={(e) => setFormData({ ...formData, planCode: e.target.value })}
-              className="w-full mb-4 p-2 border rounded"
-            />
-          )}
-
+          {/* Email */}
           <input
-            type="number"
-            placeholder="Amount (₦)"
-            value={formData.amount}
-            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+            type="email"
+            placeholder="Email for payment"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             className="w-full mb-4 p-2 border rounded"
             required
-            min="50"
           />
 
+          {/* Phone / Meter / Smartcard */}
+          <input
+            type="text"
+            placeholder={
+              selectedService === "ELECTRICITY"
+                ? "Meter Number"
+                : selectedService === "CABLE"
+                ? "Smartcard Number"
+                : selectedService === "EDUCATION"
+                ? "Candidate Number / Registration"
+                : "Phone Number"
+            }
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            className="w-full mb-4 p-2 border rounded"
+            required
+          />
+
+          {/* Variation Dropdown */}
+          {(selectedService === "DATA" ||
+            selectedService === "CABLE" ||
+            selectedService === "ELECTRICITY" ||
+            selectedService === "EDUCATION") &&
+            variations.length > 0 && (
+              <select
+                value={selectedVariation}
+                onChange={(e) => {
+                  setSelectedVariation(e.target.value);
+                  const selectedPlan = variations.find((v) => v.code === e.target.value);
+                  if (selectedPlan) setFormData({ ...formData, amount: selectedPlan.price });
+                }}
+                className="w-full mb-4 p-2 border rounded"
+                required
+              >
+                {variations.map((v) => (
+                  <option key={v.code} value={v.code}>
+                    {v.name} — ₦{v.price}
+                  </option>
+                ))}
+              </select>
+            )}
+
+          {/* Amount (hidden, auto-filled) */}
+          <input type="hidden" value={formData.amount} />
+
+          {/* Submit button disabled until form is valid */}
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded hover:bg-indigo-700 transition font-semibold"
+            className={`w-full py-2 px-4 rounded font-semibold transition ${
+              isFormValid
+                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                : "bg-gray-400 text-gray-700 cursor-not-allowed"
+            }`}
+            disabled={!isFormValid}
           >
-            Pay Now
+            {loadingVariations ? "Loading plans..." : "Pay Now"}
           </button>
         </form>
       )}
@@ -277,7 +313,7 @@ export default function Services() {
                 {transactions.map((tx) => (
                   <tr key={tx.id} className="border-t hover:bg-gray-50 transition">
                     <td className="py-2 px-4">{tx.service}</td>
-                    <td className="py-2 px-4">{tx.provider}</td>
+                    <td className="py-2 px-4">VTpass</td>
                     <td className="py-2 px-4">₦{tx.amount}</td>
                     <td
                       className={`py-2 px-4 font-semibold ${
