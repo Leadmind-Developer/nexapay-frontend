@@ -70,7 +70,7 @@ export default function Services() {
       if (data.length > 0) {
         // Pre-select the first variation and set its amount automatically
         setSelectedVariation(data[0].code);
-        setFormData({ ...formData, amount: data[0].price });
+        setFormData({ ...formData, amount: data[0].price.toString() }); // <-- fix here
       }
     } catch (err) {
       console.error("Failed to fetch variations:", err);
@@ -145,7 +145,6 @@ export default function Services() {
     }
   };
 
-  // Form validation: disable submit if fields invalid or variations loading
   const isFormValid = formData.email && formData.phone && selectedVariation && !loadingVariations;
 
   return (
@@ -244,7 +243,7 @@ export default function Services() {
                 onChange={(e) => {
                   setSelectedVariation(e.target.value);
                   const selectedPlan = variations.find((v) => v.code === e.target.value);
-                  if (selectedPlan) setFormData({ ...formData, amount: selectedPlan.price });
+                  if (selectedPlan) setFormData({ ...formData, amount: selectedPlan.price.toString() }); // <-- fix here
                 }}
                 className="w-full mb-4 p-2 border rounded"
                 required
@@ -260,7 +259,7 @@ export default function Services() {
           {/* Amount (hidden, auto-filled) */}
           <input type="hidden" value={formData.amount} />
 
-          {/* Submit button disabled until form is valid */}
+          {/* Submit button */}
           <button
             type="submit"
             className={`w-full py-2 px-4 rounded font-semibold transition ${
