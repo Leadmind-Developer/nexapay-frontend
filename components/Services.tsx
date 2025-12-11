@@ -59,7 +59,7 @@ export default function Services() {
     }
   };
 
-  // Fetch variations from backend
+  // Fetch variations
   const fetchVariations = async () => {
     if (!selectedOption) return setVariations([]);
     setLoadingVariations(true);
@@ -68,9 +68,8 @@ export default function Services() {
       const data: Variation[] = await res.json();
       setVariations(data || []);
       if (data.length > 0) {
-        // Pre-select the first variation and set its amount automatically
         setSelectedVariation(data[0].code);
-        setFormData({ ...formData, amount: data[0].price.toString() }); // <-- fix here
+        setFormData({ ...formData, amount: data[0].price.toString() }); // Convert to string
       }
     } catch (err) {
       console.error("Failed to fetch variations:", err);
@@ -84,13 +83,16 @@ export default function Services() {
     fetchVariations();
   }, [selectedOption]);
 
-  // Socket.IO live updates
+  // Socket.IO with typed cleanup
   useEffect(() => {
     const socketClient = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
     setSocket(socketClient);
     socketClient.on("transaction:new", (tx: Transaction) => setTransactions((prev) => [tx, ...prev]));
     fetchTransactions();
-    return () => socketClient.disconnect();
+
+    return () => {
+      socketClient.disconnect(); // cleanup function returns void
+    };
   }, []);
 
   // Payment handler
@@ -204,7 +206,6 @@ export default function Services() {
             <span className="text-indigo-600">{selectedOption}</span>
           </h3>
 
-          {/* Email */}
           <input
             type="email"
             placeholder="Email for payment"
@@ -214,7 +215,6 @@ export default function Services() {
             required
           />
 
-          {/* Phone / Meter / Smartcard */}
           <input
             type="text"
             placeholder={
@@ -232,7 +232,6 @@ export default function Services() {
             required
           />
 
-          {/* Variation Dropdown */}
           {(selectedService === "DATA" ||
             selectedService === "CABLE" ||
             selectedService === "ELECTRICITY" ||
@@ -243,7 +242,7 @@ export default function Services() {
                 onChange={(e) => {
                   setSelectedVariation(e.target.value);
                   const selectedPlan = variations.find((v) => v.code === e.target.value);
-                  if (selectedPlan) setFormData({ ...formData, amount: selectedPlan.price.toString() }); // <-- fix here
+                  if (selectedPlan) setFormData({ ...formData, amount: selectedPlan.price.toString() });
                 }}
                 className="w-full mb-4 p-2 border rounded"
                 required
@@ -256,10 +255,8 @@ export default function Services() {
               </select>
             )}
 
-          {/* Amount (hidden, auto-filled) */}
           <input type="hidden" value={formData.amount} />
 
-          {/* Submit button */}
           <button
             type="submit"
             className={`w-full py-2 px-4 rounded font-semibold transition ${
@@ -274,7 +271,6 @@ export default function Services() {
         </form>
       )}
 
-      {/* Status Message */}
       {statusMessage && (
         <motion.p
           initial={{ opacity: 0 }}
@@ -291,7 +287,6 @@ export default function Services() {
         </motion.p>
       )}
 
-      {/* Recent Transactions */}
       <div className="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-lg">
         <h3 className="text-2xl font-semibold mb-4">Recent Transactions</h3>
         {transactions.length === 0 ? (
