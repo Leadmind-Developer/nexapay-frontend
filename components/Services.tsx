@@ -38,11 +38,7 @@ export default function Services() {
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [variations, setVariations] = useState<Variation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<string>("");
-  const [formData, setFormData] = useState({
-    phone: "",
-    amount: "",
-    email: "",
-  });
+  const [formData, setFormData] = useState({ phone: "", amount: "", email: "" });
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -59,17 +55,68 @@ export default function Services() {
     }
   };
 
-  // Fetch variations
+  // Fetch variations dynamically
   const fetchVariations = async () => {
     if (!selectedOption) return setVariations([]);
     setLoadingVariations(true);
+
     try {
-      const res = await fetch(`/api/vtpass/variations?service=${selectedOption}`);
-      const data: Variation[] = await res.json();
-      setVariations(data || []);
-      if (data.length > 0) {
-        setSelectedVariation(data[0].code);
-        setFormData({ ...formData, amount: data[0].price.toString() }); // Convert to string
+      let url = "";
+      switch (selectedService) {
+        case "DATA":
+          url = `/api/vtpass/data/variations/${selectedOption.toLowerCase()}`;
+          break;
+        case "CABLE":
+          url = `/api/vtpass/cable/variations?service=${selectedOption}`;
+          break;
+        case "ELECTRICITY":
+          url = ""; // electricity variations are fixed: prepaid/postpaid
+          setVariations([
+            { name: "Prepaid", code: "prepaid", price: 0 },
+            { name: "Postpaid", code: "postpaid", price: 0 },
+          ]);
+          setSelectedVariation("prepaid");
+          setLoadingVariations(false);
+          return;
+        case "EDUCATION":
+          url = `/api/vtpass/education/variations?serviceID=${selectedOption.toLowerCase()}`;
+          break;
+        default:
+          setVariations([]);
+          setLoadingVariations(false);
+          return;
+      }
+
+      if (!url) return;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      let formatted: Variation[] = [];
+      if (selectedService === "DATA" && data.success) {
+        formatted = data.variations.map((v: any) => ({
+          name: v.name,
+          code: v.variation_code,
+          price: v.variation_amount,
+        }));
+      } else if (selectedService === "CABLE") {
+        formatted = data.variations?.map((v: any) => ({
+          name: `${v.name} — ₦${v.amount}`,
+          code: v.variation_code,
+          price: v.amount,
+        })) || [];
+      } else if (selectedService === "EDUCATION") {
+        formatted = data?.map((v: any) => ({
+          name: v.name,
+          code: v.variation_code,
+          price: v.amount,
+        })) || [];
+      }
+
+      setVariations(formatted);
+      if (formatted.length > 0) {
+        setSelectedVariation(formatted[0].code);
+        setFormData({ ...formData, amount: formatted[0].price.toString() });
       }
     } catch (err) {
       console.error("Failed to fetch variations:", err);
@@ -81,9 +128,9 @@ export default function Services() {
 
   useEffect(() => {
     fetchVariations();
-  }, [selectedOption]);
+  }, [selectedOption, selectedService]);
 
-  // Socket.IO with typed cleanup
+  // Socket.IO setup
   useEffect(() => {
     const socketClient = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
     setSocket(socketClient);
@@ -91,38 +138,43 @@ export default function Services() {
     fetchTransactions();
 
     return () => {
-      socketClient.disconnect(); // cleanup function returns void
+      socketClient.disconnect();
     };
   }, []);
 
-  // Payment handler
+  // Main payment handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusMessage("Processing...");
 
-    try {
-      if (!selectedVariation) throw new Error("Please select a plan");
-      const payload = {
-        email: formData.email,
-        amount: Number(formData.amount),
-        metadata: {
-          service: selectedService,
-          option: selectedOption,
-          phone: formData.phone,
-          variationCode: selectedVariation,
-        },
-      };
+    if (!selectedVariation) {
+      setStatusMessage("⚠️ Please select a plan");
+      return;
+    }
 
+    try {
       const ref = `tx-${Date.now()}`;
+
+      // Initialize Paystack
       const initRes = await fetch("/api/paystack/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, reference: ref }),
+        body: JSON.stringify({
+          email: formData.email,
+          amount: Number(formData.amount),
+          reference: ref,
+          metadata: {
+            service: selectedService,
+            option: selectedOption,
+            phone: formData.phone,
+            variationCode: selectedVariation,
+          },
+        }),
       });
-
       const initData = await initRes.json();
       if (!initRes.ok) throw new Error(initData.error || "Failed to initialize payment");
 
+      // Paystack popup
       const handler = (window as any).PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
         email: formData.email,
@@ -132,12 +184,87 @@ export default function Services() {
           setStatusMessage("Verifying payment...");
           const verifyRes = await fetch(`/api/paystack/verify/${response.reference}`);
           const verifyData = await verifyRes.json();
-          if (verifyData.status === "success") {
-            setStatusMessage("✅ Payment successful!");
+
+          if (verifyData.status !== "success") {
+            setStatusMessage("❌ Payment failed!");
+            return;
+          }
+
+          // Payment successful → call the correct service purchase endpoint
+          let purchasePayload: any = {};
+          let purchaseUrl = "";
+
+          switch (selectedService) {
+            case "AIRTIME":
+              purchaseUrl = "/api/vtpass/airtime/local";
+              purchasePayload = {
+                phone: formData.phone,
+                amount: Number(formData.amount),
+                serviceID: selectedOption,
+              };
+              break;
+
+            case "DATA":
+              purchaseUrl = "/api/vtpass/data/purchase";
+              purchasePayload = {
+                billersCode: formData.phone,
+                variation_code: selectedVariation,
+                amount: Number(formData.amount),
+                provider: selectedOption.toLowerCase(),
+              };
+              break;
+
+            case "CABLE":
+              purchaseUrl = "/api/vtpass/cable/purchase";
+              purchasePayload = {
+                request_id: ref,
+                service: selectedOption,
+                smartcard: formData.phone,
+                variation_code: selectedVariation,
+                amount: Number(formData.amount),
+              };
+              break;
+
+            case "ELECTRICITY":
+              purchaseUrl = "/api/vtpass/electricity/purchase";
+              purchasePayload = {
+                request_id: ref,
+                serviceID: selectedOption,
+                billersCode: formData.phone,
+                variation_code: selectedVariation,
+                amount: Number(formData.amount),
+              };
+              break;
+
+            case "EDUCATION":
+              purchaseUrl = "/api/vtpass/education/purchase";
+              purchasePayload = {
+                request_id: ref,
+                userId: verifyData.userId || 1, // fallback if needed
+                paymentId: verifyData.paymentId || 0,
+                serviceID: selectedOption.toLowerCase(),
+                billersCode: formData.phone,
+                variation_code: selectedVariation,
+              };
+              break;
+          }
+
+          // Call purchase
+          const purchaseRes = await fetch(purchaseUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(purchasePayload),
+          });
+          const purchaseData = await purchaseRes.json();
+
+          if (purchaseRes.ok) {
+            setStatusMessage("✅ Purchase successful!");
             setFormData({ phone: "", amount: "", email: "" });
             setSelectedOption("");
             setSelectedVariation("");
-          } else setStatusMessage("❌ Payment failed!");
+          } else {
+            setStatusMessage(`❌ Purchase failed: ${purchaseData.error || "Unknown error"}`);
+          }
         },
         onClose: () => setStatusMessage("Payment cancelled"),
       });
@@ -147,7 +274,11 @@ export default function Services() {
     }
   };
 
-  const isFormValid = formData.email && formData.phone && selectedVariation && !loadingVariations;
+  const isFormValid =
+    formData.email &&
+    formData.phone &&
+    selectedVariation &&
+    !loadingVariations;
 
   return (
     <section className="py-20 bg-gray-50 text-center">
@@ -183,7 +314,9 @@ export default function Services() {
                     setSelectedOption(opt);
                   }}
                   className={`py-1 px-2 rounded cursor-pointer transition ${
-                    selectedOption === opt ? "bg-indigo-800 text-white" : "hover:bg-indigo-100 hover:text-indigo-700"
+                    selectedOption === opt
+                      ? "bg-indigo-800 text-white"
+                      : "hover:bg-indigo-100 hover:text-indigo-700"
                   }`}
                 >
                   {opt}
@@ -194,7 +327,7 @@ export default function Services() {
         ))}
       </div>
 
-      {/* Dynamic Payment Form */}
+      {/* Payment Form */}
       {selectedOption && (
         <form
           onSubmit={handleSubmit}
@@ -232,28 +365,25 @@ export default function Services() {
             required
           />
 
-          {(selectedService === "DATA" ||
-            selectedService === "CABLE" ||
-            selectedService === "ELECTRICITY" ||
-            selectedService === "EDUCATION") &&
-            variations.length > 0 && (
-              <select
-                value={selectedVariation}
-                onChange={(e) => {
-                  setSelectedVariation(e.target.value);
-                  const selectedPlan = variations.find((v) => v.code === e.target.value);
-                  if (selectedPlan) setFormData({ ...formData, amount: selectedPlan.price.toString() });
-                }}
-                className="w-full mb-4 p-2 border rounded"
-                required
-              >
-                {variations.map((v) => (
-                  <option key={v.code} value={v.code}>
-                    {v.name} — ₦{v.price}
-                  </option>
-                ))}
-              </select>
-            )}
+          {variations.length > 0 && (
+            <select
+              value={selectedVariation}
+              onChange={(e) => {
+                setSelectedVariation(e.target.value);
+                const selectedPlan = variations.find((v) => v.code === e.target.value);
+                if (selectedPlan)
+                  setFormData({ ...formData, amount: selectedPlan.price.toString() });
+              }}
+              className="w-full mb-4 p-2 border rounded"
+              required
+            >
+              {variations.map((v) => (
+                <option key={v.code} value={v.code}>
+                  {v.name} {v.price ? `— ₦${v.price}` : ""}
+                </option>
+              ))}
+            </select>
+          )}
 
           <input type="hidden" value={formData.amount} />
 
@@ -307,7 +437,7 @@ export default function Services() {
                 {transactions.map((tx) => (
                   <tr key={tx.id} className="border-t hover:bg-gray-50 transition">
                     <td className="py-2 px-4">{tx.service}</td>
-                    <td className="py-2 px-4">VTpass</td>
+                    <td className="py-2 px-4">{tx.provider}</td>
                     <td className="py-2 px-4">₦{tx.amount}</td>
                     <td
                       className={`py-2 px-4 font-semibold ${
