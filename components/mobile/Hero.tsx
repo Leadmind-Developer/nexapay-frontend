@@ -105,10 +105,12 @@ export default function Hero() {
           {services.map((s) => (
             <button
               key={s.name}
-              onClick={() => handleServiceClick(s.name)}
+              onClick={() => {
 
               if (s.name === "Airtime") {
                 router.push("/airtime");
+                } else {
+                handleServiceClick(s.name);
               }
             }}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm sm:text-base transition-all
