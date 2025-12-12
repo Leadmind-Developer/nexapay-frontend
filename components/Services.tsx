@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { io, Socket } from "socket.io-client";
+import api, { VTPassAPI } from "../lib/api";
 
 type ServiceType = "AIRTIME" | "DATA" | "CABLE" | "ELECTRICITY" | "EDUCATION";
 
@@ -47,21 +48,19 @@ export default function Services() {
   // Fetch recent transactions
   const fetchTransactions = async () => {
     try {
-      const res = await fetch("/api/transactions/recent");
-      const data = await res.json();
-      setTransactions(data || []);
+      const res = await api.get("/transactions/recent");
+      setTransactions(res.data || []);
     } catch (err) {
       console.error("Failed to fetch transactions:", err);
     }
   };
 
-  // Fetch variations dynamically for services that have them
+  // Fetch variations dynamically
   const fetchVariations = async () => {
     if (!selectedOption) return setVariations([]);
     setLoadingVariations(true);
 
     try {
-      // Skip variations for Airtime
       if (selectedService === "AIRTIME") {
         setVariations([]);
         setSelectedVariation("");
@@ -69,13 +68,13 @@ export default function Services() {
         return;
       }
 
-      let url = "";
+      let res;
       switch (selectedService) {
         case "DATA":
-          url = `/api/vtpass/data/variations/${selectedOption.toLowerCase()}`;
+          res = await VTPassAPI.pay({ service: "DATA", provider: selectedOption.toLowerCase() }); // dummy call for variations
           break;
         case "CABLE":
-          url = `/api/vtpass/cable/variations?service=${selectedOption}`;
+          res = await api.get(`/vtpass/cable/variations?service=${selectedOption}`);
           break;
         case "ELECTRICITY":
           setVariations([
@@ -86,34 +85,25 @@ export default function Services() {
           setLoadingVariations(false);
           return;
         case "EDUCATION":
-          url = `/api/vtpass/education/variations?serviceID=${selectedOption.toLowerCase()}`;
+          res = await api.get(`/vtpass/education/variations?serviceID=${selectedOption.toLowerCase()}`);
           break;
-        default:
-          setVariations([]);
-          setLoadingVariations(false);
-          return;
       }
 
-      if (!url) return;
-
-      const res = await fetch(url);
-      const data = await res.json();
-
       let formatted: Variation[] = [];
-      if (selectedService === "DATA" && data.success) {
-        formatted = data.variations.map((v: any) => ({
+      if (selectedService === "DATA" && res?.data?.variations) {
+        formatted = res.data.variations.map((v: any) => ({
           name: v.name,
           code: v.variation_code,
           price: v.variation_amount,
         }));
       } else if (selectedService === "CABLE") {
-        formatted = data.variations?.map((v: any) => ({
+        formatted = res.data.variations?.map((v: any) => ({
           name: `${v.name} — ₦${v.amount}`,
           code: v.variation_code,
           price: v.amount,
         })) || [];
       } else if (selectedService === "EDUCATION") {
-        formatted = data?.map((v: any) => ({
+        formatted = res.data?.map((v: any) => ({
           name: v.name,
           code: v.variation_code,
           price: v.amount,
@@ -139,13 +129,11 @@ export default function Services() {
 
   // Socket.IO setup
   useEffect(() => {
-    const socketClient: Socket = io(process.env.NEXT_PUBLIC_API_URL || "https://nexapay-backend-138118361183.us-central1.run.app/api");
+    const socketClient: Socket = io(process.env.NEXT_PUBLIC_API_URL || "https://nexapay-backend-138118361183.us-central1.run.app");
     setSocket(socketClient);
     socketClient.on("transaction:new", (tx: Transaction) => setTransactions((prev) => [tx, ...prev]));
     fetchTransactions();
-    return () => {
-      socketClient.disconnect();
-    };
+    return () => socketClient.disconnect();
   }, []);
 
   // Main payment handler
@@ -153,7 +141,6 @@ export default function Services() {
     e.preventDefault();
     setStatusMessage("Processing...");
 
-    // Airtime doesn't require selectedVariation
     if (selectedService !== "AIRTIME" && !selectedVariation) {
       setStatusMessage("⚠️ Please select a plan");
       return;
@@ -166,23 +153,18 @@ export default function Services() {
 
     try {
       const ref = `tx-${Date.now()}`;
-      const initRes = await fetch("/api/paystack/initialize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.email,
-          amount: Number(formData.amount),
-          reference: ref,
-          metadata: {
-            service: selectedService,
-            option: selectedOption,
-            phone: formData.phone,
-            variationCode: selectedVariation,
-          },
-        }),
+      // Initialize Paystack transaction
+      const initRes = await api.post("/paystack/initialize", {
+        email: formData.email,
+        amount: Number(formData.amount),
+        reference: ref,
+        metadata: {
+          service: selectedService,
+          option: selectedOption,
+          phone: formData.phone,
+          variationCode: selectedVariation,
+        },
       });
-      const initData = await initRes.json();
-      if (!initRes.ok) throw new Error(initData.error || "Failed to initialize payment");
 
       const handler = (window as any).PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
@@ -191,93 +173,80 @@ export default function Services() {
         ref,
         callback: async (response: any) => {
           setStatusMessage("Verifying payment...");
-          const verifyRes = await fetch(`/api/paystack/verify/${response.reference}`);
-          const verifyData = await verifyRes.json();
+
+          const verifyRes = await api.get(`/paystack/verify/${response.reference}`);
+          const verifyData = verifyRes.data;
 
           if (verifyData.status !== "success") {
             setStatusMessage("❌ Payment failed!");
             return;
           }
 
-          let purchaseUrl = "";
-          let purchasePayload: any = {};
-
+          let purchaseRes;
           switch (selectedService) {
             case "AIRTIME":
-              purchaseUrl = "/api/vtpass/airtime/local";
-              purchasePayload = {
+              purchaseRes = await VTPassAPI.pay({
+                service: "AIRTIME",
                 phone: formData.phone,
                 amount: Number(formData.amount),
                 serviceID: selectedOption,
-              };
+              });
               break;
             case "DATA":
-              purchaseUrl = "/api/vtpass/data/purchase";
-              purchasePayload = {
+              purchaseRes = await VTPassAPI.pay({
+                service: "DATA",
                 billersCode: formData.phone,
                 variation_code: selectedVariation,
                 amount: Number(formData.amount),
                 provider: selectedOption.toLowerCase(),
-              };
+              });
               break;
             case "CABLE":
-              purchaseUrl = "/api/vtpass/cable/purchase";
-              purchasePayload = {
+              purchaseRes = await api.post("/vtpass/cable/purchase", {
                 request_id: ref,
                 service: selectedOption,
                 smartcard: formData.phone,
                 variation_code: selectedVariation,
                 amount: Number(formData.amount),
-              };
+              });
               break;
             case "ELECTRICITY":
-              purchaseUrl = "/api/vtpass/electricity/purchase";
-              purchasePayload = {
+              purchaseRes = await api.post("/vtpass/electricity/purchase", {
                 request_id: ref,
                 serviceID: selectedOption,
                 billersCode: formData.phone,
                 variation_code: selectedVariation,
                 amount: Number(formData.amount),
-              };
+              });
               break;
             case "EDUCATION":
-              purchaseUrl = "/api/vtpass/education/purchase";
-              purchasePayload = {
+              purchaseRes = await api.post("/vtpass/education/purchase", {
                 request_id: ref,
-                userId: verifyData.userId || 1,
-                paymentId: verifyData.paymentId || 0,
                 serviceID: selectedOption.toLowerCase(),
                 billersCode: formData.phone,
                 variation_code: selectedVariation,
-              };
+              });
               break;
           }
 
-          const purchaseRes = await fetch(purchaseUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(purchasePayload),
-          });
-          const purchaseData = await purchaseRes.json();
-
-          if (purchaseRes.ok) {
+          if (purchaseRes?.data?.status === "success") {
             setStatusMessage("✅ Purchase successful!");
             setFormData({ phone: "", amount: "", email: "" });
             setSelectedOption("");
             setSelectedVariation("");
           } else {
-            setStatusMessage(`❌ Purchase failed: ${purchaseData.error || "Unknown error"}`);
+            setStatusMessage(`❌ Purchase failed: ${purchaseRes?.data?.message || "Unknown error"}`);
           }
         },
         onClose: () => setStatusMessage("Payment cancelled"),
       });
+
       handler.openIframe();
-    } catch (err) {
-      setStatusMessage(`⚠️ Error: ${(err as Error).message}`);
+    } catch (err: any) {
+      setStatusMessage(`⚠️ Error: ${err.message || "Unknown error"}`);
     }
   };
 
-  // Form validation
   const isFormValid =
     formData.email &&
     formData.phone &&
@@ -317,7 +286,6 @@ export default function Services() {
                     e.stopPropagation();
                     setSelectedService(s.type);
                     setSelectedOption(opt);
-
                     setFormData((prev) => ({
                       phone: "",
                       amount: s.type === "AIRTIME" ? prev.amount : "",
@@ -342,10 +310,7 @@ export default function Services() {
 
       {/* Payment Form */}
       {selectedOption && (
-        <form
-          onSubmit={handleSubmit}
-          className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg mb-10 text-left"
-        >
+        <form onSubmit={handleSubmit} className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg mb-10 text-left">
           <h3 className="text-xl font-semibold mb-4 text-center">
             {SERVICE_CATEGORIES.find((s) => s.type === selectedService)?.label}
             <br />
@@ -378,7 +343,6 @@ export default function Services() {
             required
           />
 
-          {/* Show manual amount for Airtime */}
           {selectedService === "AIRTIME" && (
             <input
               type="number"
@@ -390,7 +354,6 @@ export default function Services() {
             />
           )}
 
-          {/* Show variations dropdown for other services */}
           {variations.length > 0 && (
             <select
               value={selectedVariation}
@@ -409,8 +372,6 @@ export default function Services() {
               ))}
             </select>
           )}
-
-          <input type="hidden" value={formData.amount} />
 
           <button
             type="submit"
