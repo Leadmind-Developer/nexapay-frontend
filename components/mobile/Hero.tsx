@@ -109,6 +109,12 @@ export default function Hero() {
 
               if (s.name === "Airtime") {
                 router.push("/airtime");
+                } else if (s.name === "Data") {
+                router.push("/data");
+                } else if (s.name === "Electricity") {
+                router.push("/electricity");
+                } else if (s.name === "Cable") {
+                router.push("/cable");
                 } else {
                 handleServiceClick(s.name);
               }
