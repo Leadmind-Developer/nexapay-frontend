@@ -1,6 +1,5 @@
-// pages/electricity.tsx
+// pages/electricity/index.tsx
 import React, { useState, useEffect } from "react";
-import { VTPassAPI } from "../lib/api";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
@@ -10,73 +9,97 @@ interface Disco {
   label: string;
 }
 
-export default function ElectricityPage() {
+export default function ElectricityPurchasePage() {
   const [discos, setDiscos] = useState<Disco[]>([]);
-  const [serviceID, setServiceID] = useState("");
-  const [billersCode, setBillersCode] = useState("");
-  const [type, setType] = useState<"prepaid" | "postpaid">("prepaid");
-  const [amount, setAmount] = useState<number>(0);
-  const [phone, setPhone] = useState("");
+  const [selectedDisco, setSelectedDisco] = useState("");
+  const [meterNumber, setMeterNumber] = useState("");
+  const [meterType, setMeterType] = useState<"prepaid" | "postpaid">("prepaid");
+  const [customerName, setCustomerName] = useState("");
+  const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [verified, setVerified] = useState(false);
 
   useEffect(() => {
-    // Fetch discos from backend
-    axios.get("/api/vtpass/electricity/discos").then((res) => {
-      setDiscos(res.data);
-      if (res.data.length) setServiceID(res.data[0].code);
-    });
+    // Fetch available discos from backend
+    const fetchDiscos = async () => {
+      try {
+        const res = await axios.get("/api/vtpass/electricity/discos");
+        setDiscos(res.data);
+        if (res.data.length > 0) setSelectedDisco(res.data[0].code);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchDiscos();
   }, []);
 
-  const handlePurchase = async () => {
-    if (!serviceID || !billersCode || !amount || !phone) {
-      setMessage("Please fill all fields");
+  const verifyMeter = async () => {
+    if (!meterNumber || !selectedDisco) {
+      setError("Please select a disco and enter meter number.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await axios.post("/api/vtpass/verify", {
+        serviceID: selectedDisco,
+        billersCode: meterNumber,
+        type: meterType,
+      });
+      setCustomerName(res.data.customer_name || "");
+      setVerified(true);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.error || "Failed to verify meter");
+      setVerified(false);
+      setCustomerName("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const payWithCard = async () => {
+    if (!verified) {
+      setError("Please verify the meter first.");
+      return;
+    }
+    if (!amount || Number(amount) <= 0) {
+      setError("Please enter a valid amount.");
       return;
     }
 
     setLoading(true);
-    setMessage("");
+    setError("");
 
     try {
-      // Generate a unique request_id for this transaction
-      const request_id = uuidv4();
+      const request_id = uuidv4(); // unique transaction id
 
-      // Call VTpass purchase endpoint
-      const purchaseRes = await axios.post("/api/vtpass/electricity/purchase", {
+      // Initialize VTpass purchase
+      const vtpassPurchase = await axios.post("/api/vtpass/purchase", {
         request_id,
-        serviceID,
-        billersCode,
-        variation_code: type,
+        serviceID: selectedDisco,
+        billersCode: meterNumber,
+        variation_code: meterType,
         amount,
-        phone,
+        phone: "", // optional
       });
 
-      // Prepare Paystack payment
-      const paystackRef = `ELEC-${Date.now()}`;
-      const email = `${phone}@nexapay.fake`; // For guest users, we can make a dummy email
-      const callback_url = `${window.location.origin}/electricity/success?reference=${paystackRef}`;
-
-      const ps = await axios.post("/api/paystack/initialize", {
-        amount, // Naira
-        email,
-        reference: paystackRef,
-        callback_url,
+      // Initialize Paystack payment
+      const paystackInit = await axios.post("/api/paystack/initialize", {
+        amount: Number(amount), // Naira
+        email: "customer@example.com", // You may allow user input
+        reference: `ELEC-${request_id}`,
         metadata: {
-          request_id,
-          purpose: "electricity_purchase",
+          request_id, // VTpass request_id
         },
       });
 
-      const { authorization_url } = ps.data.data;
-      // Redirect user to Paystack payment page
-      window.location.href = authorization_url;
+      const authUrl = paystackInit.data.data.authorization_url;
+      window.location.href = authUrl; // redirect to Paystack
     } catch (err: any) {
-      console.error("Purchase failed:", err.response?.data || err.message);
-      setMessage(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to initiate electricity purchase"
-      );
+      console.error(err);
+      setError(err.response?.data?.message || "Payment initialization failed");
     } finally {
       setLoading(false);
     }
@@ -86,62 +109,65 @@ export default function ElectricityPage() {
     <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
       <h1>Buy Electricity</h1>
 
-      <label>Disco:</label>
-      <select
-        value={serviceID}
-        onChange={(e) => setServiceID(e.target.value)}
-        style={{ width: "100%", marginBottom: 10 }}
-      >
-        {discos.map((d) => (
-          <option key={d.code} value={d.code}>
-            {d.label}
-          </option>
-        ))}
-      </select>
+      <div>
+        <label>Disco:</label>
+        <select
+          value={selectedDisco}
+          onChange={(e) => setSelectedDisco(e.target.value)}
+        >
+          {discos.map((d) => (
+            <option key={d.code} value={d.code}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <label>Meter Number:</label>
-      <input
-        type="text"
-        value={billersCode}
-        onChange={(e) => setBillersCode(e.target.value)}
-        style={{ width: "100%", marginBottom: 10 }}
-      />
+      <div>
+        <label>Meter Number:</label>
+        <input
+          type="text"
+          value={meterNumber}
+          onChange={(e) => setMeterNumber(e.target.value)}
+        />
+      </div>
 
-      <label>Meter Type:</label>
-      <select
-        value={type}
-        onChange={(e) => setType(e.target.value as any)}
-        style={{ width: "100%", marginBottom: 10 }}
-      >
-        <option value="prepaid">Prepaid</option>
-        <option value="postpaid">Postpaid</option>
-      </select>
+      <div>
+        <label>Meter Type:</label>
+        <select
+          value={meterType}
+          onChange={(e) => setMeterType(e.target.value as "prepaid" | "postpaid")}
+        >
+          <option value="prepaid">Prepaid</option>
+          <option value="postpaid">Postpaid</option>
+        </select>
+      </div>
 
-      <label>Amount (₦):</label>
-      <input
-        type="number"
-        value={amount}
-        onChange={(e) => setAmount(Number(e.target.value))}
-        style={{ width: "100%", marginBottom: 10 }}
-      />
-
-      <label>Phone Number:</label>
-      <input
-        type="text"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        style={{ width: "100%", marginBottom: 20 }}
-      />
-
-      {message && <p style={{ color: "red" }}>{message}</p>}
-
-      <button
-        onClick={handlePurchase}
-        disabled={loading}
-        style={{ width: "100%", padding: 10 }}
-      >
-        {loading ? "Processing..." : "Pay & Get Token"}
+      <button onClick={verifyMeter} disabled={loading}>
+        {loading ? "Verifying..." : "Verify Meter"}
       </button>
+
+      {verified && customerName && (
+        <p>
+          ✅ Customer Name: <strong>{customerName}</strong>
+        </p>
+      )}
+
+      {verified && (
+        <div style={{ marginTop: 20 }}>
+          <label>Amount (₦):</label>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          <button onClick={payWithCard} disabled={loading}>
+            {loading ? "Processing..." : "Pay with Card"}
+          </button>
+        </div>
+      )}
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
 }
