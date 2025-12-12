@@ -317,6 +317,14 @@ export default function Services() {
                     e.stopPropagation();
                     setSelectedService(s.type);
                     setSelectedOption(opt);
+
+                    setFormData((prev) => ({
+                      phone: "",
+                      amount: s.type === "AIRTIME" ? prev.amount : "",
+                      email: "",
+                    }));
+                    setVariations([]);
+                    setSelectedVariation("");
                   }}
                   className={`py-1 px-2 rounded cursor-pointer transition ${
                     selectedOption === opt
