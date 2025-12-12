@@ -139,7 +139,7 @@ export default function Services() {
 
   // Socket.IO setup
   useEffect(() => {
-    const socketClient: Socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
+    const socketClient: Socket = io(process.env.NEXT_PUBLIC_API_URL || "https://nexapay-backend-138118361183.us-central1.run.app/api");
     setSocket(socketClient);
     socketClient.on("transaction:new", (tx: Transaction) => setTransactions((prev) => [tx, ...prev]));
     fetchTransactions();
