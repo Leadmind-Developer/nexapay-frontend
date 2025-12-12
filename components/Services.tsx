@@ -133,7 +133,9 @@ export default function Services() {
     setSocket(socketClient);
     socketClient.on("transaction:new", (tx: Transaction) => setTransactions((prev) => [tx, ...prev]));
     fetchTransactions();
-    return () => socketClient.disconnect();
+    return () => {
+      socketClient.disconnect();
+    };
   }, []);
 
   // Main payment handler
