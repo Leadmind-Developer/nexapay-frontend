@@ -20,10 +20,22 @@ export default function Hero() {
     setService(name);
 
     if (name === "Airtime") {
-      router.push("/airtime");
-    }
-  };
+    router.push("/airtime");
+  }
 
+  if (name === "Data") {
+    router.push("/data");
+  }
+
+  if (name === "Electricity") {
+    router.push("/electricity");
+  }
+
+  if (name === "Cable") {
+    router.push("/cable");
+  }
+};
+  
   return (
     <section className="relative overflow-hidden text-left py-24 min-h-[600px]">
       {/* Background image */}
