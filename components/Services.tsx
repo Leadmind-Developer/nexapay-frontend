@@ -55,12 +55,20 @@ export default function Services() {
     }
   };
 
-  // Fetch variations dynamically
+  // Fetch variations dynamically for services that have them
   const fetchVariations = async () => {
     if (!selectedOption) return setVariations([]);
     setLoadingVariations(true);
 
     try {
+      // Skip variations for Airtime
+      if (selectedService === "AIRTIME") {
+        setVariations([]);
+        setSelectedVariation("");
+        setLoadingVariations(false);
+        return;
+      }
+
       let url = "";
       switch (selectedService) {
         case "DATA":
@@ -70,7 +78,6 @@ export default function Services() {
           url = `/api/vtpass/cable/variations?service=${selectedOption}`;
           break;
         case "ELECTRICITY":
-          url = ""; // electricity variations are fixed: prepaid/postpaid
           setVariations([
             { name: "Prepaid", code: "prepaid", price: 0 },
             { name: "Postpaid", code: "postpaid", price: 0 },
@@ -136,10 +143,7 @@ export default function Services() {
     setSocket(socketClient);
     socketClient.on("transaction:new", (tx: Transaction) => setTransactions((prev) => [tx, ...prev]));
     fetchTransactions();
-
-    return () => {
-      socketClient.disconnect();
-    };
+    return () => socketClient.disconnect();
   }, []);
 
   // Main payment handler
@@ -147,15 +151,19 @@ export default function Services() {
     e.preventDefault();
     setStatusMessage("Processing...");
 
-    if (!selectedVariation) {
+    // Airtime doesn't require selectedVariation
+    if (selectedService !== "AIRTIME" && !selectedVariation) {
       setStatusMessage("⚠️ Please select a plan");
+      return;
+    }
+
+    if (selectedService === "AIRTIME" && !formData.amount) {
+      setStatusMessage("⚠️ Please enter amount");
       return;
     }
 
     try {
       const ref = `tx-${Date.now()}`;
-
-      // Initialize Paystack
       const initRes = await fetch("/api/paystack/initialize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -174,7 +182,6 @@ export default function Services() {
       const initData = await initRes.json();
       if (!initRes.ok) throw new Error(initData.error || "Failed to initialize payment");
 
-      // Paystack popup
       const handler = (window as any).PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_KEY,
         email: formData.email,
@@ -190,9 +197,8 @@ export default function Services() {
             return;
           }
 
-          // Payment successful → call the correct service purchase endpoint
-          let purchasePayload: any = {};
           let purchaseUrl = "";
+          let purchasePayload: any = {};
 
           switch (selectedService) {
             case "AIRTIME":
@@ -203,7 +209,6 @@ export default function Services() {
                 serviceID: selectedOption,
               };
               break;
-
             case "DATA":
               purchaseUrl = "/api/vtpass/data/purchase";
               purchasePayload = {
@@ -213,7 +218,6 @@ export default function Services() {
                 provider: selectedOption.toLowerCase(),
               };
               break;
-
             case "CABLE":
               purchaseUrl = "/api/vtpass/cable/purchase";
               purchasePayload = {
@@ -224,7 +228,6 @@ export default function Services() {
                 amount: Number(formData.amount),
               };
               break;
-
             case "ELECTRICITY":
               purchaseUrl = "/api/vtpass/electricity/purchase";
               purchasePayload = {
@@ -235,12 +238,11 @@ export default function Services() {
                 amount: Number(formData.amount),
               };
               break;
-
             case "EDUCATION":
               purchaseUrl = "/api/vtpass/education/purchase";
               purchasePayload = {
                 request_id: ref,
-                userId: verifyData.userId || 1, // fallback if needed
+                userId: verifyData.userId || 1,
                 paymentId: verifyData.paymentId || 0,
                 serviceID: selectedOption.toLowerCase(),
                 billersCode: formData.phone,
@@ -249,7 +251,6 @@ export default function Services() {
               break;
           }
 
-          // Call purchase
           const purchaseRes = await fetch(purchaseUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -274,10 +275,11 @@ export default function Services() {
     }
   };
 
+  // Form validation
   const isFormValid =
     formData.email &&
     formData.phone &&
-    selectedVariation &&
+    (selectedService === "AIRTIME" ? formData.amount : selectedVariation) &&
     !loadingVariations;
 
   return (
@@ -294,6 +296,7 @@ export default function Services() {
               setSelectedOption("");
               setVariations([]);
               setSelectedVariation("");
+              setFormData({ phone: "", amount: "", email: "" });
             }}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -365,14 +368,26 @@ export default function Services() {
             required
           />
 
+          {/* Show manual amount for Airtime */}
+          {selectedService === "AIRTIME" && (
+            <input
+              type="number"
+              placeholder="Amount"
+              value={formData.amount}
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              className="w-full mb-4 p-2 border rounded"
+              required
+            />
+          )}
+
+          {/* Show variations dropdown for other services */}
           {variations.length > 0 && (
             <select
               value={selectedVariation}
               onChange={(e) => {
                 setSelectedVariation(e.target.value);
-                const selectedPlan = variations.find((v) => v.code === e.target.value);
-                if (selectedPlan)
-                  setFormData({ ...formData, amount: selectedPlan.price.toString() });
+                const sel = variations.find((v) => v.code === e.target.value);
+                if (sel) setFormData({ ...formData, amount: sel.price.toString() });
               }}
               className="w-full mb-4 p-2 border rounded"
               required
