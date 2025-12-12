@@ -1,6 +1,7 @@
-// pages/electricity/success.tsx
+"use client";
+
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/router";
+import { useSearchParams } from "next/navigation";
 import axios from "axios";
 
 interface ElectricityStatus {
@@ -14,19 +15,24 @@ interface ElectricityStatus {
 }
 
 export default function ElectricitySuccessPage() {
-  const router = useRouter();
-  const { reference } = router.query;
+  const searchParams = useSearchParams();
+  const reference = searchParams.get("reference");
 
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [data, setData] = useState<ElectricityStatus | null>(null);
 
   useEffect(() => {
-    if (!reference) return;
+    if (!reference) {
+      setMessage("No reference provided");
+      setLoading(false);
+      return;
+    }
 
     const fetchTransaction = async () => {
       setLoading(true);
       setMessage("");
+
       try {
         // 1️⃣ Verify Paystack transaction
         const paystackRes = await axios.get(`/api/paystack/verify/${reference}`);
@@ -38,7 +44,6 @@ export default function ElectricitySuccessPage() {
           return;
         }
 
-        // 2️⃣ Retrieve request_id from Paystack metadata
         const request_id = psData.metadata?.request_id;
         if (!request_id) {
           setMessage("Invalid transaction metadata.");
@@ -46,12 +51,12 @@ export default function ElectricitySuccessPage() {
           return;
         }
 
-        // 3️⃣ Check VTpass electricity transaction status
+        // 2️⃣ Check VTpass electricity transaction status
         const vtpassRes = await axios.post("/api/vtpass/electricity/status", { request_id });
         const vtData = vtpassRes.data;
 
         if (!vtData || vtData.error) {
-          setMessage(vtData.error || "Failed to retrieve electricity status.");
+          setMessage(vtData?.error || "Failed to retrieve electricity status.");
           setLoading(false);
           return;
         }
@@ -61,7 +66,7 @@ export default function ElectricitySuccessPage() {
           amount: vtData.amount,
           status: vtData.response_description || vtData.status || "success",
           customer_name: vtData.customer_name,
-          token: vtData.token, // For prepaid
+          token: vtData.token,
           meter_number: vtData.billers_code,
           type: vtData.variation_code,
         });
@@ -83,23 +88,11 @@ export default function ElectricitySuccessPage() {
     <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
       <h1>Electricity Purchase Successful!</h1>
 
-      <p>
-        <strong>Meter Number:</strong> {data?.meter_number}
-      </p>
-      <p>
-        <strong>Type:</strong> {data?.type}
-      </p>
-      <p>
-        <strong>Amount:</strong> ₦{data?.amount}
-      </p>
-      <p>
-        <strong>Status:</strong> {data?.status}
-      </p>
-      {data?.customer_name && (
-        <p>
-          <strong>Customer Name:</strong> {data.customer_name}
-        </p>
-      )}
+      <p><strong>Meter Number:</strong> {data?.meter_number}</p>
+      <p><strong>Type:</strong> {data?.type}</p>
+      <p><strong>Amount:</strong> ₦{data?.amount}</p>
+      <p><strong>Status:</strong> {data?.status}</p>
+      {data?.customer_name && <p><strong>Customer Name:</strong> {data.customer_name}</p>}
 
       {data?.token && (
         <div style={{ marginTop: 20, padding: 10, background: "#f0f0f0", wordBreak: "break-all" }}>
