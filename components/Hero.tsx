@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Sparkles, Zap, Smartphone, Tv, PlugZap, Apple } from "lucide-react";
 
 export default function Hero() {
+  const router = useRouter();
   const [service, setService] = useState("Airtime");
 
   const services = [
@@ -81,6 +83,12 @@ export default function Hero() {
               onClick={() => setService(s.name)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold transition-all ${
                 service === s.name
+                if (s.name === "Airtime") {
+                router.push("/airtime");
+                }
+              }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold transition-all ${
+                  service === s.name
                   ? "bg-white text-indigo-700 shadow-lg"
                   : "bg-indigo-500/40 hover:bg-indigo-400/60 border border-white/20"
               }`}
