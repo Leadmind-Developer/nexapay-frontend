@@ -1,6 +1,6 @@
-// pages/electricity.tsx
+"use client";
+
 import React, { useState, useEffect } from "react";
-import { VTPassAPI } from "../lib/api";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
@@ -19,18 +19,19 @@ export default function ElectricityPage() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [customerName, setCustomerName] = useState(""); // New
-  const [verified, setVerified] = useState(false); // New
+  const [customerName, setCustomerName] = useState("");
+  const [verified, setVerified] = useState(false);
 
+  // Fetch discos on mount
   useEffect(() => {
-    // Fetch discos from backend
-    axios.get("/api/vtpass/electricity/discos").then((res) => {
-      setDiscos(res.data);
-      if (res.data.length) setServiceID(res.data[0].code);
-    });
+    axios.get("/api/vtpass/electricity/discos")
+      .then(res => {
+        setDiscos(res.data);
+        if (res.data.length) setServiceID(res.data[0].code);
+      })
+      .catch(err => console.error("Failed to fetch discos:", err));
   }, []);
 
-  // --- New: Verify meter before purchase ---
   const handleVerifyMeter = async () => {
     if (!serviceID || !billersCode) {
       setMessage("Please select a Disco and enter Meter Number");
@@ -39,17 +40,14 @@ export default function ElectricityPage() {
 
     setLoading(true);
     setMessage("");
+
     try {
-      const res = await VTPassAPI.post("/electricity/verify", {
-        serviceID,
-        billersCode,
-        type,
-      });
+      const res = await axios.post("/api/vtpass/electricity/verify", { serviceID, billersCode, type });
       setCustomerName(res.data.customer_name);
       setVerified(true);
       setMessage(`Meter verified: ${res.data.customer_name}`);
     } catch (err: any) {
-      console.error(err.response?.data || err.message);
+      console.error(err);
       setMessage(err.response?.data?.message || "Failed to verify meter");
       setVerified(false);
       setCustomerName("");
@@ -74,7 +72,8 @@ export default function ElectricityPage() {
     try {
       const request_id = uuidv4();
 
-      const purchaseRes = await axios.post("/api/vtpass/electricity/purchase", {
+      // Create electricity purchase request in backend
+      await axios.post("/api/vtpass/electricity/purchase", {
         request_id,
         serviceID,
         billersCode,
@@ -83,6 +82,7 @@ export default function ElectricityPage() {
         phone,
       });
 
+      // Initialize Paystack
       const paystackRef = `ELEC-${Date.now()}`;
       const email = `${phone}@nexapay.fake`;
       const callback_url = `${window.location.origin}/electricity/success?reference=${paystackRef}`;
@@ -95,6 +95,7 @@ export default function ElectricityPage() {
         metadata: { request_id, purpose: "electricity_purchase" },
       });
 
+      // Redirect to Paystack
       const { authorization_url } = ps.data.data;
       window.location.href = authorization_url;
     } catch (err: any) {
@@ -116,9 +117,7 @@ export default function ElectricityPage() {
         style={{ width: "100%", marginBottom: 10 }}
       >
         {discos.map((d) => (
-          <option key={d.code} value={d.code}>
-            {d.label}
-          </option>
+          <option key={d.code} value={d.code}>{d.label}</option>
         ))}
       </select>
 
@@ -128,7 +127,7 @@ export default function ElectricityPage() {
         value={billersCode}
         onChange={(e) => {
           setBillersCode(e.target.value);
-          setVerified(false); // reset verification on change
+          setVerified(false);
           setCustomerName("");
         }}
         style={{ width: "100%", marginBottom: 10 }}
@@ -137,7 +136,7 @@ export default function ElectricityPage() {
       <label>Meter Type:</label>
       <select
         value={type}
-        onChange={(e) => setType(e.target.value as any)}
+        onChange={(e) => setType(e.target.value as "prepaid" | "postpaid")}
         style={{ width: "100%", marginBottom: 10 }}
       >
         <option value="prepaid">Prepaid</option>
