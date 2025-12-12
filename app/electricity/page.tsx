@@ -1,5 +1,6 @@
-// pages/electricity/index.tsx
+// pages/electricity.tsx
 import React, { useState, useEffect } from "react";
+import { VTPassAPI } from "../lib/api";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
@@ -9,49 +10,47 @@ interface Disco {
   label: string;
 }
 
-export default function ElectricityPurchasePage() {
+export default function ElectricityPage() {
   const [discos, setDiscos] = useState<Disco[]>([]);
-  const [selectedDisco, setSelectedDisco] = useState("");
-  const [meterNumber, setMeterNumber] = useState("");
-  const [meterType, setMeterType] = useState<"prepaid" | "postpaid">("prepaid");
-  const [customerName, setCustomerName] = useState("");
-  const [amount, setAmount] = useState("");
+  const [serviceID, setServiceID] = useState("");
+  const [billersCode, setBillersCode] = useState("");
+  const [type, setType] = useState<"prepaid" | "postpaid">("prepaid");
+  const [amount, setAmount] = useState<number>(0);
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [verified, setVerified] = useState(false);
+  const [message, setMessage] = useState("");
+  const [customerName, setCustomerName] = useState(""); // New
+  const [verified, setVerified] = useState(false); // New
 
   useEffect(() => {
-    // Fetch available discos from backend
-    const fetchDiscos = async () => {
-      try {
-        const res = await axios.get("/api/vtpass/electricity/discos");
-        setDiscos(res.data);
-        if (res.data.length > 0) setSelectedDisco(res.data[0].code);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchDiscos();
+    // Fetch discos from backend
+    axios.get("/api/vtpass/electricity/discos").then((res) => {
+      setDiscos(res.data);
+      if (res.data.length) setServiceID(res.data[0].code);
+    });
   }, []);
 
-  const verifyMeter = async () => {
-    if (!meterNumber || !selectedDisco) {
-      setError("Please select a disco and enter meter number.");
+  // --- New: Verify meter before purchase ---
+  const handleVerifyMeter = async () => {
+    if (!serviceID || !billersCode) {
+      setMessage("Please select a Disco and enter Meter Number");
       return;
     }
+
     setLoading(true);
-    setError("");
+    setMessage("");
     try {
-      const res = await axios.post("/api/vtpass/verify", {
-        serviceID: selectedDisco,
-        billersCode: meterNumber,
-        type: meterType,
+      const res = await VTPassAPI.post("/electricity/verify", {
+        serviceID,
+        billersCode,
+        type,
       });
-      setCustomerName(res.data.customer_name || "");
+      setCustomerName(res.data.customer_name);
       setVerified(true);
+      setMessage(`Meter verified: ${res.data.customer_name}`);
     } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.error || "Failed to verify meter");
+      console.error(err.response?.data || err.message);
+      setMessage(err.response?.data?.message || "Failed to verify meter");
       setVerified(false);
       setCustomerName("");
     } finally {
@@ -59,47 +58,48 @@ export default function ElectricityPurchasePage() {
     }
   };
 
-  const payWithCard = async () => {
+  const handlePurchase = async () => {
     if (!verified) {
-      setError("Please verify the meter first.");
+      setMessage("Please verify meter before purchasing");
       return;
     }
-    if (!amount || Number(amount) <= 0) {
-      setError("Please enter a valid amount.");
+    if (!amount || !phone) {
+      setMessage("Please enter amount and phone number");
       return;
     }
 
     setLoading(true);
-    setError("");
+    setMessage("");
 
     try {
-      const request_id = uuidv4(); // unique transaction id
+      const request_id = uuidv4();
 
-      // Initialize VTpass purchase
-      const vtpassPurchase = await axios.post("/api/vtpass/purchase", {
+      const purchaseRes = await axios.post("/api/vtpass/electricity/purchase", {
         request_id,
-        serviceID: selectedDisco,
-        billersCode: meterNumber,
-        variation_code: meterType,
+        serviceID,
+        billersCode,
+        variation_code: type,
         amount,
-        phone: "", // optional
+        phone,
       });
 
-      // Initialize Paystack payment
-      const paystackInit = await axios.post("/api/paystack/initialize", {
-        amount: Number(amount), // Naira
-        email: "customer@example.com", // You may allow user input
-        reference: `ELEC-${request_id}`,
-        metadata: {
-          request_id, // VTpass request_id
-        },
+      const paystackRef = `ELEC-${Date.now()}`;
+      const email = `${phone}@nexapay.fake`;
+      const callback_url = `${window.location.origin}/electricity/success?reference=${paystackRef}`;
+
+      const ps = await axios.post("/api/paystack/initialize", {
+        amount,
+        email,
+        reference: paystackRef,
+        callback_url,
+        metadata: { request_id, purpose: "electricity_purchase" },
       });
 
-      const authUrl = paystackInit.data.data.authorization_url;
-      window.location.href = authUrl; // redirect to Paystack
+      const { authorization_url } = ps.data.data;
+      window.location.href = authorization_url;
     } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.message || "Payment initialization failed");
+      console.error("Purchase failed:", err.response?.data || err.message);
+      setMessage(err.response?.data?.message || "Failed to initiate electricity purchase");
     } finally {
       setLoading(false);
     }
@@ -109,65 +109,76 @@ export default function ElectricityPurchasePage() {
     <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
       <h1>Buy Electricity</h1>
 
-      <div>
-        <label>Disco:</label>
-        <select
-          value={selectedDisco}
-          onChange={(e) => setSelectedDisco(e.target.value)}
-        >
-          {discos.map((d) => (
-            <option key={d.code} value={d.code}>
-              {d.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <label>Disco:</label>
+      <select
+        value={serviceID}
+        onChange={(e) => setServiceID(e.target.value)}
+        style={{ width: "100%", marginBottom: 10 }}
+      >
+        {discos.map((d) => (
+          <option key={d.code} value={d.code}>
+            {d.label}
+          </option>
+        ))}
+      </select>
 
-      <div>
-        <label>Meter Number:</label>
-        <input
-          type="text"
-          value={meterNumber}
-          onChange={(e) => setMeterNumber(e.target.value)}
-        />
-      </div>
+      <label>Meter Number:</label>
+      <input
+        type="text"
+        value={billersCode}
+        onChange={(e) => {
+          setBillersCode(e.target.value);
+          setVerified(false); // reset verification on change
+          setCustomerName("");
+        }}
+        style={{ width: "100%", marginBottom: 10 }}
+      />
 
-      <div>
-        <label>Meter Type:</label>
-        <select
-          value={meterType}
-          onChange={(e) => setMeterType(e.target.value as "prepaid" | "postpaid")}
-        >
-          <option value="prepaid">Prepaid</option>
-          <option value="postpaid">Postpaid</option>
-        </select>
-      </div>
+      <label>Meter Type:</label>
+      <select
+        value={type}
+        onChange={(e) => setType(e.target.value as any)}
+        style={{ width: "100%", marginBottom: 10 }}
+      >
+        <option value="prepaid">Prepaid</option>
+        <option value="postpaid">Postpaid</option>
+      </select>
 
-      <button onClick={verifyMeter} disabled={loading}>
+      {customerName && <p style={{ color: "green" }}>Customer Name: {customerName}</p>}
+
+      <button
+        onClick={handleVerifyMeter}
+        disabled={loading}
+        style={{ width: "100%", padding: 10, marginBottom: 10 }}
+      >
         {loading ? "Verifying..." : "Verify Meter"}
       </button>
 
-      {verified && customerName && (
-        <p>
-          ✅ Customer Name: <strong>{customerName}</strong>
-        </p>
-      )}
+      <label>Amount (₦):</label>
+      <input
+        type="number"
+        value={amount}
+        onChange={(e) => setAmount(Number(e.target.value))}
+        style={{ width: "100%", marginBottom: 10 }}
+      />
 
-      {verified && (
-        <div style={{ marginTop: 20 }}>
-          <label>Amount (₦):</label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-          <button onClick={payWithCard} disabled={loading}>
-            {loading ? "Processing..." : "Pay with Card"}
-          </button>
-        </div>
-      )}
+      <label>Phone Number:</label>
+      <input
+        type="text"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        style={{ width: "100%", marginBottom: 20 }}
+      />
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {message && <p style={{ color: verified ? "green" : "red" }}>{message}</p>}
+
+      <button
+        onClick={handlePurchase}
+        disabled={loading || !verified}
+        style={{ width: "100%", padding: 10 }}
+      >
+        {loading ? "Processing..." : "Pay & Get Token"}
+      </button>
     </div>
   );
 }
