@@ -10,6 +10,16 @@ interface Disco {
   label: string;
 }
 
+interface ElectricityStatus {
+  request_id: string;
+  amount: number;
+  status: string;
+  customer_name?: string;
+  token?: string;
+  meter_number?: string;
+  type?: "prepaid" | "postpaid";
+}
+
 export default function ElectricityPage() {
   const [discos, setDiscos] = useState<Disco[]>([]);
   const [serviceID, setServiceID] = useState("");
@@ -21,6 +31,8 @@ export default function ElectricityPage() {
   const [message, setMessage] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [verified, setVerified] = useState(false);
+  const [stage, setStage] = useState<"form" | "verifying" | "success">("form");
+  const [receipt, setReceipt] = useState<ElectricityStatus | null>(null);
 
   // Fetch discos on mount
   useEffect(() => {
@@ -30,6 +42,15 @@ export default function ElectricityPage() {
         if (res.data.length) setServiceID(res.data[0].code);
       })
       .catch(err => console.error("Failed to fetch discos:", err));
+  }, []);
+
+  // Detect Paystack redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get("reference");
+    if (reference) {
+      verifyTransaction(reference);
+    }
   }, []);
 
   const handleVerifyMeter = async () => {
@@ -85,7 +106,7 @@ export default function ElectricityPage() {
       // Initialize Paystack
       const paystackRef = `ELEC-${Date.now()}`;
       const email = `${phone}@nexapay.fake`;
-      const callback_url = `${window.location.origin}/electricity/success?reference=${paystackRef}`;
+      const callback_url = `${window.location.origin}/electricity?reference=${paystackRef}`;
 
       const ps = await axios.post("/api/paystack/initialize", {
         amount,
@@ -105,6 +126,95 @@ export default function ElectricityPage() {
       setLoading(false);
     }
   };
+
+  const verifyTransaction = async (reference: string) => {
+    setStage("verifying");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      // Verify Paystack transaction
+      const paystackRes = await axios.get(`/api/paystack/verify/${reference}`);
+      if (paystackRes.data.status !== "success") {
+        setMessage("Payment not successful.");
+        setStage("form");
+        return;
+      }
+
+      const request_id = paystackRes.data.metadata?.request_id;
+      if (!request_id) {
+        setMessage("Invalid transaction metadata.");
+        setStage("form");
+        return;
+      }
+
+      // Check VTpass electricity transaction status
+      const vtpassRes = await axios.post("/api/vtpass/electricity/status", { request_id });
+      const vtData = vtpassRes.data;
+
+      if (!vtData || vtData.error) {
+        setMessage(vtData?.error || "Failed to retrieve electricity status.");
+        setStage("form");
+        return;
+      }
+
+      setReceipt({
+        request_id,
+        amount: vtData.amount,
+        status: vtData.response_description || vtData.status || "success",
+        customer_name: vtData.customer_name,
+        token: vtData.token,
+        meter_number: vtData.billers_code,
+        type: vtData.variation_code,
+      });
+      setStage("success");
+      setMessage("");
+    } catch (err: any) {
+      console.error(err);
+      setMessage(err.response?.data?.message || err.message || "Something went wrong");
+      setStage("form");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Render ---
+  if (stage === "verifying") return <p style={{ padding: 20 }}>Verifying transaction...</p>;
+
+  if (stage === "success" && receipt) {
+    return (
+      <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
+        <h1>Electricity Purchase Successful!</h1>
+        <p><strong>Meter Number:</strong> {receipt.meter_number}</p>
+        <p><strong>Type:</strong> {receipt.type}</p>
+        <p><strong>Amount:</strong> ₦{receipt.amount}</p>
+        <p><strong>Status:</strong> {receipt.status}</p>
+        {receipt.customer_name && <p><strong>Customer Name:</strong> {receipt.customer_name}</p>}
+
+        {receipt.token && (
+          <div style={{ marginTop: 20, padding: 10, background: "#f0f0f0", wordBreak: "break-all" }}>
+            <h3>Prepaid Token:</h3>
+            <p style={{ fontSize: 18, fontWeight: "bold" }}>{receipt.token}</p>
+          </div>
+        )}
+
+        {!receipt.token && receipt.type === "postpaid" && (
+          <p>Please pay your bill at the nearest outlet or via your electricity provider.</p>
+        )}
+
+        <button
+          style={{ marginTop: 20, padding: 10, width: "100%", background: "#3b82f6", color: "white", borderRadius: 5 }}
+          onClick={() => {
+            setStage("form");
+            setReceipt(null);
+            setMessage("");
+          }}
+        >
+          Buy Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
