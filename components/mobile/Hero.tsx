@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Sparkles, Zap, Smartphone, Tv, PlugZap, Apple } from "lucide-react";
 
 export default function Hero() {
+  const router = useRouter();
   const [service, setService] = useState("Airtime");
 
   const services = [
@@ -104,6 +106,11 @@ export default function Hero() {
             <button
               key={s.name}
               onClick={() => handleServiceClick(s.name)}
+
+              if (s.name === "Airtime") {
+                router.push("/airtime");
+              }
+            }}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm sm:text-base transition-all
                 ${
                   service === s.name
