@@ -139,11 +139,13 @@ export default function Services() {
 
   // Socket.IO setup
   useEffect(() => {
-    const socketClient = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
+    const socketClient: Socket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
     setSocket(socketClient);
     socketClient.on("transaction:new", (tx: Transaction) => setTransactions((prev) => [tx, ...prev]));
     fetchTransactions();
-    return () => socketClient.disconnect();
+    return () => {
+      socketClient.disconnect();
+    };
   }, []);
 
   // Main payment handler
