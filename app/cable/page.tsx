@@ -181,7 +181,7 @@ export default function CablePurchasePage() {
           amount: selectedVar.variation_amount,
           phone,
         },
-        callback_url: `${window.location.origin}/app/cable?ref=${reference}`,
+        callback_url: `${window.location.origin}/cable?ref=${reference}`,
       });
 
       window.location.href = initRes.data.data.authorization_url;
