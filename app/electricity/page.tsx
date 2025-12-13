@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
 import api, { VTPassAPI } from "@/lib/api";
 
 /* =======================
@@ -123,7 +122,8 @@ export default function ElectricityPage() {
     setMessage("");
 
     try {
-      const request_id = uuidv4();
+      // Use crypto.randomUUID() instead of uuid
+      const request_id = crypto.randomUUID();
 
       // 1️⃣ Create VTpass transaction
       await VTPassAPI.pay({
