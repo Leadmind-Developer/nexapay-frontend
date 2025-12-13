@@ -10,7 +10,7 @@ type Variation = {
 };
 
 export default function DataPurchasePage() {
-  const [provider, setProvider] = useState<string>("");
+  const [provider, setProvider] = useState("");
   const [billersCode, setBillersCode] = useState("");
   const [variations, setVariations] = useState<Variation[]>([]);
   const [selectedVar, setSelectedVar] = useState<Variation | null>(null);
@@ -21,8 +21,8 @@ export default function DataPurchasePage() {
   const [receipt, setReceipt] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState("");
 
-  // Ref to track active polling
-  const pollingRef = useRef<NodeJS.Timer | null>(null);
+  // ✅ Browser-safe ref for polling
+  const pollingRef = useRef<number | null>(null);
 
   const PROVIDERS = [
     { label: "MTN", value: "mtn" },
@@ -33,7 +33,6 @@ export default function DataPurchasePage() {
     { label: "Smile", value: "smile" },
   ];
 
-  // Auto-detect provider
   useEffect(() => {
     if (!billersCode) return;
     if (billersCode.includes("@")) {
@@ -51,7 +50,6 @@ export default function DataPurchasePage() {
     else if (ETISALAT.includes(prefix)) setProvider("etisalat");
   }, [billersCode]);
 
-  // Load data plans
   const loadVariations = async (prov: string) => {
     if (!prov) return;
     setLoadingPlans(true);
@@ -68,25 +66,24 @@ export default function DataPurchasePage() {
     }
   };
 
-  // Poll VTpass transaction status safely
-  const pollVTpassStatus = async (request_id: string) => {
-    if (pollingRef.current) return; // already polling
+  const pollVTpassStatus = (request_id: string) => {
+    if (pollingRef.current) return;
     setStage("pending");
     setStatusMessage("Transaction submitted...");
 
-    pollingRef.current = setInterval(async () => {
+    pollingRef.current = window.setInterval(async () => {
       try {
         const res = await api.post(`/vtpass/data/status`, { request_id });
         const status = res.data?.content?.transactions?.status;
 
         if (["completed", "delivered", "success"].includes(status)) {
-          clearInterval(pollingRef.current!);
+          if (pollingRef.current) window.clearInterval(pollingRef.current);
           pollingRef.current = null;
           setStatusMessage("🎉 Data purchase successful!");
           setStage("success");
           setProcessing(false);
         } else if (["failed", "error"].includes(status)) {
-          clearInterval(pollingRef.current!);
+          if (pollingRef.current) window.clearInterval(pollingRef.current);
           pollingRef.current = null;
           setStatusMessage("❌ Data purchase failed. You can retry.");
           setStage("error");
@@ -98,7 +95,6 @@ export default function DataPurchasePage() {
     }, 5000);
   };
 
-  // Verify Paystack payment and trigger VTpass purchase
   const verifyAndPurchase = async (reference: string) => {
     if (!selectedVar) return;
 
@@ -130,7 +126,6 @@ export default function DataPurchasePage() {
       });
 
       pollVTpassStatus(purchase.data.request_id);
-
     } catch (err) {
       console.error(err);
       setStatusMessage("❌ Data purchase failed. You can retry.");
@@ -139,7 +134,6 @@ export default function DataPurchasePage() {
     }
   };
 
-  // Start Paystack payment
   const startPayment = async () => {
     if (!selectedVar || !email || !provider || !billersCode)
       return alert("Fill all required fields");
@@ -172,7 +166,6 @@ export default function DataPurchasePage() {
     }
   };
 
-  // Detect redirect after Paystack checkout
   useEffect(() => {
     const url = new URL(window.location.href);
     const ref = url.searchParams.get("ref");
@@ -256,11 +249,9 @@ export default function DataPurchasePage() {
           <button
             className="w-full bg-yellow-600 text-white py-3 rounded"
             onClick={() => {
-              if (receipt && receipt.vtpass?.request_id) {
-                pollVTpassStatus(receipt.vtpass.request_id); // safe retry
-              }
+              if (receipt?.vtpass?.request_id) pollVTpassStatus(receipt.vtpass.request_id);
             }}
-            disabled={!!pollingRef.current} // disable while polling
+            disabled={!!pollingRef.current}
           >
             Retry Purchase
           </button>
