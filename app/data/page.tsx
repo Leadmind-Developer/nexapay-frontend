@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import api from "@/lib/api";
 
 type Variation = {
@@ -20,6 +20,9 @@ export default function DataPurchasePage() {
   const [stage, setStage] = useState<"form" | "paying" | "pending" | "success" | "error">("form");
   const [receipt, setReceipt] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState("");
+
+  // Ref to track active polling
+  const pollingRef = useRef<NodeJS.Timer | null>(null);
 
   const PROVIDERS = [
     { label: "MTN", value: "mtn" },
@@ -42,7 +45,6 @@ export default function DataPurchasePage() {
     const GLO = ["0705","0805","0807","0811","0815","0905"];
     const AIRTEL = ["0701","0708","0802","0808","0812","0901","0902","0904","0912"];
     const ETISALAT = ["0709","0809","0817","0818","0908","0909"];
-
     if (MTN.includes(prefix)) setProvider("mtn");
     else if (GLO.includes(prefix)) setProvider("glo");
     else if (AIRTEL.includes(prefix)) setProvider("airtel");
@@ -55,23 +57,92 @@ export default function DataPurchasePage() {
     setLoadingPlans(true);
     setVariations([]);
     setSelectedVar(null);
-
     try {
       const res = await api.get(`/vtpass/data/variations/${prov}`);
       setVariations(res.data.variations || []);
     } catch (err) {
       console.error(err);
       alert("Failed to load plans.");
+    } finally {
+      setLoadingPlans(false);
     }
-
-    setLoadingPlans(false);
   };
 
-  // Hosted Paystack checkout
-  const startPayment = async () => {
-    if (!selectedVar || !email || !provider || !billersCode) {
-      return alert("Fill all required fields");
+  // Poll VTpass transaction status safely
+  const pollVTpassStatus = async (request_id: string) => {
+    if (pollingRef.current) return; // already polling
+    setStage("pending");
+    setStatusMessage("Transaction submitted...");
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await api.post(`/vtpass/data/status`, { request_id });
+        const status = res.data?.content?.transactions?.status;
+
+        if (["completed", "delivered", "success"].includes(status)) {
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          setStatusMessage("🎉 Data purchase successful!");
+          setStage("success");
+          setProcessing(false);
+        } else if (["failed", "error"].includes(status)) {
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          setStatusMessage("❌ Data purchase failed. You can retry.");
+          setStage("error");
+          setProcessing(false);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 5000);
+  };
+
+  // Verify Paystack payment and trigger VTpass purchase
+  const verifyAndPurchase = async (reference: string) => {
+    if (!selectedVar) return;
+
+    try {
+      setProcessing(true);
+      setStage("paying");
+
+      const verify = await api.get(`/paystack/verify/${reference}`);
+      if (verify.data.status !== "success") {
+        alert("Payment not completed");
+        setStage("form");
+        setProcessing(false);
+        return;
+      }
+
+      const purchase = await api.post("/vtpass/data/purchase", {
+        provider,
+        billersCode,
+        variation_code: selectedVar.variation_code,
+        amount: selectedVar.variation_amount,
+      });
+
+      setReceipt({
+        reference,
+        provider,
+        billersCode,
+        variation: selectedVar,
+        vtpass: purchase.data.result,
+      });
+
+      pollVTpassStatus(purchase.data.request_id);
+
+    } catch (err) {
+      console.error(err);
+      setStatusMessage("❌ Data purchase failed. You can retry.");
+      setStage("error");
+      setProcessing(false);
     }
+  };
+
+  // Start Paystack payment
+  const startPayment = async () => {
+    if (!selectedVar || !email || !provider || !billersCode)
+      return alert("Fill all required fields");
 
     try {
       setProcessing(true);
@@ -80,7 +151,7 @@ export default function DataPurchasePage() {
       const reference = `DATA-${Date.now()}`;
       const initRes = await api.post("/paystack/initialize", {
         email,
-        amount: selectedVar.variation_amount * 100, // kobo
+        amount: selectedVar.variation_amount * 100,
         reference,
         metadata: {
           purpose: "data_purchase",
@@ -101,77 +172,13 @@ export default function DataPurchasePage() {
     }
   };
 
-  // Poll VTpass status
-  const pollVTpassStatus = async (request_id: string) => {
-    setStage("pending");
-    setStatusMessage("Transaction submitted...");
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await api.post(`/vtpass/data/status`, { request_id });
-        const status = res.data?.content?.transactions?.status;
-
-        if (["completed", "delivered", "success"].includes(status)) {
-          clearInterval(interval);
-          setStatusMessage("🎉 Data purchase successful!");
-          setStage("success");
-          setProcessing(false);
-        } else if (["failed", "error"].includes(status)) {
-          clearInterval(interval);
-          setStatusMessage("❌ Data purchase failed. You can retry.");
-          setStage("error");
-          setProcessing(false);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }, 5000);
-  };
-
-  // Detect redirect after hosted checkout
+  // Detect redirect after Paystack checkout
   useEffect(() => {
     const url = new URL(window.location.href);
     const ref = url.searchParams.get("ref");
-    if (!ref) return;
-
-    const verifyAndPurchase = async (reference: string) => {
-      try {
-        setProcessing(true);
-
-        const verify = await api.get(`/paystack/verify/${reference}`);
-        if (verify.data.status !== "success") {
-          alert("Payment not completed");
-          setProcessing(false);
-          setStage("form");
-          return;
-        }
-
-        const purchase = await api.post("/vtpass/data/purchase", {
-          provider,
-          billersCode,
-          variation_code: selectedVar?.variation_code,
-          amount: selectedVar?.variation_amount,
-        });
-
-        setReceipt({
-          reference,
-          provider,
-          billersCode,
-          variation: selectedVar,
-          vtpass: purchase.data.result,
-        });
-
-        // Start polling VTpass
-        pollVTpassStatus(purchase.data.request_id);
-      } catch (err) {
-        console.error(err);
-        setStatusMessage("❌ Data purchase failed. You can retry.");
-        setStage("error");
-        setProcessing(false);
-      }
-    };
-
-    verifyAndPurchase(ref);
+    if (ref && selectedVar && provider && billersCode) {
+      verifyAndPurchase(ref);
+    }
   }, [selectedVar, provider, billersCode]);
 
   return (
@@ -249,10 +256,13 @@ export default function DataPurchasePage() {
           <button
             className="w-full bg-yellow-600 text-white py-3 rounded"
             onClick={() => {
-              if (receipt) pollVTpassStatus(receipt.vtpass.request_id);
+              if (receipt && receipt.vtpass?.request_id) {
+                pollVTpassStatus(receipt.vtpass.request_id); // safe retry
+              }
             }}
+            disabled={!!pollingRef.current} // disable while polling
           >
-            Retry VTpass Purchase
+            Retry Purchase
           </button>
         </div>
       )}
