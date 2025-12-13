@@ -154,7 +154,7 @@ export default function DataPurchasePage() {
           variation_code: selectedVar.variation_code,
           amount: selectedVar.variation_amount,
         },
-        callback_url: `${window.location.origin}/app/data?ref=${reference}`,
+        callback_url: `${window.location.origin}/data?ref=${reference}`,
       });
 
       window.location.href = initRes.data.data.authorization_url;
