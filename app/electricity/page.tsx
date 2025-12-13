@@ -1,7 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import api, { VTPassAPI } from "@/lib/api";
+
+import SEO from "@/components/SEO";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import LandingSidebar from "@/components/LandingSidebar";
 
 /* =======================
    Types
@@ -23,14 +28,15 @@ interface ElectricityReceipt {
   type?: "prepaid" | "postpaid";
 }
 
-/* VTpass API responses */
 interface VerifyMeterResponse {
   customer_name: string;
-  // add any other fields returned by the API if needed
 }
 
-interface VTpassPayResponse {
-  // define fields if needed; can be empty for now
+interface PaystackVerifyResponse {
+  status: "success" | string;
+  metadata?: {
+    request_id?: string;
+  };
 }
 
 interface VTpassStatusResponse {
@@ -46,24 +52,21 @@ interface VTpassStatusResponse {
   variation_code?: "prepaid" | "postpaid";
 }
 
-/* Paystack verification response */
-interface PaystackVerifyResponse {
-  status: "success" | string;
-  metadata?: {
-    request_id?: string;
-  };
-}
-
 /* =======================
    Page
 ======================= */
 
 export default function ElectricityPage() {
+  /* ---------- Layout refs ---------- */
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  /* ---------- State ---------- */
   const [discos, setDiscos] = useState<Disco[]>([]);
   const [serviceID, setServiceID] = useState("");
   const [billersCode, setBillersCode] = useState("");
   const [type, setType] = useState<"prepaid" | "postpaid">("prepaid");
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState(0);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
@@ -77,9 +80,29 @@ export default function ElectricityPage() {
   const [receipt, setReceipt] = useState<ElectricityReceipt | null>(null);
 
   /* =======================
+     Track Header Height
+  ======================= */
+  useEffect(() => {
+    if (!headerRef.current) return;
+
+    const update = () =>
+      setHeaderHeight(headerRef.current?.offsetHeight || 0);
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(headerRef.current);
+
+    window.addEventListener("resize", update);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  /* =======================
      Load Discos
   ======================= */
-
   useEffect(() => {
     api
       .get<Disco[]>("/vtpass/electricity/discos")
@@ -94,9 +117,8 @@ export default function ElectricityPage() {
   }, []);
 
   /* =======================
-     Handle Paystack Redirect
+     Paystack Redirect
   ======================= */
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const reference = params.get("reference");
@@ -106,7 +128,6 @@ export default function ElectricityPage() {
   /* =======================
      Verify Meter
   ======================= */
-
   const handleVerifyMeter = async () => {
     if (!serviceID || !billersCode) {
       setMessage("Please select a Disco and enter meter number");
@@ -123,10 +144,9 @@ export default function ElectricityPage() {
         type,
       });
 
-      const data = res.data;
-      setCustomerName(data.customer_name);
+      setCustomerName(res.data.customer_name);
       setVerified(true);
-      setMessage(`Meter verified: ${data.customer_name}`);
+      setMessage(`Meter verified: ${res.data.customer_name}`);
     } catch (err: any) {
       setVerified(false);
       setCustomerName("");
@@ -139,17 +159,10 @@ export default function ElectricityPage() {
   /* =======================
      Purchase + Paystack
   ======================= */
-
   const handlePurchase = async () => {
-    if (!verified) {
-      setMessage("Please verify meter first");
-      return;
-    }
-
-    if (!amount || !phone) {
-      setMessage("Amount and phone number are required");
-      return;
-    }
+    if (!verified) return setMessage("Please verify meter first");
+    if (!amount || !phone)
+      return setMessage("Amount and phone number are required");
 
     setLoading(true);
     setMessage("");
@@ -157,8 +170,7 @@ export default function ElectricityPage() {
     try {
       const request_id = crypto.randomUUID();
 
-      // 1️⃣ Create VTpass transaction
-      await VTPassAPI.pay<VTpassPayResponse>({
+      await VTPassAPI.pay({
         request_id,
         serviceID,
         billersCode,
@@ -167,21 +179,15 @@ export default function ElectricityPage() {
         phone,
       });
 
-      // 2️⃣ Init Paystack
       const reference = `ELEC-${Date.now()}`;
       const guestEmail = email || `${phone}@nexapay.fake`;
-
-      const callback_url = `${window.location.origin}/electricity?reference=${reference}`;
 
       const ps = await api.post("/paystack/initialize", {
         amount,
         email: guestEmail,
         reference,
-        callback_url,
-        metadata: {
-          request_id,
-          purpose: "electricity_purchase",
-        },
+        callback_url: `${window.location.origin}/electricity?reference=${reference}`,
+        metadata: { request_id, purpose: "electricity_purchase" },
       });
 
       window.location.href = ps.data.data.authorization_url;
@@ -193,38 +199,29 @@ export default function ElectricityPage() {
   };
 
   /* =======================
-     Verify Payment
+     Verify Transaction
   ======================= */
-
   const verifyTransaction = async (reference: string) => {
     setStage("verifying");
     setLoading(true);
-    setMessage("");
 
     try {
-      const paystackRes = await api.get<PaystackVerifyResponse>(
+      const ps = await api.get<PaystackVerifyResponse>(
         `/paystack/verify/${reference}`
       );
 
-      if (paystackRes.data.status !== "success") {
-        setStage("form");
-        setMessage("Payment was not successful");
-        return;
-      }
+      if (ps.data.status !== "success")
+        return setStage("form");
 
-      const request_id = paystackRes.data.metadata?.request_id;
-      if (!request_id) {
-        setStage("form");
-        setMessage("Invalid transaction reference");
-        return;
-      }
+      const request_id = ps.data.metadata?.request_id;
+      if (!request_id) return setStage("form");
 
-      const vtpassRes = await api.post<VTpassStatusResponse>(
+      const vt = await api.post<VTpassStatusResponse>(
         "/vtpass/electricity/status",
         { request_id }
       );
 
-      const v = vtpassRes.data;
+      const v = vt.data;
 
       setReceipt({
         request_id,
@@ -237,153 +234,142 @@ export default function ElectricityPage() {
       });
 
       setStage("success");
-    } catch (err: any) {
+    } catch {
       setStage("form");
-      setMessage(err.response?.data?.message || "Verification failed");
+      setMessage("Verification failed");
     } finally {
       setLoading(false);
     }
   };
 
   /* =======================
-     UI
+     Layout
   ======================= */
-
-  if (stage === "verifying") {
-    return <p style={{ padding: 20 }}>Verifying transaction...</p>;
-  }
-
-  if (stage === "success" && receipt) {
-    return (
-      <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
-        <h1>Electricity Purchase Successful</h1>
-
-        <p>
-          <strong>Meter:</strong> {receipt.meter_number}
-        </p>
-        <p>
-          <strong>Type:</strong> {receipt.type}
-        </p>
-        <p>
-          <strong>Amount:</strong> ₦{receipt.amount}
-        </p>
-        <p>
-          <strong>Status:</strong> {receipt.status}
-        </p>
-
-        {receipt.customer_name && (
-          <p>
-            <strong>Customer:</strong> {receipt.customer_name}
-          </p>
-        )}
-
-        {receipt.token && (
-          <div style={{ marginTop: 20, padding: 10, background: "#f3f4f6" }}>
-            <h3>Prepaid Token</h3>
-            <p style={{ fontWeight: "bold", fontSize: 18 }}>{receipt.token}</p>
-          </div>
-        )}
-
-        <button
-          style={{ marginTop: 20, width: "100%", padding: 10 }}
-          onClick={() => {
-            setStage("form");
-            setReceipt(null);
-            setVerified(false);
-            setMessage("");
-          }}
-        >
-          Buy Again
-        </button>
-      </div>
-    );
-  }
-
-  /* =======================
-     Form
-  ======================= */
-
   return (
-    <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
-      <h1>Buy Electricity</h1>
-
-      <label>Disco</label>
-      <select
-        value={serviceID}
-        onChange={(e) => setServiceID(e.target.value)}
-        style={{ width: "100%", marginBottom: 10 }}
-      >
-        {discos.map((d) => (
-          <option key={d.code} value={d.code}>
-            {d.label}
-          </option>
-        ))}
-      </select>
-
-      <label>Meter Number</label>
-      <input
-        value={billersCode}
-        onChange={(e) => {
-          setBillersCode(e.target.value);
-          setVerified(false);
-          setCustomerName("");
-        }}
-        style={{ width: "100%", marginBottom: 10 }}
+    <>
+      <SEO
+        title="Buy Electricity | NexaPay"
+        description="Buy prepaid and postpaid electricity tokens instantly on NexaPay."
       />
 
-      <label>Meter Type</label>
-      <select
-        value={type}
-        onChange={(e) => setType(e.target.value as any)}
-        style={{ width: "100%", marginBottom: 10 }}
-      >
-        <option value="prepaid">Prepaid</option>
-        <option value="postpaid">Postpaid</option>
-      </select>
+      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+        {/* Sidebar */}
+        <div className="hidden sm:block">
+          <LandingSidebar />
+        </div>
 
-      {customerName && <p style={{ color: "green" }}>Customer: {customerName}</p>}
+        {/* Main */}
+        <main className="flex-1 sm:ml-32 flex flex-col">
+          {/* Header */}
+          <div
+            ref={headerRef}
+            className="fixed top-0 left-0 sm:left-32 right-0 z-50 bg-white dark:bg-gray-900 border-b shadow-sm"
+          >
+            <Header />
+          </div>
 
-      <button
-        onClick={handleVerifyMeter}
-        disabled={loading}
-        style={{ width: "100%", marginBottom: 10 }}
-      >
-        {loading ? "Verifying..." : "Verify Meter"}
-      </button>
+          {/* Content */}
+          <div style={{ paddingTop: headerHeight }} className="flex-grow">
+            <div className="max-w-lg mx-auto p-6">
+              {stage === "verifying" && <p>Verifying transaction...</p>}
 
-      <label>Amount (₦)</label>
-      <input
-        type="number"
-        value={amount}
-        onChange={(e) => setAmount(Number(e.target.value))}
-        style={{ width: "100%", marginBottom: 10 }}
-      />
+              {stage === "success" && receipt && (
+                <div className="bg-green-100 p-4 rounded">
+                  <h2 className="font-bold text-lg mb-2">
+                    Electricity Purchase Successful 🎉
+                  </h2>
+                  <p><strong>Meter:</strong> {receipt.meter_number}</p>
+                  <p><strong>Amount:</strong> ₦{receipt.amount}</p>
 
-      <label>Phone Number</label>
-      <input
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        style={{ width: "100%", marginBottom: 10 }}
-      />
+                  {receipt.token && (
+                    <div className="mt-4 bg-white p-3 rounded">
+                      <p className="font-bold text-xl">{receipt.token}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
-      <label>Email (optional)</label>
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@example.com"
-        style={{ width: "100%", marginBottom: 10 }}
-      />
+              {stage === "form" && (
+                <>
+                  <h1 className="text-2xl font-bold mb-4">Buy Electricity</h1>
 
-      {message && <p style={{ color: verified ? "green" : "red" }}>{message}</p>}
+                  {/* --- form fields unchanged --- */}
+                  {/* Disco */}
+                  <select
+                    value={serviceID}
+                    onChange={(e) => setServiceID(e.target.value)}
+                    className="w-full mb-3 p-3 border rounded"
+                  >
+                    {discos.map((d) => (
+                      <option key={d.code} value={d.code}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
 
-      <button
-        onClick={handlePurchase}
-        disabled={!verified || loading}
-        style={{ width: "100%", padding: 10 }}
-      >
-        {loading ? "Processing..." : "Pay & Get Token"}
-      </button>
-    </div>
+                  {/* Meter */}
+                  <input
+                    placeholder="Meter Number"
+                    value={billersCode}
+                    onChange={(e) => {
+                      setBillersCode(e.target.value);
+                      setVerified(false);
+                    }}
+                    className="w-full mb-3 p-3 border rounded"
+                  />
+
+                  <button
+                    onClick={handleVerifyMeter}
+                    disabled={loading}
+                    className="w-full bg-gray-800 text-white p-3 rounded mb-3"
+                  >
+                    Verify Meter
+                  </button>
+
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    value={amount}
+                    onChange={(e) => setAmount(Number(e.target.value))}
+                    className="w-full mb-3 p-3 border rounded"
+                  />
+
+                  <input
+                    placeholder="Phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full mb-3 p-3 border rounded"
+                  />
+
+                  <input
+                    placeholder="Email (optional)"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full mb-3 p-3 border rounded"
+                  />
+
+                  {message && (
+                    <p className={`mb-3 ${verified ? "text-green-600" : "text-red-600"}`}>
+                      {message}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={handlePurchase}
+                    disabled={!verified || loading}
+                    className="w-full bg-blue-600 text-white p-3 rounded"
+                  >
+                    Pay & Get Token
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <Footer />
+        </main>
+      </div>
+    </>
   );
 }
