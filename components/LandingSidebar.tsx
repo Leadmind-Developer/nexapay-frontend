@@ -18,10 +18,10 @@ import {
 } from "lucide-react";
 
 const mainItems = [
-  { title: "Airtime", href: "/buy-airtime", icon: Smartphone },
-  { title: "Data", href: "/buy-data", icon: Wifi },
-  { title: "TV", href: "/pay-tv", icon: Tv },
-  { title: "Electricity", href: "/pay-electricity", icon: Zap },
+  { title: "Airtime", href: "/airtime", icon: Smartphone },
+  { title: "Data", href: "/data", icon: Wifi },
+  { title: "TV", href: "/cable", icon: Tv },
+  { title: "Electricity", href: "/electricity", icon: Zap },
 ];
 
 const moreItems = [
