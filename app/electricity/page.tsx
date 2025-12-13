@@ -23,6 +23,37 @@ interface ElectricityReceipt {
   type?: "prepaid" | "postpaid";
 }
 
+/* VTpass API responses */
+interface VerifyMeterResponse {
+  customer_name: string;
+  // add any other fields returned by the API if needed
+}
+
+interface VTpassPayResponse {
+  // define fields if needed; can be empty for now
+}
+
+interface VTpassStatusResponse {
+  amount?: number;
+  purchased_amount?: number;
+  response_description?: string;
+  status?: string;
+  customer_name?: string;
+  token?: string;
+  token_code?: string;
+  billersCode?: string;
+  billers_code?: string;
+  variation_code?: "prepaid" | "postpaid";
+}
+
+/* Paystack verification response */
+interface PaystackVerifyResponse {
+  status: "success" | string;
+  metadata?: {
+    request_id?: string;
+  };
+}
+
 /* =======================
    Page
 ======================= */
@@ -51,10 +82,11 @@ export default function ElectricityPage() {
 
   useEffect(() => {
     api
-      .get("/vtpass/electricity/discos")
+      .get<Disco[]>("/vtpass/electricity/discos")
       .then((res) => {
-        setDiscos(res.data || []);
-        if (res.data?.length) setServiceID(res.data[0].code);
+        const data = res.data || [];
+        setDiscos(data);
+        if (data.length) setServiceID(data[0].code);
       })
       .catch(() => {
         setMessage("Failed to load electricity providers");
@@ -85,15 +117,16 @@ export default function ElectricityPage() {
     setMessage("");
 
     try {
-      const res = await VTPassAPI.verify({
+      const res = await VTPassAPI.verify<VerifyMeterResponse>({
         serviceID,
         billersCode,
         type,
       });
 
-      setCustomerName(res.data.customer_name);
+      const data = res.data;
+      setCustomerName(data.customer_name);
       setVerified(true);
-      setMessage(`Meter verified: ${res.data.customer_name}`);
+      setMessage(`Meter verified: ${data.customer_name}`);
     } catch (err: any) {
       setVerified(false);
       setCustomerName("");
@@ -122,11 +155,10 @@ export default function ElectricityPage() {
     setMessage("");
 
     try {
-      // Use crypto.randomUUID() instead of uuid
       const request_id = crypto.randomUUID();
 
       // 1️⃣ Create VTpass transaction
-      await VTPassAPI.pay({
+      await VTPassAPI.pay<VTpassPayResponse>({
         request_id,
         serviceID,
         billersCode,
@@ -170,7 +202,9 @@ export default function ElectricityPage() {
     setMessage("");
 
     try {
-      const paystackRes = await api.get(`/paystack/verify/${reference}`);
+      const paystackRes = await api.get<PaystackVerifyResponse>(
+        `/paystack/verify/${reference}`
+      );
 
       if (paystackRes.data.status !== "success") {
         setStage("form");
@@ -185,9 +219,10 @@ export default function ElectricityPage() {
         return;
       }
 
-      const vtpassRes = await api.post("/vtpass/electricity/status", {
-        request_id,
-      });
+      const vtpassRes = await api.post<VTpassStatusResponse>(
+        "/vtpass/electricity/status",
+        { request_id }
+      );
 
       const v = vtpassRes.data;
 
@@ -223,13 +258,23 @@ export default function ElectricityPage() {
       <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
         <h1>Electricity Purchase Successful</h1>
 
-        <p><strong>Meter:</strong> {receipt.meter_number}</p>
-        <p><strong>Type:</strong> {receipt.type}</p>
-        <p><strong>Amount:</strong> ₦{receipt.amount}</p>
-        <p><strong>Status:</strong> {receipt.status}</p>
+        <p>
+          <strong>Meter:</strong> {receipt.meter_number}
+        </p>
+        <p>
+          <strong>Type:</strong> {receipt.type}
+        </p>
+        <p>
+          <strong>Amount:</strong> ₦{receipt.amount}
+        </p>
+        <p>
+          <strong>Status:</strong> {receipt.status}
+        </p>
 
         {receipt.customer_name && (
-          <p><strong>Customer:</strong> {receipt.customer_name}</p>
+          <p>
+            <strong>Customer:</strong> {receipt.customer_name}
+          </p>
         )}
 
         {receipt.token && (
@@ -296,9 +341,7 @@ export default function ElectricityPage() {
         <option value="postpaid">Postpaid</option>
       </select>
 
-      {customerName && (
-        <p style={{ color: "green" }}>Customer: {customerName}</p>
-      )}
+      {customerName && <p style={{ color: "green" }}>Customer: {customerName}</p>}
 
       <button
         onClick={handleVerifyMeter}
