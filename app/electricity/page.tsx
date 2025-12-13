@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
+import api, { VTPassAPI } from "@/lib/api";
 
 interface Disco {
   code: string;
@@ -36,7 +36,7 @@ export default function ElectricityPage() {
 
   // Fetch discos on mount
   useEffect(() => {
-    axios.get("/api/vtpass/electricity/discos")
+    api.get("/vtpass/electricity/discos")
       .then(res => {
         setDiscos(res.data);
         if (res.data.length) setServiceID(res.data[0].code);
@@ -63,7 +63,7 @@ export default function ElectricityPage() {
     setMessage("");
 
     try {
-      const res = await axios.post("/api/vtpass/electricity/verify", { serviceID, billersCode, type });
+      const res = await VTPassAPI.verify({ serviceID, billersCode, type });
       setCustomerName(res.data.customer_name);
       setVerified(true);
       setMessage(`Meter verified: ${res.data.customer_name}`);
@@ -93,8 +93,8 @@ export default function ElectricityPage() {
     try {
       const request_id = uuidv4();
 
-      // Create electricity purchase request in backend
-      await axios.post("/api/vtpass/electricity/purchase", {
+      // Create electricity purchase request
+      await VTPassAPI.pay({
         request_id,
         serviceID,
         billersCode,
@@ -108,7 +108,7 @@ export default function ElectricityPage() {
       const email = `${phone}@nexapay.fake`;
       const callback_url = `${window.location.origin}/electricity?reference=${paystackRef}`;
 
-      const ps = await axios.post("/api/paystack/initialize", {
+      const ps = await api.post("/paystack/initialize", {
         amount,
         email,
         reference: paystackRef,
@@ -134,7 +134,7 @@ export default function ElectricityPage() {
 
     try {
       // Verify Paystack transaction
-      const paystackRes = await axios.get(`/api/paystack/verify/${reference}`);
+      const paystackRes = await api.get(`/paystack/verify/${reference}`);
       if (paystackRes.data.status !== "success") {
         setMessage("Payment not successful.");
         setStage("form");
@@ -149,7 +149,10 @@ export default function ElectricityPage() {
       }
 
       // Check VTpass electricity transaction status
-      const vtpassRes = await axios.post("/api/vtpass/electricity/status", { request_id });
+      const vtpassRes = await api.post("/vtpass/electricity/status", {
+        request_id,
+      });
+      
       const vtData = vtpassRes.data;
 
       if (!vtData || vtData.error) {
@@ -160,11 +163,11 @@ export default function ElectricityPage() {
 
       setReceipt({
         request_id,
-        amount: vtData.amount,
+        amount: Number(vtData.amount || vtData.purchased_amount || 0),
         status: vtData.response_description || vtData.status || "success",
         customer_name: vtData.customer_name,
-        token: vtData.token,
-        meter_number: vtData.billers_code,
+        token: vtData.token || vtData.token_code,
+        meter_number: vtData.billersCode || vtData.billers_code,
         type: vtData.variation_code,
       });
       setStage("success");
