@@ -18,15 +18,12 @@ export default function BannersWrapper({ children, page }: Props) {
       {/* Push content down from header */}
       <Banner spacer spaceY={12} />
 
-      {/* Top promos */}
-      <div className="space-y-6 mb-6">
-        {/* Ad 1 */}
-        <Banner page={page} />
-
-        {/* Extra space between header and Ad 2 */}
+      {/* Top promo (Ad 2 only) */}
+      <div className="mb-6">
+        {/* Extra breathing space */}
         <Banner spacer spaceY={6} />
 
-        {/* Ad 2 */}
+        {/* Active promo */}
         <Banner page={page} />
       </div>
 
