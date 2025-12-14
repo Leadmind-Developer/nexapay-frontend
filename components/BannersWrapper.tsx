@@ -10,20 +10,13 @@ interface Props {
 }
 
 /**
- * Page banner layout (top banners only)
+ * Page banner layout (top banner only)
  */
 export default function BannersWrapper({ children, page }: Props) {
   return (
-    <div className="flex flex-col">
-      {/* Push content down from header */}
-      <Banner spacer spaceY={12} />
-
-      {/* Top promo (Ad 2 only) */}
+    <div className="flex flex-col mt-16">
+      {/* Top promo */}
       <div className="mb-6">
-        {/* Extra breathing space */}
-        <Banner spacer spaceY={6} />
-
-        {/* Active promo */}
         <Banner page={page} />
       </div>
 
