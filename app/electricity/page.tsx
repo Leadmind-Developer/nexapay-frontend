@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import api, { VTPassAPI } from "@/lib/api";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
+import BannersWrapper from "@/components/BannersWrapper";
 
 /* =======================
    Types
