@@ -245,6 +245,7 @@ export default function ElectricityPage() {
 
   return (
     <ResponsiveLandingWrapper>
+       <BannersWrapper>
       <div className="shell-content max-w-md mx-auto px-4">
         {stage === "verifying" && <p>Verifying transaction...</p>}
 
@@ -375,6 +376,7 @@ export default function ElectricityPage() {
           </>
         )}
       </div>
+          </BannersWrapper>
     </ResponsiveLandingWrapper>
   );
 }
