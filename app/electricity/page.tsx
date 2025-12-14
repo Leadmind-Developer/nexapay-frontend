@@ -29,8 +29,6 @@ interface VerifyMeterResponse {
   customer_name: string;
 }
 
-interface VTpassPayResponse {}
-
 interface VTpassStatusResponse {
   amount?: number;
   purchased_amount?: number;
@@ -60,7 +58,8 @@ export default function ElectricityPage() {
   const [serviceID, setServiceID] = useState("");
   const [billersCode, setBillersCode] = useState("");
   const [type, setType] = useState<"prepaid" | "postpaid">("prepaid");
-  const [amount, setAmount] = useState(0);
+
+  const [amount, setAmount] = useState<number>(0);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
@@ -81,13 +80,11 @@ export default function ElectricityPage() {
     api
       .get<Disco[]>("/vtpass/electricity/discos")
       .then((res) => {
-        const data = res.data || [];
+        const data = res.data ?? [];
         setDiscos(data);
         if (data.length) setServiceID(data[0].code);
       })
-      .catch(() => {
-        setMessage("Failed to load electricity providers");
-      });
+      .catch(() => setMessage("Failed to load electricity providers"));
   }, []);
 
   /* =======================
@@ -95,8 +92,9 @@ export default function ElectricityPage() {
   ======================= */
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const reference = params.get("reference");
+    const reference = new URLSearchParams(window.location.search).get(
+      "reference"
+    );
     if (reference) verifyTransaction(reference);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -154,7 +152,7 @@ export default function ElectricityPage() {
     try {
       const request_id = crypto.randomUUID();
 
-      await VTPassAPI.pay<VTpassPayResponse>({
+      await VTPassAPI.pay({
         request_id,
         serviceID,
         billersCode,
@@ -202,16 +200,12 @@ export default function ElectricityPage() {
       );
 
       if (paystackRes.data.status !== "success") {
-        setStage("form");
-        setMessage("Payment was not successful");
-        return;
+        throw new Error("Payment was not successful");
       }
 
       const request_id = paystackRes.data.metadata?.request_id;
       if (!request_id) {
-        setStage("form");
-        setMessage("Invalid transaction reference");
-        return;
+        throw new Error("Invalid transaction reference");
       }
 
       const vtpassRes = await api.post<VTpassStatusResponse>(
@@ -234,7 +228,7 @@ export default function ElectricityPage() {
       setStage("success");
     } catch (err: any) {
       setStage("form");
-      setMessage(err.response?.data?.message || "Verification failed");
+      setMessage(err.message || "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -246,138 +240,145 @@ export default function ElectricityPage() {
 
   return (
     <ResponsiveLandingWrapper>
-       <BannersWrapper page="electricity">
-      <div className="shell-content max-w-md mx-auto px-4">
-        {stage === "verifying" && <p>Verifying transaction...</p>}
+      <BannersWrapper page="electricity">
+        <div className="shell-content max-w-md mx-auto px-4">
+          {stage === "verifying" && (
+            <p className="text-center text-sm">Verifying transaction…</p>
+          )}
 
-        {stage === "success" && receipt && (
-          <>
-            <h1 className="text-2xl font-bold mb-4">
-              Electricity Purchase Successful
-            </h1>
+          {stage === "success" && receipt && (
+            <>
+              <h1 className="text-2xl font-bold mb-4">
+                Electricity Purchase Successful
+              </h1>
 
-            <p><strong>Meter:</strong> {receipt.meter_number}</p>
-            <p><strong>Type:</strong> {receipt.type}</p>
-            <p><strong>Amount:</strong> ₦{receipt.amount}</p>
-            <p><strong>Status:</strong> {receipt.status}</p>
-
-            {receipt.customer_name && (
-              <p><strong>Customer:</strong> {receipt.customer_name}</p>
-            )}
-
-            {receipt.token && (
-              <div className="mt-4 p-3 bg-gray-100 rounded">
-                <h3 className="font-semibold">Prepaid Token</h3>
-                <p className="text-lg font-bold">{receipt.token}</p>
+              <div className="space-y-1 text-sm">
+                <p><strong>Meter:</strong> {receipt.meter_number}</p>
+                <p><strong>Type:</strong> {receipt.type}</p>
+                <p><strong>Amount:</strong> ₦{receipt.amount}</p>
+                <p><strong>Status:</strong> {receipt.status}</p>
+                {receipt.customer_name && (
+                  <p><strong>Customer:</strong> {receipt.customer_name}</p>
+                )}
               </div>
-            )}
 
-            <button
-              className="mt-6 w-full py-2 bg-black text-white rounded"
-              onClick={() => {
-                setStage("form");
-                setReceipt(null);
-                setVerified(false);
-                setMessage("");
-              }}
-            >
-              Buy Again
-            </button>
-          </>
-        )}
+              {receipt.token && (
+                <div className="mt-4 p-3 bg-gray-100 rounded">
+                  <h3 className="font-semibold">Prepaid Token</h3>
+                  <p className="text-lg font-bold tracking-wide">
+                    {receipt.token}
+                  </p>
+                </div>
+              )}
 
-        {stage === "form" && (
-          <>
-            <h1 className="text-2xl font-bold mb-4">Buy Electricity</h1>
+              <button
+                className="mt-6 w-full py-2 bg-black text-white rounded"
+                onClick={() => {
+                  setStage("form");
+                  setReceipt(null);
+                  setVerified(false);
+                  setMessage("");
+                }}
+              >
+                Buy Again
+              </button>
+            </>
+          )}
 
-            <label>Disco</label>
-            <select
-              value={serviceID}
-              onChange={(e) => setServiceID(e.target.value)}
-              className="w-full mb-2"
-            >
-              {discos.map((d) => (
-                <option key={d.code} value={d.code}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+          {stage === "form" && (
+            <>
+              <h1 className="text-2xl font-bold mb-4">Buy Electricity</h1>
 
-            <label>Meter Number</label>
-            <input
-              value={billersCode}
-              onChange={(e) => {
-                setBillersCode(e.target.value);
-                setVerified(false);
-                setCustomerName("");
-              }}
-              className="w-full mb-2"
-            />
+              <label>Disco</label>
+              <select
+                value={serviceID}
+                onChange={(e) => setServiceID(e.target.value)}
+                className="w-full mb-2"
+              >
+                {discos.map((d) => (
+                  <option key={d.code} value={d.code}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
 
-            <label>Meter Type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as any)}
-              className="w-full mb-2"
-            >
-              <option value="prepaid">Prepaid</option>
-              <option value="postpaid">Postpaid</option>
-            </select>
+              <label>Meter Number</label>
+              <input
+                value={billersCode}
+                onChange={(e) => {
+                  setBillersCode(e.target.value);
+                  setVerified(false);
+                  setCustomerName("");
+                }}
+                className="w-full mb-2"
+              />
 
-            {customerName && (
-              <p className="text-green-600 mb-2">
-                Customer: {customerName}
-              </p>
-            )}
+              <label>Meter Type</label>
+              <select
+                value={type}
+                onChange={(e) =>
+                  setType(e.target.value as "prepaid" | "postpaid")
+                }
+                className="w-full mb-2"
+              >
+                <option value="prepaid">Prepaid</option>
+                <option value="postpaid">Postpaid</option>
+              </select>
 
-            <button
-              onClick={handleVerifyMeter}
-              disabled={loading}
-              className="w-full mb-3 py-2 bg-gray-800 text-white rounded"
-            >
-              {loading ? "Verifying..." : "Verify Meter"}
-            </button>
+              {customerName && (
+                <p className="text-green-600 mb-2">
+                  Customer: {customerName}
+                </p>
+              )}
 
-            <label>Amount (₦)</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              className="w-full mb-2"
-            />
+              <button
+                onClick={handleVerifyMeter}
+                disabled={loading}
+                className="w-full mb-3 py-2 bg-gray-800 text-white rounded"
+              >
+                {loading ? "Verifying…" : "Verify Meter"}
+              </button>
 
-            <label>Phone Number</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full mb-2"
-            />
+              <label>Amount (₦)</label>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value))}
+                className="w-full mb-2"
+              />
 
-            <label>Email (optional)</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full mb-3"
-            />
+              <label>Phone Number</label>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full mb-2"
+              />
 
-            {message && (
-              <p className={verified ? "text-green-600" : "text-red-600"}>
-                {message}
-              </p>
-            )}
+              <label>Email (optional)</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full mb-3"
+              />
 
-            <button
-              onClick={handlePurchase}
-              disabled={!verified || loading}
-              className="w-full py-2 bg-black text-white rounded mt-3"
-            >
-              {loading ? "Processing..." : "Pay & Get Token"}
-            </button>
-          </>
-        )}
-      </div>
-          </BannersWrapper>
+              {message && (
+                <p className={verified ? "text-green-600" : "text-red-600"}>
+                  {message}
+                </p>
+              )}
+
+              <button
+                onClick={handlePurchase}
+                disabled={!verified || loading}
+                className="w-full py-2 bg-black text-white rounded mt-3"
+              >
+                {loading ? "Processing…" : "Pay & Get Token"}
+              </button>
+            </>
+          )}
+        </div>
+      </BannersWrapper>
     </ResponsiveLandingWrapper>
   );
 }
