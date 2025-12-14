@@ -14,7 +14,7 @@ interface Props {
  */
 export default function BannersWrapper({ children, page }: Props) {
   return (
-    <div className="flex flex-col mt-16">
+    <div className="flex flex-col mt-20">
       {/* Top promo */}
       <div className="mb-6">
         <Banner page={page} />
