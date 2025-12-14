@@ -9,7 +9,7 @@ export default function ResponsiveLandingWrapper({
 }: {
   children: React.ReactNode;
 }) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -18,11 +18,12 @@ export default function ResponsiveLandingWrapper({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // 📱 Mobile → use full mobile landing
-  if (isMobile) {
-    return <LandingPageMobile>{children}</LandingPageMobile>;
-  }
+  // Avoid hydration mismatch
+  if (isMobile === null) return null;
 
-  // 🖥 Desktop → use landing shell
-  return <LandingShell>{children}</LandingShell>;
+  return isMobile ? (
+    <LandingPageMobile>{children}</LandingPageMobile>
+  ) : (
+    <LandingShell>{children}</LandingShell>
+  );
 }
