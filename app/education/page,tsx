@@ -1,0 +1,242 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import api from "@/lib/api";
+
+export default function EducationPage() {
+  const [serviceID, setServiceID] = useState("");
+  const [variationCode, setVariationCode] = useState("");
+  const [billersCode, setBillersCode] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState<"form" | "verifying" | "paying" | "success">("form");
+  const [receipt, setReceipt] = useState<any>(null);
+  const [variations, setVariations] = useState<{ name: string; variation_code: string; amount: number }[]>([]);
+  const [selectedAmount, setSelectedAmount] = useState<number>(0); // VTpass amount
+
+  const SERVICES = [
+    { id: "waec", label: "WAEC" },
+    { id: "jamb", label: "JAMB" },
+    { id: "neco", label: "NECO" },
+    { id: "nabteb", label: "NABTEB" }
+  ];
+
+  // Fetch variations when serviceID changes
+  useEffect(() => {
+    if (!serviceID) return setVariations([]);
+    api
+      .get(`/vtpass/education/variations?serviceID=${serviceID}`)
+      .then((res) => setVariations(res.data))
+      .catch((err) => {
+        console.error(err);
+        alert("Failed to load variations");
+      });
+  }, [serviceID]);
+
+  // Update selected amount when variation changes
+  useEffect(() => {
+    const selected = variations.find(v => v.variation_code === variationCode);
+    setSelectedAmount(selected ? selected.amount : 0);
+  }, [variationCode, variations]);
+
+  // Verify candidate details before payment
+  async function verifyCandidate() {
+    if (!serviceID || !variationCode || !billersCode) return alert("Fill all required fields");
+
+    try {
+      setStage("verifying");
+      const res = await api.post("/vtpass/education/verify", {
+        serviceID,
+        variation_code: variationCode,
+        billersCode
+      });
+
+      if (res.data && res.data.status === "success") {
+        startPayment();
+      } else {
+        alert(res.data?.message || "Candidate verification failed");
+        setStage("form");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || "Candidate verification failed");
+      setStage("form");
+    }
+  }
+
+  // Start payment with Paystack
+  async function startPayment() {
+    try {
+      setLoading(true);
+      const reference = `EDU-${Date.now()}`;
+
+      const initRes = await api.post("/paystack/initialize", {
+        email: "guest@nexa-pay.app",
+        amount: selectedAmount * 100, // Naira → Kobo
+        reference,
+        metadata: {
+          purpose: "education_purchase",
+          serviceID,
+          billersCode,
+          variationCode,
+          phone,
+        },
+        callback_url: `${window.location.origin}/education?ref=${reference}`
+      });
+
+      const authUrl = initRes.data.data.authorization_url;
+      window.location.href = authUrl;
+
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || "Payment init failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyAndPurchase(reference: string) {
+    try {
+      setStage("paying");
+      const verify = await api.get(`/paystack/verify/${reference}`);
+
+      if (verify.data.status !== "success") {
+        alert("Payment not completed");
+        setStage("form");
+        return;
+      }
+
+      const buy = await api.post("/vtpass/education/purchase", {
+        request_id: reference,
+        userId: 0,
+        paymentId: verify.data.data.id,
+        serviceID,
+        billersCode,
+        variation_code: variationCode,
+        phone,
+      });
+
+      setReceipt({
+        reference,
+        serviceID,
+        billersCode,
+        variationCode,
+        amount: selectedAmount,
+        vtpass: buy.data
+      });
+
+      setStage("success");
+    } catch (err: any) {
+      console.error(err);
+      alert("Education purchase failed");
+      setStage("form");
+    }
+  }
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const ref = url.searchParams.get("ref");
+    if (ref) verifyAndPurchase(ref);
+  }, []);
+
+  return (
+    <div className="max-w-lg mx-auto p-5">
+      <h1 className="text-2xl font-bold mb-4">Purchase Education PINs</h1>
+
+      {stage === "form" && (
+        <>
+          <label className="block mb-2 font-semibold">Service</label>
+          <select
+            value={serviceID}
+            onChange={(e) => {
+              setServiceID(e.target.value);
+              setVariationCode("");
+            }}
+            className="w-full p-3 border rounded mb-4"
+          >
+            <option value="">Select Service</option>
+            {SERVICES.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+
+          <label className="block mb-2 font-semibold">Product / Variation</label>
+          <select
+            value={variationCode}
+            onChange={(e) => setVariationCode(e.target.value)}
+            className="w-full p-3 border rounded mb-4"
+          >
+            <option value="">Select Variation</option>
+            {variations.map((v) => (
+              <option key={v.variation_code} value={v.variation_code}>
+                {v.name} - ₦{v.amount}
+              </option>
+            ))}
+          </select>
+
+          <label className="block mb-2 font-semibold">Candidate Number</label>
+          <input
+            value={billersCode}
+            onChange={(e) => setBillersCode(e.target.value)}
+            placeholder="Enter registration number"
+            className="w-full p-3 border rounded mb-4"
+          />
+
+          <label className="block mb-2 font-semibold">Phone Number (optional)</label>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="08012345678"
+            className="w-full p-3 border rounded mb-4"
+          />
+
+          <p className="mb-4 text-gray-600">Amount to pay: ₦{selectedAmount}</p>
+
+          <button
+            onClick={verifyCandidate}
+            disabled={loading || !selectedAmount}
+            className="w-full bg-blue-600 text-white text-center py-3 rounded-md"
+          >
+            {loading ? "Processing..." : "Verify & Pay"}
+          </button>
+        </>
+      )}
+
+      {stage === "verifying" && (
+        <p className="text-center py-10">Verifying candidate details…</p>
+      )}
+
+      {stage === "paying" && (
+        <p className="text-center py-10">Confirming payment with Paystack…</p>
+      )}
+
+      {stage === "success" && (
+        <div className="p-4 bg-green-100 border border-green-200 rounded">
+          <h2 className="text-xl font-bold mb-3">Purchase Successful 🎉</h2>
+          <p><strong>Service: </strong>{receipt.serviceID}</p>
+          <p><strong>Variation: </strong>{receipt.variationCode}</p>
+          <p><strong>Candidate Number: </strong>{receipt.billersCode}</p>
+          <p><strong>Amount Paid: </strong>₦{receipt.amount}</p>
+          <p><strong>Reference: </strong>{receipt.reference}</p>
+
+          <hr className="my-4" />
+
+          <button
+            className="w-full bg-blue-600 text-white py-3 rounded"
+            onClick={() => {
+              setStage("form");
+              setReceipt(null);
+              setServiceID("");
+              setVariationCode("");
+              setBillersCode("");
+              setPhone("");
+              setSelectedAmount(0);
+            }}
+          >
+            Purchase Again
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
