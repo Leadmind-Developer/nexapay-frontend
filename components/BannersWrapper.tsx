@@ -2,28 +2,34 @@
 
 import React, { ReactNode } from "react";
 import { Banner } from "./Banner";
+import { PromoPage } from "@/lib/promo.config";
 
 interface Props {
   children: ReactNode;
+  page: PromoPage;
 }
 
 /**
- * Wraps a page content with top + side banners
+ * Page banner layout (top + side promos)
+ * Content comes from Banner via promo rules
  */
-export default function BannersWrapper({ children }: Props) {
+export default function BannersWrapper({ children, page }: Props) {
   return (
-    <div className="relative flex flex-col sm:flex-row gap-4">
+    <div className="relative flex flex-col sm:flex-row gap-6">
       {/* Left sidebar banner (desktop only) */}
       <div className="hidden sm:block w-48 flex-shrink-0 sticky top-24">
-        <Banner>Side Banner 1</Banner>
+        <Banner page={page} />
       </div>
 
-      {/* Main content + top banners */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col">
         {/* Top banners */}
-        <div className="mb-4 space-y-2">
-          <Banner>Announcement / Ad 1</Banner>
-          <Banner>Announcement / Ad 2</Banner>
+        <div className="space-y-6 mb-6">
+          {/* Spacer / breathing room */}
+          <Banner spacer spaceY={12} />
+
+          {/* Primary promo */}
+          <Banner page={page} />
         </div>
 
         {/* Page content */}
@@ -32,7 +38,7 @@ export default function BannersWrapper({ children }: Props) {
 
       {/* Right sidebar banner (desktop only) */}
       <div className="hidden sm:block w-48 flex-shrink-0 sticky top-24">
-        <Banner>Side Banner 2</Banner>
+        <Banner page={page} />
       </div>
     </div>
   );
