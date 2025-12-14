@@ -1,12 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import api, { VTPassAPI } from "@/lib/api";
-
-import SEO from "@/components/SEO";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import LandingSidebar from "@/components/LandingSidebar";
+import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 
 /* =======================
    Types
@@ -32,12 +28,7 @@ interface VerifyMeterResponse {
   customer_name: string;
 }
 
-interface PaystackVerifyResponse {
-  status: "success" | string;
-  metadata?: {
-    request_id?: string;
-  };
-}
+interface VTpassPayResponse {}
 
 interface VTpassStatusResponse {
   amount?: number;
@@ -52,16 +43,18 @@ interface VTpassStatusResponse {
   variation_code?: "prepaid" | "postpaid";
 }
 
+interface PaystackVerifyResponse {
+  status: "success" | string;
+  metadata?: {
+    request_id?: string;
+  };
+}
+
 /* =======================
    Page
 ======================= */
 
 export default function ElectricityPage() {
-  /* ---------- Layout refs ---------- */
-  const headerRef = useRef<HTMLDivElement | null>(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
-
-  /* ---------- State ---------- */
   const [discos, setDiscos] = useState<Disco[]>([]);
   const [serviceID, setServiceID] = useState("");
   const [billersCode, setBillersCode] = useState("");
@@ -80,29 +73,9 @@ export default function ElectricityPage() {
   const [receipt, setReceipt] = useState<ElectricityReceipt | null>(null);
 
   /* =======================
-     Track Header Height
-  ======================= */
-  useEffect(() => {
-    if (!headerRef.current) return;
-
-    const update = () =>
-      setHeaderHeight(headerRef.current?.offsetHeight || 0);
-
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(headerRef.current);
-
-    window.addEventListener("resize", update);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, []);
-
-  /* =======================
      Load Discos
   ======================= */
+
   useEffect(() => {
     api
       .get<Disco[]>("/vtpass/electricity/discos")
@@ -117,17 +90,20 @@ export default function ElectricityPage() {
   }, []);
 
   /* =======================
-     Paystack Redirect
+     Handle Paystack Redirect
   ======================= */
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const reference = params.get("reference");
     if (reference) verifyTransaction(reference);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* =======================
      Verify Meter
   ======================= */
+
   const handleVerifyMeter = async () => {
     if (!serviceID || !billersCode) {
       setMessage("Please select a Disco and enter meter number");
@@ -159,10 +135,17 @@ export default function ElectricityPage() {
   /* =======================
      Purchase + Paystack
   ======================= */
+
   const handlePurchase = async () => {
-    if (!verified) return setMessage("Please verify meter first");
-    if (!amount || !phone)
-      return setMessage("Amount and phone number are required");
+    if (!verified) {
+      setMessage("Please verify meter first");
+      return;
+    }
+
+    if (!amount || !phone) {
+      setMessage("Amount and phone number are required");
+      return;
+    }
 
     setLoading(true);
     setMessage("");
@@ -170,7 +153,7 @@ export default function ElectricityPage() {
     try {
       const request_id = crypto.randomUUID();
 
-      await VTPassAPI.pay({
+      await VTPassAPI.pay<VTpassPayResponse>({
         request_id,
         serviceID,
         billersCode,
@@ -182,12 +165,17 @@ export default function ElectricityPage() {
       const reference = `ELEC-${Date.now()}`;
       const guestEmail = email || `${phone}@nexapay.fake`;
 
+      const callback_url = `${window.location.origin}/electricity?reference=${reference}`;
+
       const ps = await api.post("/paystack/initialize", {
         amount,
         email: guestEmail,
         reference,
-        callback_url: `${window.location.origin}/electricity?reference=${reference}`,
-        metadata: { request_id, purpose: "electricity_purchase" },
+        callback_url,
+        metadata: {
+          request_id,
+          purpose: "electricity_purchase",
+        },
       });
 
       window.location.href = ps.data.data.authorization_url;
@@ -199,29 +187,38 @@ export default function ElectricityPage() {
   };
 
   /* =======================
-     Verify Transaction
+     Verify Payment
   ======================= */
+
   const verifyTransaction = async (reference: string) => {
     setStage("verifying");
     setLoading(true);
+    setMessage("");
 
     try {
-      const ps = await api.get<PaystackVerifyResponse>(
+      const paystackRes = await api.get<PaystackVerifyResponse>(
         `/paystack/verify/${reference}`
       );
 
-      if (ps.data.status !== "success")
-        return setStage("form");
+      if (paystackRes.data.status !== "success") {
+        setStage("form");
+        setMessage("Payment was not successful");
+        return;
+      }
 
-      const request_id = ps.data.metadata?.request_id;
-      if (!request_id) return setStage("form");
+      const request_id = paystackRes.data.metadata?.request_id;
+      if (!request_id) {
+        setStage("form");
+        setMessage("Invalid transaction reference");
+        return;
+      }
 
-      const vt = await api.post<VTpassStatusResponse>(
+      const vtpassRes = await api.post<VTpassStatusResponse>(
         "/vtpass/electricity/status",
         { request_id }
       );
 
-      const v = vt.data;
+      const v = vtpassRes.data;
 
       setReceipt({
         request_id,
@@ -234,142 +231,150 @@ export default function ElectricityPage() {
       });
 
       setStage("success");
-    } catch {
+    } catch (err: any) {
       setStage("form");
-      setMessage("Verification failed");
+      setMessage(err.response?.data?.message || "Verification failed");
     } finally {
       setLoading(false);
     }
   };
 
   /* =======================
-     Layout
+     UI
   ======================= */
+
   return (
-    <>
-      <SEO
-        title="Buy Electricity | NexaPay"
-        description="Buy prepaid and postpaid electricity tokens instantly on NexaPay."
-      />
+    <ResponsiveLandingWrapper>
+      <div className="max-w-md mx-auto p-4">
+        {stage === "verifying" && <p>Verifying transaction...</p>}
 
-      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
-        {/* Sidebar */}
-        <div className="hidden sm:block">
-          <LandingSidebar />
-        </div>
+        {stage === "success" && receipt && (
+          <>
+            <h1 className="text-2xl font-bold mb-4">
+              Electricity Purchase Successful
+            </h1>
 
-        {/* Main */}
-        <main className="flex-1 sm:ml-32 flex flex-col">
-          {/* Header */}
-          <div
-            ref={headerRef}
-            className="fixed top-0 left-0 sm:left-32 right-0 z-50 bg-white dark:bg-gray-900 border-b shadow-sm"
-          >
-            <Header />
-          </div>
+            <p><strong>Meter:</strong> {receipt.meter_number}</p>
+            <p><strong>Type:</strong> {receipt.type}</p>
+            <p><strong>Amount:</strong> ₦{receipt.amount}</p>
+            <p><strong>Status:</strong> {receipt.status}</p>
 
-          {/* Content */}
-          <div style={{ paddingTop: headerHeight }} className="flex-grow">
-            <div className="max-w-lg mx-auto p-6">
-              {stage === "verifying" && <p>Verifying transaction...</p>}
+            {receipt.customer_name && (
+              <p><strong>Customer:</strong> {receipt.customer_name}</p>
+            )}
 
-              {stage === "success" && receipt && (
-                <div className="bg-green-100 p-4 rounded">
-                  <h2 className="font-bold text-lg mb-2">
-                    Electricity Purchase Successful 🎉
-                  </h2>
-                  <p><strong>Meter:</strong> {receipt.meter_number}</p>
-                  <p><strong>Amount:</strong> ₦{receipt.amount}</p>
+            {receipt.token && (
+              <div className="mt-4 p-3 bg-gray-100 rounded">
+                <h3 className="font-semibold">Prepaid Token</h3>
+                <p className="text-lg font-bold">{receipt.token}</p>
+              </div>
+            )}
 
-                  {receipt.token && (
-                    <div className="mt-4 bg-white p-3 rounded">
-                      <p className="font-bold text-xl">{receipt.token}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+            <button
+              className="mt-6 w-full py-2 bg-black text-white rounded"
+              onClick={() => {
+                setStage("form");
+                setReceipt(null);
+                setVerified(false);
+                setMessage("");
+              }}
+            >
+              Buy Again
+            </button>
+          </>
+        )}
 
-              {stage === "form" && (
-                <>
-                  <h1 className="text-2xl font-bold mb-4">Buy Electricity</h1>
+        {stage === "form" && (
+          <>
+            <h1 className="text-2xl font-bold mb-4">Buy Electricity</h1>
 
-                  {/* --- form fields unchanged --- */}
-                  {/* Disco */}
-                  <select
-                    value={serviceID}
-                    onChange={(e) => setServiceID(e.target.value)}
-                    className="w-full mb-3 p-3 border rounded"
-                  >
-                    {discos.map((d) => (
-                      <option key={d.code} value={d.code}>
-                        {d.label}
-                      </option>
-                    ))}
-                  </select>
+            <label>Disco</label>
+            <select
+              value={serviceID}
+              onChange={(e) => setServiceID(e.target.value)}
+              className="w-full mb-2"
+            >
+              {discos.map((d) => (
+                <option key={d.code} value={d.code}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
 
-                  {/* Meter */}
-                  <input
-                    placeholder="Meter Number"
-                    value={billersCode}
-                    onChange={(e) => {
-                      setBillersCode(e.target.value);
-                      setVerified(false);
-                    }}
-                    className="w-full mb-3 p-3 border rounded"
-                  />
+            <label>Meter Number</label>
+            <input
+              value={billersCode}
+              onChange={(e) => {
+                setBillersCode(e.target.value);
+                setVerified(false);
+                setCustomerName("");
+              }}
+              className="w-full mb-2"
+            />
 
-                  <button
-                    onClick={handleVerifyMeter}
-                    disabled={loading}
-                    className="w-full bg-gray-800 text-white p-3 rounded mb-3"
-                  >
-                    Verify Meter
-                  </button>
+            <label>Meter Type</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as any)}
+              className="w-full mb-2"
+            >
+              <option value="prepaid">Prepaid</option>
+              <option value="postpaid">Postpaid</option>
+            </select>
 
-                  <input
-                    type="number"
-                    placeholder="Amount"
-                    value={amount}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full mb-3 p-3 border rounded"
-                  />
+            {customerName && (
+              <p className="text-green-600 mb-2">
+                Customer: {customerName}
+              </p>
+            )}
 
-                  <input
-                    placeholder="Phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full mb-3 p-3 border rounded"
-                  />
+            <button
+              onClick={handleVerifyMeter}
+              disabled={loading}
+              className="w-full mb-3 py-2 bg-gray-800 text-white rounded"
+            >
+              {loading ? "Verifying..." : "Verify Meter"}
+            </button>
 
-                  <input
-                    placeholder="Email (optional)"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full mb-3 p-3 border rounded"
-                  />
+            <label>Amount (₦)</label>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              className="w-full mb-2"
+            />
 
-                  {message && (
-                    <p className={`mb-3 ${verified ? "text-green-600" : "text-red-600"}`}>
-                      {message}
-                    </p>
-                  )}
+            <label>Phone Number</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full mb-2"
+            />
 
-                  <button
-                    onClick={handlePurchase}
-                    disabled={!verified || loading}
-                    className="w-full bg-blue-600 text-white p-3 rounded"
-                  >
-                    Pay & Get Token
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+            <label>Email (optional)</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full mb-3"
+            />
 
-          {/* Footer */}
-          <Footer />
-        </main>
+            {message && (
+              <p className={verified ? "text-green-600" : "text-red-600"}>
+                {message}
+              </p>
+            )}
+
+            <button
+              onClick={handlePurchase}
+              disabled={!verified || loading}
+              className="w-full py-2 bg-black text-white rounded mt-3"
+            >
+              {loading ? "Processing..." : "Pay & Get Token"}
+            </button>
+          </>
+        )}
       </div>
-    </>
+    </ResponsiveLandingWrapper>
   );
 }
