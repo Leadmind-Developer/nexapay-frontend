@@ -15,6 +15,11 @@ import CTA from "@/components/mobile/CTA";      // Mobile version of CTA
 import Footer from "@/components/Footer";      // Footer remains unchanged
 
 export default function LandingPageMobile() {
+  children,
+    }: {
+  children?: React.ReactNode;
+  }) {
+  
   const router = useRouter();
   const headerRef = useRef<HTMLDivElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
