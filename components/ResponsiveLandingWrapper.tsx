@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useState } from "react";
 import LandingPageMobile from "@/app/LandingPageMobile";
-import FixedHeaderPage from "@/components/FixedHeaderPage";
+import LandingShell from "@/components/layouts/LandingShell";
 
-interface Props {
-  children: ReactNode;
-}
+export default function ResponsiveLandingWrapper({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [isMobile, setIsMobile] = useState(false);
 
-export default function ResponsiveLandingWrapper({ children }: Props) {
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
-
-  // Detect mobile
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
     check();
@@ -19,12 +18,11 @@ export default function ResponsiveLandingWrapper({ children }: Props) {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Avoid hydration mismatch
-  if (isMobile === null) return null;
+  // 📱 Mobile → use full mobile landing
+  if (isMobile) {
+    return <LandingPageMobile>{children}</LandingPageMobile>;
+  }
 
-  return isMobile ? (
-    <LandingPageMobile>{children}</LandingPageMobile>
-  ) : (
-    <FixedHeaderPage>{children}</FixedHeaderPage>
-  );
+  // 🖥 Desktop → use landing shell
+  return <LandingShell>{children}</LandingShell>;
 }
