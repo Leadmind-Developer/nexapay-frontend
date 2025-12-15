@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { IoPersonCircleOutline, IoKeyOutline } from "react-icons/io5";
+import { IoPersonCircleOutline } from "react-icons/io5";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import api from "@/lib/api";
 import { saveToken } from "@/lib/auth";
@@ -20,10 +20,17 @@ export default function ProfilePage() {
   const [kycCompleted, setKycCompleted] = useState(false);
   const [balance, setBalance] = useState(0);
   const [virtualAccount, setVirtualAccount] = useState<any>(null);
+
+  // OTP state
   const [otpStep, setOtpStep] = useState<"none" | "email" | "phone">("none");
   const [otpValue, setOtpValue] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpMessage, setOtpMessage] = useState("");
+
+  // 2FA state
+  const [totpRequired, setTotpRequired] = useState(false);
+  const [pushRequired, setPushRequired] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
 
   // Load profile
   useEffect(() => {
@@ -55,6 +62,11 @@ export default function ProfilePage() {
     })();
   }, []);
 
+  // Detect biometric support
+  useEffect(() => {
+    if (window.PublicKeyCredential) setBiometricAvailable(true);
+  }, []);
+
   // -------------------------
   // Save profile changes
   // -------------------------
@@ -75,21 +87,31 @@ export default function ProfilePage() {
   };
 
   // -------------------------
-  // Send OTP for verification
+  // Send OTP / initiate 2FA
   // -------------------------
   const handleSendOtp = async (type: "email" | "phone") => {
     const value = type === "email" ? email : phone;
     if (!value) return alert(`Enter your ${type} first`);
+
     setOtpLoading(true);
     setOtpMessage("");
 
     try {
       const res = await api.post("/auth", { [type]: value, mode: "login" });
-      if (res.data.success) {
-        setOtpStep(type);
-        setOtpMessage("✅ OTP sent! Check your inbox or phone.");
+      const data = res.data;
+
+      if (data.success) {
+        if (data.totpRequired || data.pushRequired) {
+          setTotpRequired(!!data.totpRequired);
+          setPushRequired(!!data.pushRequired);
+          setOtpStep(type);
+          setOtpMessage("⚡ Additional 2FA required. Approve push or enter TOTP.");
+        } else {
+          setOtpStep(type);
+          setOtpMessage("✅ OTP sent! Check your inbox or phone.");
+        }
       } else {
-        alert(res.data.message || "Failed to send OTP.");
+        alert(data.message || "Failed to send OTP.");
       }
     } catch (err: any) {
       alert(err.response?.data?.message || "Error sending OTP.");
@@ -108,21 +130,60 @@ export default function ProfilePage() {
     setOtpLoading(true);
     try {
       const res = await api.post("/auth", { [otpStep]: value, otp: otpValue, mode: "login" });
-      if (res.data.success && res.data.token) {
-        saveToken(res.data.token);
-        alert(`${otpStep.toUpperCase()} verified successfully!`);
-        if (otpStep === "email") setEmailVerified(true);
-        if (otpStep === "phone") setPhoneVerified(true);
-        setOtpStep("none");
-        setOtpValue("");
+      const data = res.data;
+
+      if (data.success && data.token) {
+        finalize2FA(data.token, otpStep);
+      } else if (data.totpRequired || data.pushRequired) {
+        setTotpRequired(!!data.totpRequired);
+        setPushRequired(!!data.pushRequired);
+        setOtpMessage("⚡ Additional 2FA required. Approve push or enter TOTP.");
       } else {
-        alert(res.data.message || "Invalid OTP.");
+        alert(data.message || "Invalid OTP.");
       }
     } catch (err: any) {
       alert(err.response?.data?.message || "OTP verification failed.");
     } finally {
       setOtpLoading(false);
     }
+  };
+
+  // -------------------------
+  // Handle 2FA verification
+  // -------------------------
+  const handle2FAVerification = async (totpCode?: string) => {
+    if (!otpStep) return;
+    setOtpLoading(true);
+    try {
+      const res = await api.post("/auth/verify-2fa", {
+        identifier: otpStep === "email" ? email : phone,
+        totp: totpCode,
+        push: pushRequired ? true : undefined,
+      });
+      const data = res.data;
+
+      if (data.success && data.token) {
+        finalize2FA(data.token, otpStep);
+      } else {
+        alert(data.message || "2FA verification failed.");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || "2FA verification failed.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const finalize2FA = (token: string, type: "email" | "phone") => {
+    saveToken(token);
+    alert(`${type.toUpperCase()} verified successfully!`);
+    if (type === "email") setEmailVerified(true);
+    if (type === "phone") setPhoneVerified(true);
+    setOtpStep("none");
+    setOtpValue("");
+    setTotpRequired(false);
+    setPushRequired(false);
+    setOtpMessage("");
   };
 
   if (loading) {
@@ -144,7 +205,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="space-y-4">
-          {/* Name */}
+          {/* Names */}
           <label className="block text-gray-600">First Name</label>
           <input
             className="w-full p-3 rounded-lg border border-gray-300"
@@ -158,7 +219,7 @@ export default function ProfilePage() {
             onChange={(e) => setLastName(e.target.value)}
           />
 
-          {/* Email */}
+          {/* Email verification */}
           <label className="block text-gray-600">Email</label>
           <div className="flex items-center gap-2">
             <input
@@ -177,21 +238,8 @@ export default function ProfilePage() {
               </button>
             )}
           </div>
-          {otpStep === "email" && (
-            <div className="mt-2">
-              <OTPInput length={6} value={otpValue} onChange={setOtpValue} disabled={otpLoading} />
-              <button
-                className="mt-2 py-2 px-4 bg-green-600 text-white rounded"
-                onClick={handleVerifyOtp}
-                disabled={otpLoading || otpValue.length < 6}
-              >
-                {otpLoading ? "Verifying..." : "Submit OTP"}
-              </button>
-              {otpMessage && <p className="text-sm text-green-600 mt-1">{otpMessage}</p>}
-            </div>
-          )}
 
-          {/* Phone */}
+          {/* Phone verification */}
           <label className="block text-gray-600">Phone</label>
           <div className="flex items-center gap-2">
             <input
@@ -210,33 +258,45 @@ export default function ProfilePage() {
               </button>
             )}
           </div>
-          {otpStep === "phone" && (
+
+          {/* OTP / 2FA inputs */}
+          {otpStep !== "none" && (
             <div className="mt-2">
-              <OTPInput length={6} value={otpValue} onChange={setOtpValue} disabled={otpLoading} />
-              <button
-                className="mt-2 py-2 px-4 bg-green-600 text-white rounded"
-                onClick={handleVerifyOtp}
-                disabled={otpLoading || otpValue.length < 6}
-              >
-                {otpLoading ? "Verifying..." : "Submit OTP"}
-              </button>
+              {totpRequired && (
+                <>
+                  <p className="text-sm text-gray-700 mb-1">Enter code from authenticator app</p>
+                  <OTPInput length={6} value={otpValue} onChange={setOtpValue} disabled={otpLoading} />
+                  <button
+                    className="mt-2 py-2 px-4 bg-purple-600 text-white rounded"
+                    onClick={() => handle2FAVerification(otpValue)}
+                    disabled={otpLoading || otpValue.length < 6}
+                  >
+                    {otpLoading ? "Verifying..." : "Verify TOTP"}
+                  </button>
+                </>
+              )}
+              {pushRequired && (
+                <>
+                  <p className="text-sm text-gray-700 mt-2">A push notification has been sent. Approve to continue.</p>
+                  {biometricAvailable && <p className="text-sm text-gray-500">Or use device biometric (TouchID / FaceID)</p>}
+                  <button
+                    className="mt-2 py-2 px-4 bg-indigo-600 text-white rounded"
+                    onClick={() => handle2FAVerification()}
+                    disabled={otpLoading}
+                  >
+                    {otpLoading ? "Waiting..." : "Confirm Push / Biometric"}
+                  </button>
+                </>
+              )}
               {otpMessage && <p className="text-sm text-green-600 mt-1">{otpMessage}</p>}
             </div>
           )}
 
-          {/* BVN/NIN */}
+          {/* BVN / NIN */}
           <label className="block text-gray-600 mt-4">BVN</label>
-          <input
-            className="w-full p-3 rounded-lg border bg-gray-100"
-            value={bvn}
-            disabled
-          />
+          <input className="w-full p-3 rounded-lg border bg-gray-100" value={bvn} disabled />
           <label className="block text-gray-600">NIN</label>
-          <input
-            className="w-full p-3 rounded-lg border bg-gray-100"
-            value={nin}
-            disabled
-          />
+          <input className="w-full p-3 rounded-lg border bg-gray-100" value={nin} disabled />
 
           {/* Wallet */}
           <label className="block text-gray-600 mt-4">Wallet Balance</label>
