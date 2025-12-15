@@ -132,7 +132,7 @@ export default function ProfilePage() {
       const res = await api.post("/auth", { [otpStep]: value, otp: otpValue, mode: "login" });
       const data = res.data;
 
-      if (data.success && data.token) {
+      if (data.success && data.token && otpStep !== "none") {
         finalize2FA(data.token, otpStep);
       } else if (data.totpRequired || data.pushRequired) {
         setTotpRequired(!!data.totpRequired);
@@ -162,7 +162,7 @@ export default function ProfilePage() {
       });
       const data = res.data;
 
-      if (data.success && data.token) {
+      if (data.success && data.token && otpStep !== "none") {
         finalize2FA(data.token, otpStep);
       } else {
         alert(data.message || "2FA verification failed.");
