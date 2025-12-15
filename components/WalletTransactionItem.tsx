@@ -1,126 +1,97 @@
-// components/WalletTransactionItemWeb.tsx
+"use client";
+
 import React from "react";
-import { WalletTransaction } from "../screens/WalletHistoryScreen";
+
+export interface WalletTransaction {
+  id: number;
+  type: string;
+  amount: number;
+  status?: "success" | "pending" | "failed";
+  reference?: string;
+  createdAt: string;
+  metadata?: {
+    senderAvatar?: string;
+    receiverAvatar?: string;
+    externalBank?: {
+      bankName: string;
+      accountNumber: string;
+    };
+  };
+}
 
 type Props = {
   tx: WalletTransaction;
   onClick?: (tx: WalletTransaction) => void;
 };
 
-export default function WalletTransactionItemWeb({ tx, onClick }: Props) {
-  const isCredit = tx.type === "credit";
-  const isWithdrawal = tx.type === "withdrawalRequest";
+export default function WalletTransactionItem({ tx, onClick }: Props) {
+  const isCredit = tx.amount >= 0;
 
-  const color = isCredit
-    ? "#12C060"
-    : isWithdrawal
-    ? "#F5A623"
-    : "#E84E4E";
+  const color =
+    tx.status === "failed"
+      ? "#D93030"
+      : tx.status === "pending"
+      ? "#F5A623"
+      : isCredit
+      ? "#12C060"
+      : "#E84E4E";
 
-  const title = isCredit
-    ? "Credit"
-    : isWithdrawal
-    ? "Withdrawal Request"
-    : "Debit";
-
-  const amountText = isCredit
-    ? `+₦${tx.amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : `-₦${tx.amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${
-        isWithdrawal ? " (Withdrawal)" : ""
-      }`;
-
-  const handleExternalCopy = (accountNumber?: string) => {
-    if (!accountNumber) return;
-    navigator.clipboard.writeText(accountNumber);
-    alert("Account number copied!");
-  };
+  const amountText = `${isCredit ? "+" : "-"}₦${Math.abs(tx.amount).toLocaleString(
+    "en-NG",
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+  )}`;
 
   return (
     <div
       onClick={() => onClick?.(tx)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "14px 12px",
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        marginBottom: 12,
-        cursor: onClick ? "pointer" : "default",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-      }}
+      className="bg-white rounded-xl shadow p-4 flex items-center gap-3 cursor-pointer"
     >
       {/* Avatar */}
       <img
-        src={tx.metadata?.senderAvatar || tx.metadata?.receiverAvatar || "https://i.pravatar.cc/80?img=12"}
+        src={
+          tx.metadata?.senderAvatar ||
+          tx.metadata?.receiverAvatar ||
+          "https://i.pravatar.cc/80?img=12"
+        }
         alt="avatar"
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: "50%",
-          backgroundColor: "#eee",
-        }}
+        className="w-10 h-10 rounded-full"
       />
 
       {/* Info */}
-      <div style={{ flex: 1, marginLeft: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontWeight: 700 }}>{title}</span>
-
+      <div className="flex-1">
+        <div className="flex justify-between items-center">
+          <p className="font-semibold capitalize">{tx.type}</p>
           <span
-            style={{
-              padding: "2px 8px",
-              borderRadius: 6,
-              fontSize: 10,
-              fontWeight: 600,
-              backgroundColor:
-                tx.status === "failed"
-                  ? "#FCE4E4"
-                  : tx.status === "pending"
-                  ? "#FFF4E5"
-                  : "#E6F9EF",
-              color:
-                tx.status === "failed"
-                  ? "#D93030"
-                  : tx.status === "pending"
-                  ? "#F5A623"
-                  : "#12C060",
-            }}
+            className={`text-xs font-bold px-2 py-0.5 rounded ${
+              tx.status === "failed"
+                ? "bg-red-100 text-red-600"
+                : tx.status === "pending"
+                ? "bg-yellow-100 text-yellow-600"
+                : "bg-green-100 text-green-600"
+            }`}
           >
-            {tx.status === "failed"
-              ? "Failed"
-              : tx.status === "pending"
-              ? "Pending"
-              : "Success"}
+            {tx.status ?? "success"}
           </span>
         </div>
 
-        {tx.reference && <div style={{ fontSize: 12, color: "#777", marginTop: 2 }}>Ref: {tx.reference}</div>}
-        <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>
+        {tx.reference && (
+          <p className="text-xs text-gray-500">Ref: {tx.reference}</p>
+        )}
+
+        <p className="text-xs text-gray-400">
           {new Date(tx.createdAt).toLocaleString()}
-        </div>
+        </p>
 
         {tx.metadata?.externalBank && (
-          <div
-            style={{ fontSize: 12, color: "#555", marginTop: 2, fontStyle: "italic", cursor: "pointer" }}
-            onClick={() => handleExternalCopy(tx.metadata.externalBank?.accountNumber)}
-          >
+          <p className="text-xs text-gray-500 italic mt-1">
             {tx.metadata.externalBank.bankName} ••••
             {tx.metadata.externalBank.accountNumber.slice(-4)}
-          </div>
+          </p>
         )}
       </div>
 
       {/* Amount */}
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: 18,
-          marginLeft: 10,
-          minWidth: 110,
-          textAlign: "right",
-          color,
-        }}
-      >
+      <div className="font-bold text-right" style={{ color }}>
         {amountText}
       </div>
     </div>
