@@ -5,7 +5,8 @@ export type PromoPage =
   | "airtime"
   | "education"
   | "insurance"
-  | "int-airtime";
+  | "int-airtime"
+  | "cable";
 
 interface PromoContent {
   title: string;
@@ -43,5 +44,10 @@ export const PROMO_RULES: Record<PromoPage, PromoContent> = {
     title: "🌍 International Airtime",
     message: "Send airtime abroad instantly.",
     badge: "Global",
+  },
+  cable: {
+    title: "📺 TV & Cable Subscription",
+    message: "Renew DSTV, GOTV & Startimes instantly.",
+    badge: "Cable",
   },
 };
