@@ -4,7 +4,6 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import colors from "@/theme/colors";
 
-// ✅ Correct Ionicons v5 imports
 import {
   IoArrowBack,
   IoCallOutline,
@@ -19,17 +18,7 @@ import {
 } from "react-icons/io5";
 
 /* --------------------------------
-   Types
--------------------------------- */
-interface ServiceItem {
-  name: string;
-  screen: string;
-  icon: keyof typeof ICONS;
-  color: string;
-}
-
-/* --------------------------------
-   Icon Map (IMPORTANT)
+   Icon Map
 -------------------------------- */
 const ICONS = {
   call: IoCallOutline,
@@ -43,29 +32,94 @@ const ICONS = {
   shield: IoShieldCheckmarkOutline,
 };
 
+type IconKey = keyof typeof ICONS;
+
+/* --------------------------------
+   Types
+-------------------------------- */
+interface ServiceItem {
+  name: string;
+  screen: string;
+  icon: IconKey;
+  color: string;
+}
+
 /* --------------------------------
    Services
 -------------------------------- */
 const MORE_SERVICES: ServiceItem[] = [
-  { name: "Airtime", screen: "NexaAirtime", icon: "call", color: "#4B7BE5" },
-  { name: "Data Bundle", screen: "NexaData", icon: "wifi", color: "#00A86B" },
-  { name: "International Airtime", screen: "IntlAirtime", icon: "earth", color: "#C67ACB" },
-  { name: "Electricity Bills", screen: "Electricity", icon: "flash", color: "#FFB300" },
-  { name: "TV Subscription", screen: "CableTV", icon: "tv", color: "#8A39E1" },
-  { name: "Internet Subscription", screen: "Internet", icon: "globe", color: "#0084FF" },
-  { name: "Betting Wallet Topup", screen: "Betting", icon: "cash", color: "#FF6F61" },
-  { name: "Education Payments", screen: "Education", icon: "school", color: "#1E90FF" },
-  { name: "Insurance", screen: "Insurance", icon: "shield", color: colors.primary },
-  { name: "International Transfer", screen: "IntlTransfer", icon: "globe", color: "#0F9D58" },
-  { name: "Web Services", screen: "Web", icon: "globe", color: "#4285F4" },
+  {
+    name: "Airtime",
+    screen: "/airtime",
+    icon: "call",
+    color: "#4B7BE5",
+  },
+  {
+    name: "Data Bundle",
+    screen: "/data",
+    icon: "wifi",
+    color: "#00A86B",
+  },
+  {
+    name: "International Airtime",
+    screen: "/IntAirtime",
+    icon: "earth",
+    color: "#C67ACB",
+  },
+  {
+    name: "Electricity Bills",
+    screen: "/electricity",
+    icon: "flash",
+    color: "#FFB300",
+  },
+  {
+    name: "TV Subscription",
+    screen: "/cable",
+    icon: "tv",
+    color: "#8A39E1",
+  },
+  {
+    name: "Education Payments",
+    screen: "/education",
+    icon: "school",
+    color: "#1E90FF",
+  },
+  {
+    name: "Insurance",
+    screen: "/insurance",
+    icon: "shield",
+    color: colors.primary,
+  },
+
+  // ─────── Coming Soon ───────
+  {
+    name: "Internet Subscription",
+    screen: "/coming-soon",
+    icon: "globe",
+    color: "#0084FF",
+  },
+  {
+    name: "Betting Wallet Topup",
+    screen: "/coming-soon",
+    icon: "cash",
+    color: "#FF6F61",
+  },
+  {
+    name: "International Transfer",
+    screen: "/coming-soon",
+    icon: "globe",
+    color: "#0F9D58",
+  },
+  {
+    name: "Web Services",
+    screen: "/coming-soon",
+    icon: "globe",
+    color: "#4285F4",
+  },
 ];
 
 export default function MoreServicesPage() {
   const router = useRouter();
-
-  const handleNavigate = (screen: string) => {
-    router.push(`/${screen}`);
-  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -93,7 +147,7 @@ export default function MoreServicesPage() {
             return (
               <button
                 key={item.name}
-                onClick={() => handleNavigate(item.screen)}
+                onClick={() => router.push(item.screen)}
                 className="flex flex-col items-center bg-white rounded-xl py-6 shadow-sm hover:shadow-md transition"
               >
                 <div
