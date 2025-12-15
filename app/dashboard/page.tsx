@@ -49,19 +49,19 @@ export default function DashboardPage() {
   }, [fetchUserData]);
 
   const quickActions = [
-    { title: "Add Money", screen: "/wallet/add-money", icon: <IoAddCircleOutline size={26} /> },
-    { title: "Withdraw", screen: "/wallet/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
-    { title: "Send Money", screen: "/wallet/send", icon: <IoPaperPlaneOutline size={26} /> },
+    { title: "Add Money", screen: "/addmoney", icon: <IoAddCircleOutline size={26} /> },
+    { title: "Withdraw", screen: "/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
+    { title: "Send Money", screen: "/internaltransfer", icon: <IoPaperPlaneOutline size={26} /> },
   ];
 
   const services = [
-    { title: "Airtime", screen: "/services/airtime", color: "#4B7BE5", icon: <IoCallOutline size={22} /> },
-    { title: "Buy Data", screen: "/services/data", color: "#00A86B", icon: <IoWifiOutline size={22} /> },
-    { title: "Electricity", screen: "/services/electricity", color: "#FFB300", icon: <IoFlashOutline size={22} /> },
-    { title: "Pay TV", screen: "/services/paytv", color: "#8A39E1", icon: <IoTvOutline size={22} /> },
-    { title: "Education", screen: "/services/education", color: "#1E90FF", icon: <IoBookOutline size={22} /> },
-    { title: "More", screen: "/services/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
-  ];
+  { title: "Airtime", screen: "/airtime", color: "#4B7BE5", icon: <IoCallOutline size={22} /> },
+  { title: "Buy Data", screen: "/data", color: "#00A86B", icon: <IoWifiOutline size={22} /> },
+  { title: "Electricity", screen: "/electricity", color: "#FFB300", icon: <IoFlashOutline size={22} /> },
+  { title: "Pay TV", screen: "/cable", color: "#8A39E1", icon: <IoTvOutline size={22} /> },
+  { title: "Education", screen: "/education", color: "#1E90FF", icon: <IoBookOutline size={22} /> },
+  { title: "More", screen: "/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
+];
 
   if (loading) {
     return (
