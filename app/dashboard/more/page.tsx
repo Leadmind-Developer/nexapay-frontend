@@ -1,93 +1,75 @@
 "use client";
 
 import React from "react";
-import { IoPersonCircleOutline, IoShieldCheckmarkOutline, IoGiftOutline, IoSettingsOutline, IoNotificationsOutline, IoHelpCircleOutline, IoDocumentTextOutline, IoReaderOutline, IoInformationCircleOutline, IoHeadsetOutline, IoShareSocialOutline, IoLogOutOutline, IoChevronForwardOutline } from "react-icons/io5";
-import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
+import { Ionicons } from "react-icons/ion";
+import colors from "@/theme/colors"; // keep old theme support
+import { useRouter } from "next/navigation";
 
-export default function MorePage() {
-  const firstName = "Steve"; // Replace with dynamic user data
+interface ServiceItem {
+  name: string;
+  screen: string;
+  icon: string;
+  color: string;
+}
 
-  const handleLogout = () => {
-    localStorage.clear();
-    alert("You’ve been logged out successfully.");
-    window.location.href = "/login";
+// Merged list from OLD + NEW
+const MORE_SERVICES: ServiceItem[] = [
+  { name: "Airtime", screen: "NexaAirtime", icon: "call-outline", color: "#4B7BE5" },
+  { name: "Data Bundle", screen: "NexaData", icon: "wifi-outline", color: "#00A86B" },
+  { name: "International Airtime", screen: "IntlAirtime", icon: "earth-outline", color: "#C67ACB" },
+  { name: "Electricity Bills", screen: "Electricity", icon: "flash-outline", color: "#FFB300" },
+  { name: "TV Subscription", screen: "CableTV", icon: "tv-outline", color: "#8A39E1" },
+  { name: "Internet Subscription", screen: "Internet", icon: "globe-outline", color: "#0084FF" },
+  { name: "Betting Wallet Topup", screen: "Betting", icon: "cash-outline", color: "#FF6F61" },
+  { name: "Education Payments", screen: "Education", icon: "school-outline", color: "#1E90FF" },
+  { name: "Insurance", screen: "Insurance", icon: "shield-checkmark-outline", color: colors.primary },
+  { name: "International Transfer", screen: "IntlTransfer", icon: "globe-outline", color: "#0F9D58" },
+  { name: "Web Services", screen: "Web", icon: "globe-outline", color: "#4285F4" },
+];
+
+export default function MoreServicesPage() {
+  const router = useRouter();
+
+  const handleNavigate = (screen: string) => {
+    // Adapt this depending on your routing system
+    router.push(`/${screen}`);
   };
-
-  const handleShare = async () => {
-    try {
-      await navigator.share?.({
-        title: "Nexa App",
-        text: "🔥 Download Nexa App — pay bills, buy data, and send money instantly!",
-        url: "https://nexaapp.link/download",
-      }) || alert("Sharing is not supported in this browser.");
-    } catch (error) {
-      console.error("Error sharing app:", error);
-    }
-  };
-
-  const profileGroup = [
-    { icon: <IoPersonCircleOutline size={22} />, title: "Profile", href: "/profile" },
-    { icon: <IoShieldCheckmarkOutline size={22} />, title: "Security", href: "/security" },
-    { icon: <IoGiftOutline size={22} />, title: "Rewards", href: "/rewards" },
-  ];
-
-  const appSettingsGroup = [
-    { icon: <IoSettingsOutline size={22} />, title: "Settings", href: "/settings" },
-    { icon: <IoNotificationsOutline size={22} />, title: "Notifications", href: "/notifications" },
-  ];
-
-  const infoGroup = [
-    { icon: <IoHelpCircleOutline size={22} />, title: "FAQ", href: "/faq" },
-    { icon: <IoDocumentTextOutline size={22} />, title: "Privacy Policy", href: "/privacy-policy" },
-    { icon: <IoReaderOutline size={22} />, title: "Terms of Service", href: "/terms" },
-    { icon: <IoInformationCircleOutline size={22} />, title: "About Nexa", href: "/about" },
-    { icon: <IoHeadsetOutline size={22} />, title: "Support", href: "/support" },
-  ];
-
-  const shareLogoutGroup = [
-    { icon: <IoShareSocialOutline size={22} />, title: "Share App", onClick: handleShare },
-    { icon: <IoLogOutOutline size={22} />, title: "Logout", onClick: handleLogout, color: "text-red-600" },
-  ];
-
-  const renderGroup = (title: string, items: any[]) => (
-    <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow divide-y divide-gray-100 dark:divide-gray-700">
-      <p className="text-gray-500 dark:text-gray-400 text-sm font-semibold px-5 py-2">{title}</p>
-      {items.map((item, idx) => (
-        <a
-          key={idx}
-          href={item.href || "#"}
-          onClick={item.onClick}
-          className={`flex items-center px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition ${item.color || "text-gray-900 dark:text-gray-100"}`}
-        >
-          {item.icon}
-          <span className={`ml-3 flex-1 ${item.color ? item.color : ""}`}>{item.title}</span>
-          <IoChevronForwardOutline className="text-gray-400 dark:text-gray-300" />
-        </a>
-      ))}
-    </div>
-  );
 
   return (
-    <ResponsiveLandingWrapper>
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="bg-blue-600 dark:bg-blue-700 rounded-2xl text-center py-12 shadow-md">
-          <IoPersonCircleOutline size={70} className="mx-auto text-white" />
-          <h1 className="mt-4 text-white text-2xl font-bold">Hi, {firstName} 👋</h1>
-          <p className="mt-1 text-gray-200">Your trusted payment companion</p>
-        </div>
+    <div className="min-h-screen bg-gray-100">
+      {/* HEADER */}
+      <header className="flex items-center bg-[#39358c] text-white px-4 py-3">
+        <button onClick={() => router.back()} className="mr-4">
+          <Ionicons name="arrow-back" size={24} />
+        </button>
+        <h1 className="flex-1 text-center text-lg font-bold">More Services</h1>
+        <div className="w-6" /> {/* Placeholder for centering */}
+      </header>
 
-        {/* Groups */}
-        {renderGroup("Account", profileGroup)}
-        {renderGroup("App", appSettingsGroup)}
-        {renderGroup("Information", infoGroup)}
-        {renderGroup("General", shareLogoutGroup)}
-
-        {/* Version */}
-        <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-6">
-          Nexa App v1.0.0
+      {/* BODY */}
+      <main className="p-5 max-w-4xl mx-auto">
+        <p className="text-sm text-gray-600 mb-5">
+          Explore more bill payments and utilities not shown on the home screen.
         </p>
-      </div>
-    </ResponsiveLandingWrapper>
+
+        <div className="grid grid-cols-2 gap-4">
+          {MORE_SERVICES.map((item) => (
+            <button
+              key={item.name}
+              onClick={() => handleNavigate(item.screen)}
+              className="flex flex-col items-center bg-white rounded-xl py-6 shadow-sm hover:shadow-md transition"
+            >
+              <div
+                className="w-12 h-12 rounded-lg flex items-center justify-center mb-3"
+                style={{ backgroundColor: item.color }}
+              >
+                <Ionicons name={item.icon} size={24} color="#fff" />
+              </div>
+              <span className="text-center text-sm font-semibold text-gray-800">{item.name}</span>
+            </button>
+          ))}
+        </div>
+      </main>
+    </div>
   );
 }
