@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
+import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
+import BannersWrapper from "@/components/BannersWrapper";
 
 interface Country {
   code: string;
@@ -176,116 +178,166 @@ export default function IntAirtimePage() {
   }, []);
 
   return (
-    <div className="max-w-lg mx-auto p-5">
-      <h1 className="text-2xl font-bold mb-4">International Airtime</h1>
+  <ResponsiveLandingWrapper>
+    <BannersWrapper page="intl_airtime">
+      <div className="max-w-lg mx-auto p-5">
+        <h1 className="text-2xl font-bold mb-4">International Airtime</h1>
 
-      {stage === "form" && (
-        <>
-          <label className="block mb-2 font-semibold">Country</label>
-          <select
-            value={selectedCountry}
-            onChange={e => { setSelectedCountry(e.target.value); setSelectedProductType(""); setSelectedOperator(""); setSelectedVariation(""); }}
-            className="w-full p-3 border rounded mb-4"
-          >
-            <option value="">Select Country</option>
-            {countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
-          </select>
+        {stage === "form" && (
+          <>
+            <label className="block mb-2 font-semibold">Country</label>
+            <select
+              value={selectedCountry}
+              onChange={(e) => {
+                setSelectedCountry(e.target.value);
+                setSelectedProductType("");
+                setSelectedOperator("");
+                setSelectedVariation("");
+              }}
+              className="w-full p-3 border rounded mb-4"
+            >
+              <option value="">Select Country</option>
+              {countries.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
 
-          <label className="block mb-2 font-semibold">Product Type</label>
-          <select
-            value={selectedProductType}
-            onChange={e => { setSelectedProductType(e.target.value); setSelectedOperator(""); setSelectedVariation(""); }}
-            className="w-full p-3 border rounded mb-4"
-          >
-            <option value="">Select Product</option>
-            {productTypes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+            <label className="block mb-2 font-semibold">Product Type</label>
+            <select
+              value={selectedProductType}
+              onChange={(e) => {
+                setSelectedProductType(e.target.value);
+                setSelectedOperator("");
+                setSelectedVariation("");
+              }}
+              className="w-full p-3 border rounded mb-4"
+            >
+              <option value="">Select Product</option>
+              {productTypes.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
 
-          <label className="block mb-2 font-semibold">Operator</label>
-          <select
-            value={selectedOperator}
-            onChange={e => { setSelectedOperator(e.target.value); setSelectedVariation(""); }}
-            className="w-full p-3 border rounded mb-4"
-          >
-            <option value="">Select Operator</option>
-            {operators.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-          </select>
+            <label className="block mb-2 font-semibold">Operator</label>
+            <select
+              value={selectedOperator}
+              onChange={(e) => {
+                setSelectedOperator(e.target.value);
+                setSelectedVariation("");
+              }}
+              className="w-full p-3 border rounded mb-4"
+            >
+              <option value="">Select Operator</option>
+              {operators.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
 
-          <label className="block mb-2 font-semibold">Variation</label>
-          <select
-            value={selectedVariation}
-            onChange={e => setSelectedVariation(e.target.value)}
-            className="w-full p-3 border rounded mb-4"
-          >
-            <option value="">Select Variation</option>
-            {variations.map(v => <option key={v.variation_code} value={v.variation_code}>{v.name} - ₦{v.amount}</option>)}
-          </select>
+            <label className="block mb-2 font-semibold">Variation</label>
+            <select
+              value={selectedVariation}
+              onChange={(e) => setSelectedVariation(e.target.value)}
+              className="w-full p-3 border rounded mb-4"
+            >
+              <option value="">Select Variation</option>
+              {variations.map((v) => (
+                <option key={v.variation_code} value={v.variation_code}>
+                  {v.name} — ₦{v.amount}
+                </option>
+              ))}
+            </select>
 
-          <label className="block mb-2 font-semibold">
-            Customer Number {customerMinLength > 0 && `(min ${customerMinLength} digits)`}
-          </label>
-          <input
-            value={billersCode}
-            onChange={e => setBillersCode(e.target.value)}
-            placeholder="Enter customer number"
-            className="w-full p-3 border rounded mb-4"
-          />
+            <label className="block mb-2 font-semibold">
+              Customer Number{" "}
+              {customerMinLength > 0 && `(min ${customerMinLength} digits)`}
+            </label>
+            <input
+              value={billersCode}
+              onChange={(e) => setBillersCode(e.target.value)}
+              placeholder="Enter customer number"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <label className="block mb-2 font-semibold">Phone (optional)</label>
-          <input
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="08012345678"
-            className="w-full p-3 border rounded mb-4"
-          />
+            <label className="block mb-2 font-semibold">Phone (optional)</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="08012345678"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <label className="block mb-2 font-semibold">Email (optional)</label>
-          <input
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="email@example.com"
-            className="w-full p-3 border rounded mb-4"
-          />
+            <label className="block mb-2 font-semibold">Email (optional)</label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@example.com"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <p className="mb-4 text-gray-600">Amount: ₦{selectedAmount}</p>
-          <button
-            onClick={startPayment}
-            disabled={loading || !selectedAmount}
-            className="w-full bg-blue-600 text-white py-3 rounded"
-          >
-            {loading ? "Processing..." : "Pay & Purchase"}
-          </button>
-        </>
-      )}
+            <p className="mb-4 text-gray-600">
+              Amount: ₦{selectedAmount}
+            </p>
 
-      {stage === "paying" && <p className="text-center py-10">Confirming payment with Paystack…</p>}
+            <button
+              onClick={startPayment}
+              disabled={loading || !selectedAmount}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
+            >
+              {loading ? "Processing..." : "Pay & Purchase"}
+            </button>
+          </>
+        )}
 
-      {stage === "success" && (
-        <div className="p-4 bg-green-100 border border-green-200 rounded">
-          <h2 className="text-xl font-bold mb-3">Purchase Successful 🎉</h2>
-          <p><strong>Amount: </strong>₦{receipt.amount}</p>
-          <p><strong>Reference: </strong>{receipt.reference}</p>
+        {stage === "paying" && (
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 text-center">
+            <p className="py-10">
+              Confirming payment with Paystack…
+            </p>
+          </div>
+        )}
 
-          <hr className="my-4" />
-          <button
-            className="w-full bg-blue-600 text-white py-3 rounded"
-            onClick={() => {
-              setStage("form");
-              setSelectedCountry("");
-              setSelectedProductType("");
-              setSelectedOperator("");
-              setSelectedVariation("");
-              setBillersCode("");
-              setPhone("");
-              setEmail("");
-              setSelectedAmount(0);
-              setReceipt(null);
-            }}
-          >
-            Purchase Again
-          </button>
-        </div>
-      )}
-    </div>
-  );
+        {stage === "success" && receipt && (
+          <div className="p-4 bg-green-100 border border-green-200 rounded">
+            <h2 className="text-xl font-bold mb-3">
+              Purchase Successful 🎉
+            </h2>
+            <p>
+              <strong>Amount:</strong> ₦{receipt.amount}
+            </p>
+            <p>
+              <strong>Reference:</strong> {receipt.reference}
+            </p>
+
+            <hr className="my-4" />
+
+            <button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
+              onClick={() => {
+                setStage("form");
+                setSelectedCountry("");
+                setSelectedProductType("");
+                setSelectedOperator("");
+                setSelectedVariation("");
+                setBillersCode("");
+                setPhone("");
+                setEmail("");
+                setSelectedAmount(0);
+                setReceipt(null);
+              }}
+            >
+              Purchase Again
+            </button>
+          </div>
+        )}
+      </div>
+    </BannersWrapper>
+  </ResponsiveLandingWrapper>
+);
+
 }
