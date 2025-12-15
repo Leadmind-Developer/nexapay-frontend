@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import api from "@/lib/api";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
@@ -14,16 +15,18 @@ type Variation = {
 
 export default function DataPurchasePage() {
   const [provider, setProvider] = useState("");
-  const [billersCode, setBillersCode] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [variations, setVariations] = useState<Variation[]>([]);
   const [selectedVar, setSelectedVar] = useState<Variation | null>(null);
-  const [email, setEmail] = useState("");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [stage, setStage] = useState<"form" | "review" | "paying" | "pending" | "success" | "error">("form");
   const [receipt, setReceipt] = useState<any>(null);
   const [statusMessage, setStatusMessage] = useState("");
 
+  const [recentPhones, setRecentPhones] = useState<string[]>([]);
+  const [recentEmails, setRecentEmails] = useState<string[]>([]);
   const pollingRef = useRef<number | null>(null);
 
   const PROVIDERS = [
@@ -35,14 +38,29 @@ export default function DataPurchasePage() {
     { label: "Smile", value: "smile", icon: "/images/icons/smile.png" },
   ];
 
-  // Auto-detect provider from phone/email
+  // Load recent billers/emails from localStorage
   useEffect(() => {
-    if (!billersCode) return;
-    if (billersCode.includes("@")) {
+    const storedPhones = JSON.parse(localStorage.getItem("recentPhones") || "[]");
+    const storedEmails = JSON.parse(localStorage.getItem("recentEmails") || "[]");
+    setRecentPhones(storedPhones);
+    setRecentEmails(storedEmails);
+  }, []);
+
+  const saveRecent = (phone: string, email: string) => {
+    const newPhones = [phone, ...recentPhones.filter(p => p !== phone)].slice(0, 5);
+    const newEmails = [email, ...recentEmails.filter(e => e !== email)].slice(0, 5);
+    localStorage.setItem("recentPhones", JSON.stringify(newPhones));
+    localStorage.setItem("recentEmails", JSON.stringify(newEmails));
+    setRecentPhones(newPhones);
+    setRecentEmails(newEmails);
+  };
+
+  // Auto-detect provider from phone
+  useEffect(() => {
+    if (email.includes("@smile")) {
       setProvider("smile");
-      return;
-    }
-    const prefix = billersCode.replace(/^234/, "0").slice(0, 4);
+    } else if (phone) {
+    const prefix = phone.replace(/^234/, "0").slice(0, 4);
     const MTN = ["0703","0706","0803","0806","0810","0813","0814","0816","0903","0906","0913"];
     const GLO = ["0705","0805","0807","0811","0815","0905"];
     const AIRTEL = ["0701","0708","0802","0808","0812","0901","0902","0904","0912"];
@@ -51,7 +69,7 @@ export default function DataPurchasePage() {
     else if (GLO.includes(prefix)) setProvider("glo");
     else if (AIRTEL.includes(prefix)) setProvider("airtel");
     else if (ETISALAT.includes(prefix)) setProvider("etisalat");
-  }, [billersCode]);
+  }, [phone, email]);
 
   const loadVariations = async (prov: string) => {
     if (!prov) return;
@@ -69,103 +87,25 @@ export default function DataPurchasePage() {
     }
   };
 
-  const pollVTpassStatus = (request_id: string) => {
-    if (pollingRef.current) return;
-    setStage("pending");
-    setStatusMessage("Transaction submitted...");
-
-    pollingRef.current = window.setInterval(async () => {
-      try {
-        const res = await api.post(`/vtpass/data/status`, { request_id });
-        const status = res.data?.content?.transactions?.status;
-
-        if (["completed", "delivered", "success"].includes(status)) {
-          if (pollingRef.current) window.clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          setStatusMessage("🎉 Data purchase successful!");
-          setStage("success");
-          setProcessing(false);
-        } else if (["failed", "error"].includes(status)) {
-          if (pollingRef.current) window.clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          setStatusMessage("❌ Data purchase failed. You can retry.");
-          setStage("error");
-          setProcessing(false);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }, 5000);
-  };
-
-  const verifyAndPurchase = async (reference: string) => {
-    if (!selectedVar) return;
-
-    try {
-      setProcessing(true);
-      setStage("paying");
-
-      const verify = await api.get(`/paystack/verify/${reference}`);
-      if (verify.data.status !== "success") {
-        alert("Payment not completed");
-        setStage("form");
-        setProcessing(false);
-        return;
-      }
-
-      const purchase = await api.post("/vtpass/data/purchase", {
-        provider,
-        billersCode,
-        variation_code: selectedVar.variation_code,
-        amount: selectedVar.variation_amount,
-      });
-
-      setReceipt({
-        reference,
-        provider,
-        billersCode,
-        variation: selectedVar,
-        vtpass: purchase.data.result,
-      });
-
-      pollVTpassStatus(purchase.data.request_id);
-    } catch (err) {
-      console.error(err);
-      setStatusMessage("❌ Data purchase failed. You can retry.");
-      setStage("error");
-      setProcessing(false);
-    }
-  };
-
-  const startPayment = async () => {
-    if (!selectedVar || !email || !provider || !billersCode)
-      return alert("Fill all required fields");
-
-    // Move to review stage first
+  const startPayment = () => {
+    if (!selectedVar || !email || !provider || !phone) return alert("Fill all required fields");
+    saveRecent(phone, email);
     setStage("review");
   };
 
   const confirmPayment = async () => {
-    if (!selectedVar || !email || !provider || !billersCode) return;
+    if (!selectedVar || !email || !provider || !phone) return;
     try {
       setProcessing(true);
       setStage("paying");
-
       const reference = `DATA-${Date.now()}`;
       const initRes = await api.post("/paystack/initialize", {
         email,
         amount: selectedVar.variation_amount * 100,
         reference,
-        metadata: {
-          purpose: "data_purchase",
-          provider,
-          billersCode,
-          variation_code: selectedVar.variation_code,
-          amount: selectedVar.variation_amount,
-        },
+        metadata: { purpose: "data_purchase", provider, billersCode: phone, variation_code: selectedVar.variation_code, amount: selectedVar.variation_amount },
         callback_url: `${window.location.origin}/data?ref=${reference}`,
       });
-
       window.location.href = initRes.data.data.authorization_url;
     } catch (err: any) {
       console.error(err);
@@ -175,15 +115,7 @@ export default function DataPurchasePage() {
     }
   };
 
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const ref = url.searchParams.get("ref");
-    if (ref && selectedVar && provider && billersCode) {
-      verifyAndPurchase(ref);
-    }
-  }, [selectedVar, provider, billersCode]);
-
-  const selectedProvider = PROVIDERS.find((p) => p.value === provider);
+  const selectedProvider = PROVIDERS.find(p => p.value === provider);
 
   return (
     <ResponsiveLandingWrapper>
@@ -193,19 +125,51 @@ export default function DataPurchasePage() {
 
           {stage === "form" && (
             <>
-              <input
-                value={billersCode}
-                onChange={(e) => setBillersCode(e.target.value)}
-                className="w-full p-3 border rounded mb-3"
-                placeholder="Phone number or Smile email"
-              />
+              {/* Phone Input with suggestions */}
+              <div className="relative mb-3">
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full p-3 border rounded"
+                  placeholder="Phone number"
+                />
+                {phone && recentPhones.length > 0 && (
+                  <ul className="absolute z-10 w-full bg-white border mt-1 rounded shadow-sm max-h-40 overflow-auto">
+                    {recentPhones.filter(p => p.includes(phone)).map((p, i) => (
+                      <li
+                        key={i}
+                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => setPhone(p)}
+                      >
+                        {p}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border rounded mb-3"
-                placeholder="Email (for payment receipt)"
-              />
+              {/* Email Input with suggestions */}
+              <div className="relative mb-3">
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full p-3 border rounded"
+                  placeholder="Email for receipt"
+                />
+                {email && recentEmails.length > 0 && (
+                  <ul className="absolute z-10 w-full bg-white border mt-1 rounded shadow-sm max-h-40 overflow-auto">
+                    {recentEmails.filter(e => e.includes(email)).map((e, i) => (
+                      <li
+                        key={i}
+                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => setEmail(e)}
+                      >
+                        {e}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
               <select
                 className="w-full p-3 border rounded mb-3"
@@ -217,31 +181,23 @@ export default function DataPurchasePage() {
               >
                 <option value="">Select Provider</option>
                 {PROVIDERS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
+                  <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
               </select>
 
-              {loadingPlans ? (
-                <p>Loading plans...</p>
-              ) : (
+              {loadingPlans ? <p>Loading plans...</p> : (
                 variations.length > 0 && (
                   <select
                     className="w-full p-3 border rounded mb-3"
                     value={selectedVar?.variation_code || ""}
                     onChange={(e) => {
-                      const v = variations.find(
-                        (x) => x.variation_code === e.target.value
-                      );
+                      const v = variations.find(x => x.variation_code === e.target.value);
                       setSelectedVar(v || null);
                     }}
                   >
                     <option value="">Select Data Bundle</option>
-                    {variations.map((v) => (
-                      <option key={v.variation_code} value={v.variation_code}>
-                        {v.name} — ₦{v.variation_amount}
-                      </option>
+                    {variations.map(v => (
+                      <option key={v.variation_code} value={v.variation_code}>{v.name} — ₦{v.variation_amount}</option>
                     ))}
                   </select>
                 )
@@ -249,9 +205,7 @@ export default function DataPurchasePage() {
 
               <button
                 onClick={startPayment}
-                disabled={
-                  !selectedVar || !email || !provider || !billersCode
-                }
+                disabled={!selectedVar || !email || !provider || !phone}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded transition-colors"
               >
                 Review & Pay
@@ -261,7 +215,6 @@ export default function DataPurchasePage() {
 
           {stage === "review" && selectedVar && (
             <div>
-              {/* Animated Review Card */}
               <motion.div
                 whileHover={{ scale: 1.03, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -269,18 +222,14 @@ export default function DataPurchasePage() {
               >
                 {selectedProvider && (
                   <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                    <Image
-                      src={selectedProvider.icon}
-                      alt={selectedProvider.label}
-                      width={28}
-                      height={28}
-                    />
+                    <Image src={selectedProvider.icon} alt={selectedProvider.label} width={28} height={28}/>
                   </div>
                 )}
                 <div className="flex-1">
                   <h3 className="font-semibold mb-1">Review</h3>
                   <p><span className="font-medium">Provider:</span> {selectedProvider?.label}</p>
-                  <p><span className="font-medium">Phone/Email:</span> {billersCode}</p>
+                  <p><span className="font-medium">Phone:</span> {phone}</p>
+                  <p><span className="font-medium">Email:</span> {email}</p>
                   <p><span className="font-medium">Bundle:</span> {selectedVar.name}</p>
                   <p><span className="font-medium">Amount:</span> ₦{selectedVar.variation_amount}</p>
                 </div>
@@ -301,59 +250,6 @@ export default function DataPurchasePage() {
                   {processing ? "Processing..." : "Pay & Buy Data"}
                 </button>
               </div>
-            </div>
-          )}
-
-          {(stage === "paying" || stage === "pending") && (
-            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 text-center">
-              <p className="py-10">
-                {stage === "paying"
-                  ? "Redirecting to Paystack…"
-                  : statusMessage}
-              </p>
-            </div>
-          )}
-
-          {stage === "error" && (
-            <div className="p-4 bg-red-100 border border-red-200 rounded">
-              <p className="mb-3">{statusMessage}</p>
-              <button
-                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded"
-                onClick={() => {
-                  if (receipt?.vtpass?.request_id)
-                    pollVTpassStatus(receipt.vtpass.request_id);
-                }}
-                disabled={!!pollingRef.current}
-              >
-                Retry Purchase
-              </button>
-            </div>
-          )}
-
-          {stage === "success" && receipt && (
-            <div className="p-4 bg-green-100 border border-green-200 rounded">
-              <h2 className="text-xl font-bold mb-3">
-                Data Purchase Successful 🎉
-              </h2>
-              <p><strong>Provider:</strong> {receipt.provider}</p>
-              <p><strong>Billers Code:</strong> {receipt.billersCode}</p>
-              <p><strong>Bundle:</strong> {receipt.variation?.name}</p>
-              <p><strong>Amount:</strong> ₦{receipt.variation?.variation_amount}</p>
-              <p><strong>Reference:</strong> {receipt.reference}</p>
-
-              <hr className="my-4" />
-
-              <button
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
-                onClick={() => {
-                  setStage("form");
-                  setReceipt(null);
-                  setSelectedVar(null);
-                  setStatusMessage("");
-                }}
-              >
-                Buy Again
-              </button>
             </div>
           )}
         </div>
