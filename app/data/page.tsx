@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import api from "@/lib/api";
+import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
+import BannersWrapper from "@/components/BannersWrapper";
 
 type Variation = {
   variation_code: string;
@@ -175,113 +177,144 @@ export default function DataPurchasePage() {
   }, [selectedVar, provider, billersCode]);
 
   return (
-    <div className="max-w-lg mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Buy Data / Internet</h1>
+  <ResponsiveLandingWrapper>
+    <BannersWrapper page="data">
+      <div className="max-w-lg mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-4">Buy Data / Internet</h1>
 
-      {stage === "form" && (
-        <>
-          <input
-            value={billersCode}
-            onChange={(e) => setBillersCode(e.target.value)}
-            className="w-full p-3 border rounded mb-3"
-            placeholder="Phone number or Smile email"
-          />
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border rounded mb-3"
-            placeholder="Email (for payment receipt)"
-          />
+        {stage === "form" && (
+          <>
+            <input
+              value={billersCode}
+              onChange={(e) => setBillersCode(e.target.value)}
+              className="w-full p-3 border rounded mb-3"
+              placeholder="Phone number or Smile email"
+            />
 
-          <select
-            className="w-full p-3 border rounded mb-3"
-            value={provider}
-            onChange={(e) => {
-              setProvider(e.target.value);
-              loadVariations(e.target.value);
-            }}
-          >
-            <option value="">Select Provider</option>
-            {PROVIDERS.map((p) => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
-          </select>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 border rounded mb-3"
+              placeholder="Email (for payment receipt)"
+            />
 
-          {loadingPlans ? (
-            <p>Loading plans...</p>
-          ) : (
-            variations.length > 0 && (
-              <select
-                className="w-full p-3 border rounded mb-3"
-                value={selectedVar?.variation_code || ""}
-                onChange={(e) => {
-                  const v = variations.find(x => x.variation_code === e.target.value);
-                  setSelectedVar(v || null);
-                }}
-              >
-                <option value="">Select Data Bundle</option>
-                {variations.map(v => (
-                  <option key={v.variation_code} value={v.variation_code}>
-                    {v.name} — ₦{v.variation_amount}
-                  </option>
-                ))}
-              </select>
-            )
-          )}
+            <select
+              className="w-full p-3 border rounded mb-3"
+              value={provider}
+              onChange={(e) => {
+                setProvider(e.target.value);
+                loadVariations(e.target.value);
+              }}
+            >
+              <option value="">Select Provider</option>
+              {PROVIDERS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
 
-          <button
-            onClick={startPayment}
-            disabled={!selectedVar || !email || !provider || !billersCode || processing}
-            className="w-full bg-blue-600 text-white p-3 rounded"
-          >
-            {processing ? "Processing..." : "Pay & Buy Data"}
-          </button>
-        </>
-      )}
+            {loadingPlans ? (
+              <p>Loading plans...</p>
+            ) : (
+              variations.length > 0 && (
+                <select
+                  className="w-full p-3 border rounded mb-3"
+                  value={selectedVar?.variation_code || ""}
+                  onChange={(e) => {
+                    const v = variations.find(
+                      (x) => x.variation_code === e.target.value
+                    );
+                    setSelectedVar(v || null);
+                  }}
+                >
+                  <option value="">Select Data Bundle</option>
+                  {variations.map((v) => (
+                    <option key={v.variation_code} value={v.variation_code}>
+                      {v.name} — ₦{v.variation_amount}
+                    </option>
+                  ))}
+                </select>
+              )
+            )}
 
-      {(stage === "paying" || stage === "pending") && (
-        <p className="text-center py-10">{stage === "paying" ? "Redirecting to Paystack…" : statusMessage}</p>
-      )}
+            <button
+              onClick={startPayment}
+              disabled={
+                !selectedVar || !email || !provider || !billersCode || processing
+              }
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded transition-colors"
+            >
+              {processing ? "Processing..." : "Pay & Buy Data"}
+            </button>
+          </>
+        )}
 
-      {stage === "error" && (
-        <div className="p-4 bg-red-100 border border-red-200 rounded">
-          <p className="mb-3">{statusMessage}</p>
-          <button
-            className="w-full bg-yellow-600 text-white py-3 rounded"
-            onClick={() => {
-              if (receipt?.vtpass?.request_id) pollVTpassStatus(receipt.vtpass.request_id);
-            }}
-            disabled={!!pollingRef.current}
-          >
-            Retry Purchase
-          </button>
-        </div>
-      )}
+        {(stage === "paying" || stage === "pending") && (
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 text-center">
+            <p className="py-10">
+              {stage === "paying"
+                ? "Redirecting to Paystack…"
+                : statusMessage}
+            </p>
+          </div>
+        )}
 
-      {stage === "success" && receipt && (
-        <div className="p-4 bg-green-100 border border-green-200 rounded">
-          <h2 className="text-xl font-bold mb-3">Data Purchase Successful 🎉</h2>
-          <p><strong>Provider:</strong> {receipt.provider}</p>
-          <p><strong>Billers Code:</strong> {receipt.billersCode}</p>
-          <p><strong>Bundle:</strong> {receipt.variation?.name}</p>
-          <p><strong>Amount:</strong> ₦{receipt.variation?.variation_amount}</p>
-          <p><strong>Reference:</strong> {receipt.reference}</p>
+        {stage === "error" && (
+          <div className="p-4 bg-red-100 border border-red-200 rounded">
+            <p className="mb-3">{statusMessage}</p>
+            <button
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 rounded"
+              onClick={() => {
+                if (receipt?.vtpass?.request_id)
+                  pollVTpassStatus(receipt.vtpass.request_id);
+              }}
+              disabled={!!pollingRef.current}
+            >
+              Retry Purchase
+            </button>
+          </div>
+        )}
 
-          <hr className="my-4" />
+        {stage === "success" && receipt && (
+          <div className="p-4 bg-green-100 border border-green-200 rounded">
+            <h2 className="text-xl font-bold mb-3">
+              Data Purchase Successful 🎉
+            </h2>
+            <p>
+              <strong>Provider:</strong> {receipt.provider}
+            </p>
+            <p>
+              <strong>Billers Code:</strong> {receipt.billersCode}
+            </p>
+            <p>
+              <strong>Bundle:</strong> {receipt.variation?.name}
+            </p>
+            <p>
+              <strong>Amount:</strong> ₦{receipt.variation?.variation_amount}
+            </p>
+            <p>
+              <strong>Reference:</strong> {receipt.reference}
+            </p>
 
-          <button
-            className="w-full bg-blue-600 text-white py-3 rounded"
-            onClick={() => {
-              setStage("form");
-              setReceipt(null);
-              setSelectedVar(null);
-              setStatusMessage("");
-            }}
-          >
-            Buy Again
-          </button>
-        </div>
-      )}
-    </div>
-  );
+            <hr className="my-4" />
+
+            <button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
+              onClick={() => {
+                setStage("form");
+                setReceipt(null);
+                setSelectedVar(null);
+                setStatusMessage("");
+              }}
+            >
+              Buy Again
+            </button>
+          </div>
+        )}
+      </div>
+    </BannersWrapper>
+  </ResponsiveLandingWrapper>
+);
+
 }
