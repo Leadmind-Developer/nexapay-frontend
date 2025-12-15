@@ -10,7 +10,6 @@ export default function ResponsiveLandingWrapper({
   children: React.ReactNode;
 }) {
   const [isMobile, setIsMobile] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
   // 📱 Detect mobile vs desktop
   useEffect(() => {
@@ -20,36 +19,23 @@ export default function ResponsiveLandingWrapper({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // 🌙 Dark mode handling
+  // 🌙 Theme aware: system + stored preference
   useEffect(() => {
     const stored = localStorage.getItem("theme");
-    if (stored === "dark" || (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    if (stored === "dark" || (!stored && prefersDark)) {
       document.documentElement.classList.add("dark");
-      setDarkMode(true);
     } else {
       document.documentElement.classList.remove("dark");
-      setDarkMode(false);
     }
   }, []);
-
-  // Optional: function to toggle dark mode
-  const toggleDarkMode = () => {
-    if (darkMode) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-      setDarkMode(false);
-    } else {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-      setDarkMode(true);
-    }
-  };
 
   // 📱 Mobile → full mobile landing
   if (isMobile) {
     return <LandingPageMobile>{children}</LandingPageMobile>;
   }
 
-  // 🖥 Desktop → landing shell with dark mode
+  // 🖥 Desktop → landing shell
   return <LandingShell>{children}</LandingShell>;
 }
