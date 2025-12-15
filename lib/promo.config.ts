@@ -1,5 +1,6 @@
 // lib/promo.config.ts
 export type PromoPage =
+  | "dashboard"
   | "electricity"
   | "data"
   | "airtime"
@@ -15,6 +16,12 @@ interface PromoContent {
 }
 
 export const PROMO_RULES: Record<PromoPage, PromoContent> = {
+  dashboard: {
+    title: "👋 Welcome to Nexa",
+    message: "Pay bills, buy airtime & manage your wallet in one place.",
+    badge: "Dashboard",
+  },
+
   electricity: {
     title: "⚡ Pay Electricity with Nexa",
     message: "Instant token delivery with zero downtime.",
