@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
-import { CheckCircleIcon } from "@heroicons/react/24/outline"; // simple web icon
 
 export default function InternalTransferPage() {
   const [recipient, setRecipient] = useState("");
@@ -32,7 +31,6 @@ export default function InternalTransferPage() {
     fetchUser();
   }, []);
 
-  // Recipient lookup
   useEffect(() => {
     if (!recipient || recipient.length < 3) {
       setRecipientInfo(null);
@@ -103,7 +101,7 @@ export default function InternalTransferPage() {
   if (showSuccess)
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-gray-50">
-        <CheckCircleIcon className="w-20 h-20 text-green-500" />
+        <span className="text-green-500 text-[5rem]">✅</span>
         <h2 className="text-2xl font-bold mt-4">Transfer Successful!</h2>
       </div>
     );
