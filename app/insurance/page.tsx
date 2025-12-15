@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
+import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
+import BannersWrapper from "@/components/BannersWrapper";
 
 interface Variation {
   name: string;
@@ -168,113 +170,191 @@ export default function InsurancePage() {
   }, []);
 
   return (
-    <div className="max-w-lg mx-auto p-5">
-      <h1 className="text-2xl font-bold mb-4">Purchase Insurance</h1>
+  <ResponsiveLandingWrapper>
+    <BannersWrapper page="insurance">
+      <div className="max-w-lg mx-auto p-5">
+        <h1 className="text-2xl font-bold mb-4">Purchase Insurance</h1>
 
-      {stage === "form" && (
-        <>
-          <label className="block mb-2 font-semibold">Plan</label>
-          <select
-            value={variationCode}
-            onChange={e => setVariationCode(e.target.value)}
-            className="w-full p-3 border rounded mb-4"
-          >
-            <option value="">Select Plan</option>
-            {variations.map(v => (
-              <option key={v.variation_code} value={v.variation_code}>
-                {v.name} - ₦{v.amount}
-              </option>
-            ))}
-          </select>
+        {stage === "form" && (
+          <>
+            <label className="block mb-2 font-semibold">Plan</label>
+            <select
+              value={variationCode}
+              onChange={(e) => setVariationCode(e.target.value)}
+              className="w-full p-3 border rounded mb-4"
+            >
+              <option value="">Select Plan</option>
+              {variations.map((v) => (
+                <option key={v.variation_code} value={v.variation_code}>
+                  {v.name} — ₦{v.amount}
+                </option>
+              ))}
+            </select>
 
-          <label className="block mb-2 font-semibold">Customer Number</label>
-          <input
-            value={billersCode}
-            onChange={e => setBillersCode(e.target.value)}
-            placeholder="Enter customer number"
-            className="w-full p-3 border rounded mb-4"
-          />
+            <label className="block mb-2 font-semibold">Customer Number</label>
+            <input
+              value={billersCode}
+              onChange={(e) => setBillersCode(e.target.value)}
+              placeholder="Enter customer number"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <label className="block mb-2 font-semibold">Phone (optional)</label>
-          <input
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="08012345678"
-            className="w-full p-3 border rounded mb-4"
-          />
+            <label className="block mb-2 font-semibold">Phone (optional)</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="08012345678"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <label className="block mb-2 font-semibold">Insured Name</label>
-          <input
-            value={insuredName}
-            onChange={e => setInsuredName(e.target.value)}
-            placeholder="Full name"
-            className="w-full p-3 border rounded mb-4"
-          />
+            <label className="block mb-2 font-semibold">Insured Name</label>
+            <input
+              value={insuredName}
+              onChange={(e) => setInsuredName(e.target.value)}
+              placeholder="Full name"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <label className="block mb-2 font-semibold">Vehicle Details</label>
-          <input value={vehicleMake} onChange={e => setVehicleMake(e.target.value)} placeholder="Vehicle make" className="w-full p-3 border rounded mb-2" />
-          <input value={vehicleModel} onChange={e => setVehicleModel(e.target.value)} placeholder="Vehicle model" className="w-full p-3 border rounded mb-2" />
-          <input value={vehicleColor} onChange={e => setVehicleColor(e.target.value)} placeholder="Vehicle color" className="w-full p-3 border rounded mb-2" />
-          <input value={engineCapacity} onChange={e => setEngineCapacity(e.target.value)} placeholder="Engine capacity" className="w-full p-3 border rounded mb-2" />
-          <input value={chasisNumber} onChange={e => setChasisNumber(e.target.value)} placeholder="Chasis number" className="w-full p-3 border rounded mb-2" />
-          <input value={plateNumber} onChange={e => setPlateNumber(e.target.value)} placeholder="Plate number" className="w-full p-3 border rounded mb-4" />
+            <label className="block mb-2 font-semibold">Vehicle Details</label>
+            <input
+              value={vehicleMake}
+              onChange={(e) => setVehicleMake(e.target.value)}
+              placeholder="Vehicle make"
+              className="w-full p-3 border rounded mb-2"
+            />
+            <input
+              value={vehicleModel}
+              onChange={(e) => setVehicleModel(e.target.value)}
+              placeholder="Vehicle model"
+              className="w-full p-3 border rounded mb-2"
+            />
+            <input
+              value={vehicleColor}
+              onChange={(e) => setVehicleColor(e.target.value)}
+              placeholder="Vehicle color"
+              className="w-full p-3 border rounded mb-2"
+            />
+            <input
+              value={engineCapacity}
+              onChange={(e) => setEngineCapacity(e.target.value)}
+              placeholder="Engine capacity"
+              className="w-full p-3 border rounded mb-2"
+            />
+            <input
+              value={chasisNumber}
+              onChange={(e) => setChasisNumber(e.target.value)}
+              placeholder="Chasis number"
+              className="w-full p-3 border rounded mb-2"
+            />
+            <input
+              value={plateNumber}
+              onChange={(e) => setPlateNumber(e.target.value)}
+              placeholder="Plate number"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <label className="block mb-2 font-semibold">Additional Info</label>
-          <input value={yearOfMake} onChange={e => setYearOfMake(e.target.value)} placeholder="Year of make" className="w-full p-3 border rounded mb-2" />
-          <input value={state} onChange={e => setState(e.target.value)} placeholder="State" className="w-full p-3 border rounded mb-2" />
-          <input value={lga} onChange={e => setLGA(e.target.value)} placeholder="LGA" className="w-full p-3 border rounded mb-2" />
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" className="w-full p-3 border rounded mb-4" />
+            <label className="block mb-2 font-semibold">Additional Info</label>
+            <input
+              value={yearOfMake}
+              onChange={(e) => setYearOfMake(e.target.value)}
+              placeholder="Year of make"
+              className="w-full p-3 border rounded mb-2"
+            />
+            <input
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              placeholder="State"
+              className="w-full p-3 border rounded mb-2"
+            />
+            <input
+              value={lga}
+              onChange={(e) => setLGA(e.target.value)}
+              placeholder="LGA"
+              className="w-full p-3 border rounded mb-2"
+            />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <p className="mb-4 text-gray-600">Amount to pay: ₦{selectedAmount}</p>
+            <p className="mb-4 text-gray-600">
+              Amount to pay: ₦{selectedAmount}
+            </p>
 
-          <button
-            onClick={verifyCustomer}
-            disabled={loading || !selectedAmount}
-            className="w-full bg-blue-600 text-white text-center py-3 rounded-md"
-          >
-            {loading ? "Processing..." : "Verify & Pay"}
-          </button>
-        </>
-      )}
+            <button
+              onClick={verifyCustomer}
+              disabled={loading || !selectedAmount}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
+            >
+              {loading ? "Processing..." : "Verify & Pay"}
+            </button>
+          </>
+        )}
 
-      {stage === "verifying" && <p className="text-center py-10">Verifying customer…</p>}
-      {stage === "paying" && <p className="text-center py-10">Confirming payment with Paystack…</p>}
+        {stage === "verifying" && (
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 text-center">
+            <p className="py-10">Verifying customer…</p>
+          </div>
+        )}
 
-      {stage === "success" && (
-        <div className="p-4 bg-green-100 border border-green-200 rounded">
-          <h2 className="text-xl font-bold mb-3">Insurance Purchase Successful 🎉</h2>
-          <p><strong>Plan: </strong>{receipt.variationCode}</p>
-          <p><strong>Customer Number: </strong>{receipt.billersCode}</p>
-          <p><strong>Amount Paid: </strong>₦{receipt.amount}</p>
-          <p><strong>Reference: </strong>{receipt.reference}</p>
+        {stage === "paying" && (
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 text-center">
+            <p className="py-10">Confirming payment with Paystack…</p>
+          </div>
+        )}
 
-          <hr className="my-4" />
-          <button
-            className="w-full bg-blue-600 text-white py-3 rounded"
-            onClick={() => {
-              setStage("form");
-              setReceipt(null);
-              setVariationCode("");
-              setBillersCode("");
-              setPhone("");
-              setInsuredName("");
-              setEngineCapacity("");
-              setChasisNumber("");
-              setPlateNumber("");
-              setVehicleMake("");
-              setVehicleModel("");
-              setVehicleColor("");
-              setYearOfMake("");
-              setState("");
-              setLGA("");
-              setEmail("");
-              setSelectedAmount(0);
-            }}
-          >
-            Purchase Again
-          </button>
-        </div>
-      )}
-    </div>
-  );
+        {stage === "success" && receipt && (
+          <div className="p-4 bg-green-100 border border-green-200 rounded">
+            <h2 className="text-xl font-bold mb-3">
+              Insurance Purchase Successful 🎉
+            </h2>
+
+            <p>
+              <strong>Plan:</strong> {receipt.variationCode}
+            </p>
+            <p>
+              <strong>Customer Number:</strong> {receipt.billersCode}
+            </p>
+            <p>
+              <strong>Amount Paid:</strong> ₦{receipt.amount}
+            </p>
+            <p>
+              <strong>Reference:</strong> {receipt.reference}
+            </p>
+
+            <hr className="my-4" />
+
+            <button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
+              onClick={() => {
+                setStage("form");
+                setReceipt(null);
+                setVariationCode("");
+                setBillersCode("");
+                setPhone("");
+                setInsuredName("");
+                setEngineCapacity("");
+                setChasisNumber("");
+                setPlateNumber("");
+                setVehicleMake("");
+                setVehicleModel("");
+                setVehicleColor("");
+                setYearOfMake("");
+                setState("");
+                setLGA("");
+                setEmail("");
+                setSelectedAmount(0);
+              }}
+            >
+              Purchase Again
+            </button>
+          </div>
+        )}
+      </div>
+    </BannersWrapper>
+  </ResponsiveLandingWrapper>
+);
+
 }
