@@ -4,7 +4,6 @@ import React from "react";
 import { IoMailOutline, IoCallOutline, IoGlobeOutline } from "react-icons/io5";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import Image from "next/image";
-import logo from "../assets/logo.png";
 
 export default function AboutPage() {
   return (
@@ -12,9 +11,17 @@ export default function AboutPage() {
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="bg-blue-600 dark:bg-blue-700 rounded-2xl text-center py-12 shadow-md">
-          <Image src={logo} alt="Nexa Logo" width={80} height={80} className="mx-auto mb-2" />
+          <Image
+            src="/logo.png"
+            alt="Nexa Logo"
+            width={80}
+            height={80}
+            className="mx-auto mb-2"
+          />
           <h1 className="text-white text-2xl font-bold">About Nexa</h1>
-          <p className="text-white text-sm opacity-90 mt-1">Your all-in-one smart payment app</p>
+          <p className="text-white text-sm opacity-90 mt-1">
+            Your all-in-one smart payment app
+          </p>
         </div>
 
         {/* Our Story */}
