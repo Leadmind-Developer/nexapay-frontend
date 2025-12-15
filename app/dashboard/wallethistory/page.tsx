@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import WalletTransactionItem, { WalletTransaction } from "@/components/WalletTransactionItem";
 
 export interface WalletTransaction {
   id: number;
