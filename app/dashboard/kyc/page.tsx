@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
-import Lottie from "lottie-react";
-import successAnimation from "../assets/success.json";
 
 const ID_TYPES = ["Passport", "Driver's License", "National ID"];
 
@@ -44,12 +42,10 @@ export default function KycWizard({ userPhone = "" }) {
       setIdNumber(statusObj.idNumber ?? "");
       setUploads((prev) =>
         prev.map((u) => {
-          switch (u.label) {
-            case "ID":
-              return { ...u, extraData: { idType: statusObj.idType, idNumber: statusObj.idNumber } };
-            default:
-              return u;
+          if (u.label === "ID") {
+            return { ...u, extraData: { idType: statusObj.idType, idNumber: statusObj.idNumber } };
           }
+          return u;
         })
       );
     } catch (err) {
@@ -134,7 +130,7 @@ export default function KycWizard({ userPhone = "" }) {
   if (showSuccess)
     return (
       <div className="flex flex-col items-center justify-center h-screen">
-        <Lottie animationData={successAnimation} style={{ width: 180, height: 180 }} loop={false} />
+        <span className="text-green-500 text-[5rem]">✅</span>
         <h2 className="text-2xl font-bold mt-4">KYC Completed!</h2>
       </div>
     );
@@ -145,8 +141,12 @@ export default function KycWizard({ userPhone = "" }) {
 
       {/* Step Wizard */}
       <div className="flex gap-4 mb-6">
-        <div className={`flex-1 text-center py-2 border-b-4 ${step === "bvn-nin" ? "border-blue-700" : "border-gray-300"}`}>BVN/NIN</div>
-        <div className={`flex-1 text-center py-2 border-b-4 ${step === "kyc" ? "border-blue-700" : "border-gray-300"}`}>KYC Documents</div>
+        <div className={`flex-1 text-center py-2 border-b-4 ${step === "bvn-nin" ? "border-blue-700" : "border-gray-300"}`}>
+          BVN/NIN
+        </div>
+        <div className={`flex-1 text-center py-2 border-b-4 ${step === "kyc" ? "border-blue-700" : "border-gray-300"}`}>
+          KYC Documents
+        </div>
       </div>
 
       {step === "bvn-nin" && (
