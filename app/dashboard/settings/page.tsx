@@ -1,12 +1,26 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { IoMoon, IoFingerPrint, IoLockClosed, IoDocumentText, IoBook, IoChevronForward } from "react-icons/io5";
+import { 
+  IoMoon, IoFingerPrint, IoLockClosed, 
+  IoDocumentText, IoBook, IoChevronForward 
+} from "react-icons/io5";
 import { SessionManager } from "@/lib/SessionManager";
+import api from "@/lib/api";
+import OTPInput from "@/components/OTPInput";
 
 export default function SettingsPage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isFaceId, setIsFaceId] = useState(false);
+
+  // 2FA state
+  const [totpRequired, setTotpRequired] = useState(false);
+  const [pushRequired, setPushRequired] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpMessage, setOtpMessage] = useState("");
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   // Load persisted settings
   useEffect(() => {
@@ -16,6 +30,8 @@ export default function SettingsPage() {
 
       const theme = await SessionManager.getTheme?.();
       setIsDarkMode(theme === "dark");
+
+      if (window.PublicKeyCredential) setBiometricAvailable(true);
     })();
   }, []);
 
@@ -36,9 +52,80 @@ export default function SettingsPage() {
         return;
       }
     }
-    setIsFaceId(value);
-    await SessionManager.enableBiometric(value);
-    alert(`Biometric login ${value ? "enabled" : "disabled"}`);
+
+    // Wrap the action to handle potential server-side 2FA
+    const action = async () => {
+      setIsFaceId(value);
+      await SessionManager.enableBiometric(value);
+      alert(`Biometric login ${value ? "enabled" : "disabled"}`);
+    };
+
+    await trigger2FAIfRequired(action);
+  };
+
+  const handleResetPin = async () => {
+    const action = async () => {
+      alert("PIN reset link sent!");
+    };
+    await trigger2FAIfRequired(action);
+  };
+
+  // -------------------------
+  // Trigger 2FA if server requires it
+  // -------------------------
+  const trigger2FAIfRequired = async (action: () => Promise<void>) => {
+    setPendingAction(() => action);
+    setOtpMessage("");
+    setOtpValue("");
+    setOtpLoading(true);
+
+    try {
+      // Ask server if 2FA is needed for the action
+      const res = await api.post("/auth/check-2fa");
+      const data = res.data;
+
+      if (data.totpRequired || data.pushRequired) {
+        setTotpRequired(!!data.totpRequired);
+        setPushRequired(!!data.pushRequired);
+        setOtpMessage("⚡ Additional 2FA required. Approve push or enter TOTP.");
+      } else {
+        await action();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Error initiating 2FA.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // -------------------------
+  // Handle 2FA verification
+  // -------------------------
+  const handle2FAVerification = async (totpCode?: string) => {
+    if (!pendingAction) return;
+    setOtpLoading(true);
+
+    try {
+      const res = await api.post("/auth/verify-2fa", {
+        totp: totpCode,
+        push: pushRequired ? true : undefined,
+      });
+      const data = res.data;
+
+      if (data.success) {
+        await pendingAction();
+        setPendingAction(null);
+        setTotpRequired(false);
+        setPushRequired(false);
+        setOtpMessage("");
+      } else {
+        alert(data.message || "2FA verification failed.");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || "2FA verification failed.");
+    } finally {
+      setOtpLoading(false);
+    }
   };
 
   const preferences = [
@@ -50,10 +137,7 @@ export default function SettingsPage() {
     {
       title: "Reset Transaction PIN",
       icon: <IoLockClosed size={20} />,
-      onClick: () => {
-        const confirmReset = window.confirm("Would you like to reset your transaction PIN?");
-        if (confirmReset) alert("PIN reset link sent!");
-      },
+      onClick: handleResetPin,
     },
   ];
 
@@ -81,6 +165,7 @@ export default function SettingsPage() {
               checked={item.value}
               onChange={(e) => item.onChange(e.target.checked)}
               className="w-5 h-5 accent-blue-700"
+              disabled={otpLoading}
             />
           </div>
         ))}
@@ -94,6 +179,7 @@ export default function SettingsPage() {
             key={idx}
             onClick={item.onClick}
             className="w-full flex items-center justify-between px-4 py-3 border-t first:border-t-0 border-gray-200 hover:bg-gray-50"
+            disabled={otpLoading}
           >
             <div className="flex items-center">
               {item.icon}
@@ -103,6 +189,39 @@ export default function SettingsPage() {
           </button>
         ))}
       </div>
+
+      {/* OTP / 2FA Modal Section */}
+      {pendingAction && (totpRequired || pushRequired) && (
+        <div className="bg-white rounded-lg shadow p-4 mb-4">
+          {totpRequired && (
+            <>
+              <p className="text-sm text-gray-700 mb-1">Enter code from authenticator app</p>
+              <OTPInput length={6} value={otpValue} onChange={setOtpValue} disabled={otpLoading} />
+              <button
+                className="mt-2 py-2 px-4 bg-purple-600 text-white rounded"
+                onClick={() => handle2FAVerification(otpValue)}
+                disabled={otpLoading || otpValue.length < 6}
+              >
+                {otpLoading ? "Verifying..." : "Verify TOTP"}
+              </button>
+            </>
+          )}
+          {pushRequired && (
+            <>
+              <p className="text-sm text-gray-700 mt-2">A push notification has been sent. Approve to continue.</p>
+              {biometricAvailable && <p className="text-sm text-gray-500">Or use device biometric (TouchID / FaceID)</p>}
+              <button
+                className="mt-2 py-2 px-4 bg-indigo-600 text-white rounded"
+                onClick={() => handle2FAVerification()}
+                disabled={otpLoading}
+              >
+                {otpLoading ? "Waiting..." : "Confirm Push / Biometric"}
+              </button>
+            </>
+          )}
+          {otpMessage && <p className="text-sm text-green-600 mt-1">{otpMessage}</p>}
+        </div>
+      )}
 
       {/* App Info Section */}
       <div className="bg-white rounded-lg shadow mb-4">
