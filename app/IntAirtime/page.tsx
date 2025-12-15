@@ -179,7 +179,7 @@ export default function IntAirtimePage() {
 
   return (
   <ResponsiveLandingWrapper>
-    <BannersWrapper page="intl_airtime">
+    <BannersWrapper page="int-airtime">
       <div className="max-w-lg mx-auto p-5">
         <h1 className="text-2xl font-bold mb-4">International Airtime</h1>
 
