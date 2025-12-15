@@ -69,6 +69,7 @@ export default function DataPurchasePage() {
     else if (GLO.includes(prefix)) setProvider("glo");
     else if (AIRTEL.includes(prefix)) setProvider("airtel");
     else if (ETISALAT.includes(prefix)) setProvider("etisalat");
+   }
   }, [phone, email]);
 
   const loadVariations = async (prov: string) => {
