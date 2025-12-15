@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
-import colors from "../theme/colors";
-import Lottie from "lottie-react";
-import successAnimation from "../assets/success.json";
+import { CheckCircleIcon } from "@heroicons/react/24/outline"; // simple web icon
 
 export default function InternalTransferPage() {
   const [recipient, setRecipient] = useState("");
@@ -24,7 +22,6 @@ export default function InternalTransferPage() {
         setLoading(true);
         const res = await api.get("/user/me");
         if (res.data.success) setUser(res.data.user);
-        // Mock recent recipients for demo
         setRecentRecipients(["alice", "bob", "charlie"]);
       } catch (err) {
         console.error(err);
@@ -35,7 +32,7 @@ export default function InternalTransferPage() {
     fetchUser();
   }, []);
 
-  // Auto lookup recipient
+  // Recipient lookup
   useEffect(() => {
     if (!recipient || recipient.length < 3) {
       setRecipientInfo(null);
@@ -100,11 +97,13 @@ export default function InternalTransferPage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  if (loading)
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+
   if (showSuccess)
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-gray-50">
-        <Lottie animationData={successAnimation} style={{ width: 180, height: 180 }} loop={false} />
+        <CheckCircleIcon className="w-20 h-20 text-green-500" />
         <h2 className="text-2xl font-bold mt-4">Transfer Successful!</h2>
       </div>
     );
