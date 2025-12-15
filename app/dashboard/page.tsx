@@ -1,76 +1,162 @@
 "use client";
-import useSWR from "swr";
-import { motion } from "framer-motion";
-import SEO from "@/components/SEO";
-import TransactionCard from "@/components/TransactionCard";
-import { useTransactionsSocket } from "@/hooks/useTransactionsSocket";
-import { TransactionsAPI } from "@/lib/api";
-import DashboardLayout from "@/components/DashboardLayout";
 
-interface Transaction {
-  id?: string;
-  reference_id?: string;
-  amount: number;
-  type: string;
-  status: string;
-  createdAt?: string;
-  [key: string]: any;
+import React, { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
+import { IoAddCircleOutline, IoSwapHorizontalOutline, IoPaperPlaneOutline, IoCallOutline, IoWifiOutline, IoFlashOutline, IoTvOutline, IoBookOutline, IoGridOutline, IoEyeOutline, IoEyeOffOutline, IoCopyOutline } from "react-icons/io5";
+import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
+import BannersWrapper from "@/components/BannersWrapper";
+import api from "@/lib/api";
+
+interface VirtualAccount {
+  number: string;
+  bank: string;
 }
 
-const fetcher = async (): Promise<Transaction[]> => {
-  // 👇 Explicitly type the Axios call so res.data is known
-  const res = await TransactionsAPI.list<Transaction[]>();
-  return res.data;
-};
-
 export default function DashboardPage() {
-  useTransactionsSocket(); // Real-time updates
+  const [balance, setBalance] = useState<number>(0);
+  const [firstName, setFirstName] = useState("User");
+  const [loading, setLoading] = useState(true);
+  const [hideBalance, setHideBalance] = useState(false);
+  const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
 
-  const { data, error, isLoading } = useSWR<Transaction[]>("/transactions", fetcher);
+  const fetchUserData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/user/me");
+      if (res.data.success) {
+        const u = res.data.user;
+        const first = u.name?.split(" ")[0] || "User";
+        setFirstName(first);
+        setBalance((u.balance ?? 0) / 100);
+        if (u.virtualAccount) {
+          setVirtualAccount({
+            number: u.virtualAccount.accountNumber,
+            bank: u.virtualAccount.bank,
+          });
+        } else {
+          setVirtualAccount(null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch user data", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
+
+  const quickActions = [
+    { title: "Add Money", screen: "/wallet/add-money", icon: <IoAddCircleOutline size={26} /> },
+    { title: "Withdraw", screen: "/wallet/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
+    { title: "Send Money", screen: "/wallet/send", icon: <IoPaperPlaneOutline size={26} /> },
+  ];
+
+  const services = [
+    { title: "Airtime", screen: "/services/airtime", color: "#4B7BE5", icon: <IoCallOutline size={22} /> },
+    { title: "Buy Data", screen: "/services/data", color: "#00A86B", icon: <IoWifiOutline size={22} /> },
+    { title: "Electricity", screen: "/services/electricity", color: "#FFB300", icon: <IoFlashOutline size={22} /> },
+    { title: "Pay TV", screen: "/services/paytv", color: "#8A39E1", icon: <IoTvOutline size={22} /> },
+    { title: "Education", screen: "/services/education", color: "#1E90FF", icon: <IoBookOutline size={22} /> },
+    { title: "More", screen: "/services/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
+  ];
+
+  if (loading) {
+    return (
+      <ResponsiveLandingWrapper>
+        <BannersWrapper page="dashboard">
+          <div className="flex justify-center items-center h-[60vh]">
+            <p className="text-gray-500 animate-pulse">Loading dashboard...</p>
+          </div>
+        </BannersWrapper>
+      </ResponsiveLandingWrapper>
+    );
+  }
 
   return (
-    <DashboardLayout>
-      <SEO title="Dashboard - NexaApp" description="Your recent transactions" />
+    <ResponsiveLandingWrapper>
+      <BannersWrapper page="dashboard">
+        <div className="max-w-5xl mx-auto p-6 space-y-6">
+          {/* Greeting & Balance */}
+          <div className="bg-blue-600 p-6 rounded-2xl shadow-md text-white">
+            <p className="text-sm opacity-90">Welcome back, {firstName}</p>
+            <div className="flex justify-between items-center mt-2">
+              <div>
+                <p className="text-xs opacity-70">Wallet Balance</p>
+                <p className="text-3xl font-bold">
+                  {hideBalance ? "₦••••••" : `₦${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </p>
+              </div>
+              <button onClick={() => setHideBalance(!hideBalance)}>
+                {hideBalance ? <IoEyeOffOutline size={26} /> : <IoEyeOutline size={26} />}
+              </button>
+            </div>
 
-      <div className="p-6 space-y-6">
-        <header className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Real-time transaction updates
-          </p>
-        </header>
-
-        {error && (
-          <div className="text-red-600 bg-red-50 border border-red-200 p-3 rounded-md">
-            Failed to load transactions
-          </div>
-        )}
-
-        {isLoading && (
-          <div className="text-gray-500 animate-pulse">Loading transactions...</div>
-        )}
-
-        {Array.isArray(data) && (
-          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {data.length === 0 ? (
-              <div className="text-gray-500">No transactions yet.</div>
-            ) : (
-              data.map((tx, i) => (
-                <motion.div
-                  key={tx.id ?? tx.reference_id ?? crypto.randomUUID()}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
+            {virtualAccount ? (
+              <div className="mt-4 bg-white text-gray-900 p-4 rounded-lg flex justify-between items-center cursor-pointer">
+                <div>
+                  <p className="text-xs text-gray-500">Virtual Account</p>
+                  <p className="font-semibold">{virtualAccount.bank} • {virtualAccount.number}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(virtualAccount.number);
+                    alert("Account number copied");
+                  }}
                 >
-                  <TransactionCard tx={tx} />
-                </motion.div>
-              ))
+                  <IoCopyOutline size={20} color="#222" />
+                </button>
+              </div>
+            ) : (
+              <a
+                href="/wallet/setup-naira-account"
+                className="mt-4 inline-block bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg"
+              >
+                Create Naira Account
+              </a>
             )}
-          </section>
-        )}
-      </div>
-    </DashboardLayout>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-3 gap-4">
+            {quickActions.map((q, i) => (
+              <motion.a
+                key={i}
+                href={q.screen}
+                whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="bg-white rounded-xl p-4 flex flex-col items-center shadow transition"
+              >
+                {q.icon}
+                <p className="text-sm font-semibold mt-2">{q.title}</p>
+              </motion.a>
+            ))}
+          </div>
+
+          {/* Services Grid */}
+          <div>
+            <h2 className="text-lg font-bold mb-3">Services</h2>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+              {services.map((s, i) => (
+                <motion.a
+                  key={i}
+                  href={s.screen}
+                  whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  className="flex flex-col items-center p-4 bg-white rounded-xl shadow transition"
+                >
+                  <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: s.color }}>
+                    {s.icon}
+                  </div>
+                  <p className="text-xs font-semibold text-center">{s.title}</p>
+                </motion.a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </BannersWrapper>
+    </ResponsiveLandingWrapper>
   );
 }
