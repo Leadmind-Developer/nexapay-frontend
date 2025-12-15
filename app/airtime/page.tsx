@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import api from "@/lib/api";
+import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
+import BannersWrapper from "@/components/BannersWrapper";
 
 export default function AirtimePage() {
   const [phone, setPhone] = useState("");
@@ -97,76 +99,89 @@ export default function AirtimePage() {
   }, []);
 
   return (
-    <div className="max-w-lg mx-auto p-5">
-      <h1 className="text-2xl font-bold mb-4">Buy Airtime</h1>
+  <ResponsiveLandingWrapper>
+    <BannersWrapper page="airtime">
+      <div className="max-w-lg mx-auto p-5">
 
-      {stage === "form" && (
-        <>
-          <label className="block mb-2 font-semibold">Network</label>
-          <select
-            value={serviceID}
-            onChange={(e) => setServiceID(e.target.value)}
-            className="w-full p-3 border rounded mb-4"
-          >
-            <option value="">Select Network</option>
-            {NETWORKS.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.label}
-              </option>
-            ))}
-          </select>
+        <h1 className="text-2xl font-bold mb-4">Buy Airtime</h1>
 
-          <label className="block mb-2 font-semibold">Phone Number</label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="08012345678"
-            className="w-full p-3 border rounded mb-4"
-          />
+        {stage === "form" && (
+          <>
+            <label className="block mb-2 font-semibold">Network</label>
+            <select
+              value={serviceID}
+              onChange={(e) => setServiceID(e.target.value)}
+              className="w-full p-3 border rounded mb-4"
+            >
+              <option value="">Select Network</option>
+              {NETWORKS.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.label}
+                </option>
+              ))}
+            </select>
 
-          <label className="block mb-2 font-semibold">Amount (₦)</label>
-          <input
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-3 border rounded mb-4"
-          />
+            <label className="block mb-2 font-semibold">Phone Number</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="08012345678"
+              className="w-full p-3 border rounded mb-4"
+            />
 
-          <button
-            onClick={startPayment}
-            disabled={loading}
-            className="w-full bg-blue-600 text-white text-center py-3 rounded-md"
-          >
-            {loading ? "Processing..." : "Pay & Buy Airtime"}
-          </button>
-        </>
-      )}
+            <label className="block mb-2 font-semibold">Amount (₦)</label>
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full p-3 border rounded mb-4"
+            />
 
-      {stage === "paying" && (
-        <p className="text-center py-10">Confirming payment with Paystack…</p>
-      )}
+            <button
+              onClick={startPayment}
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-md transition-colors"
+            >
+              {loading ? "Processing..." : "Pay & Buy Airtime"}
+            </button>
+          </>
+        )}
 
-      {stage === "success" && (
-        <div className="p-4 bg-green-100 border border-green-200 rounded">
-          <h2 className="text-xl font-bold mb-3">Airtime Successfully Purchased 🎉</h2>
+        {stage === "paying" && (
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 text-center">
+            <p className="py-10">Confirming payment with Paystack…</p>
+          </div>
+        )}
 
-          <p><strong>Phone: </strong>{receipt.phone}</p>
-          <p><strong>Amount: </strong>₦{receipt.amount}</p>
-          <p><strong>Network: </strong>{receipt.serviceID}</p>
-          <p><strong>Reference: </strong>{receipt.reference}</p>
+        {stage === "success" && receipt && (
+          <div className="bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800 p-4 rounded">
+            <h2 className="text-xl font-bold mb-3">
+              Airtime Successfully Purchased 🎉
+            </h2>
 
-          <hr className="my-4" />
+            <p><strong>Phone:</strong> {receipt.phone}</p>
+            <p><strong>Amount:</strong> ₦{receipt.amount}</p>
+            <p><strong>Network:</strong> {receipt.serviceID}</p>
+            <p><strong>Reference:</strong> {receipt.reference}</p>
 
-          <button
-            className="w-full bg-blue-600 text-white py-3 rounded"
-            onClick={() => {
-              setStage("form");
-              setReceipt(null);
-            }}
-          >
-            Buy Again
-          </button>
-        </div>
-      )}
-    </div>
-  );
+            <hr className="my-4" />
+
+            <button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
+              onClick={() => {
+                setStage("form");
+                setReceipt(null);
+                setPhone("");
+                setAmount("");
+                setServiceID("");
+              }}
+            >
+              Buy Again
+            </button>
+          </div>
+        )}
+      </div>
+    </BannersWrapper>
+  </ResponsiveLandingWrapper>
+);
+
 }
