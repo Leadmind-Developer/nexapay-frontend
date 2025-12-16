@@ -18,22 +18,15 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const [step, setStep] = useState<Step>("input");
 
   const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-
-  // Registration only
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-
-  // OTP / TOTP
   const [code, setCode] = useState("");
 
-  // State
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
-  // 2FA flags
   const [totpRequired, setTotpRequired] = useState(false);
   const [pushRequired, setPushRequired] = useState(false);
 
@@ -47,7 +40,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }, [resendTimer]);
 
   // -------------------------
-  // STEP 1: Start auth (password REQUIRED)
+  // STEP 1: Send OTP (login/register)
   // -------------------------
   async function handleStartAuth() {
     setLoading(true);
@@ -55,51 +48,37 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     setMessage("");
 
     try {
-      const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
-
-      const payload =
-        mode === "register"
-          ? {
-              name: name.trim(),
-              email: identifier.trim(),
-              phone: phone.trim() || undefined,
-              password,
-            }
-          : {
-              identifier: identifier.trim(),
-              password,
-            };
-
-      const res = await api.post(endpoint, payload);
-      const data = res.data;
-
-      if (!data.success) {
-        setError(data.message || "Authentication failed");
+      if (!identifier) {
+        setError("Email or phone is required");
         return;
       }
 
-      // 2FA first
-      if (data.method === "totp" || data.method === "app-biometric") {
-        setTotpRequired(data.method === "totp");
-        setPushRequired(data.method === "app-biometric");
-        setStep("2fa");
-        setMessage("Additional verification required");
+      const type = identifier.includes("@") ? "email" : "phone";
+
+      const payload: any = { type, value: identifier.trim() };
+      if (mode === "register") {
+        payload.name = name.trim();
+        if (phone.trim()) payload.phone = phone.trim();
+      }
+
+      const res = await api.post("/otp/send-auth", payload);
+      if (!res.data.success) {
+        setError(res.data.message || "Failed to send OTP");
         return;
       }
 
-      // OTP confirmation
       setStep("verify");
       setResendTimer(30);
       setMessage("OTP sent successfully");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Authentication error");
+      setError(err.response?.data?.message || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
   }
 
   // -------------------------
-  // STEP 2: OTP confirmation
+  // STEP 2: Confirm OTP
   // -------------------------
   async function handleConfirmOtp() {
     if (code.length < 6) return;
@@ -109,14 +88,11 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     setMessage("");
 
     try {
-      const endpoint =
-        mode === "register"
-          ? "/auth/confirm-registration"
-          : "/auth/confirm-login";
-
-      const res = await api.post(endpoint, {
-        identifier: identifier.trim(),
-        token: code,
+      const type = identifier.includes("@") ? "email" : "phone";
+      const res = await api.post("/otp/verify-auth", {
+        type,
+        value: identifier.trim(),
+        otp: code,
       });
 
       const data = res.data;
@@ -126,7 +102,12 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         return;
       }
 
-      // 2FA after OTP (rare but supported)
+      // Store JWT token for API calls
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
+      // Optional: handle 2FA if returned by backend
       if (data.method === "totp" || data.method === "app-biometric") {
         setTotpRequired(data.method === "totp");
         setPushRequired(data.method === "app-biometric");
@@ -143,7 +124,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }
 
   // -------------------------
-  // STEP 3: 2FA (TOTP or Push)
+  // STEP 3: 2FA (optional)
   // -------------------------
   async function handle2FAConfirm(totpCode?: string) {
     setLoading(true);
@@ -172,12 +153,10 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }
 
   // -------------------------
-  // Finalize login (cookie-based)
+  // Finalize login
   // -------------------------
   function finalizeLogin(user: any) {
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
-    }
+    if (user) localStorage.setItem("user", JSON.stringify(user));
     setMessage("Login successful. Redirecting…");
     setTimeout(() => router.push("/dashboard"), 800);
   }
@@ -240,42 +219,29 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         </>
       )}
 
-      {/* Identifier + password */}
+      {/* Identifier input */}
       {step === "input" && (
         <>
           <input
             className="w-full p-3 border rounded-lg"
-            placeholder="Email / Phone / UserID"
+            placeholder="Email / Phone"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
-          />
-          <input
-            type="password"
-            className="w-full p-3 border rounded-lg"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
           />
 
           <button
             onClick={handleStartAuth}
-            disabled={loading || !identifier || !password}
+            disabled={loading || !identifier || (mode === "register" && !name)}
             className={`w-full py-3 rounded-lg text-white font-medium ${
-              loading
-                ? "bg-blue-400"
-                : "bg-blue-600 hover:bg-blue-700"
+              loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
-            {loading
-              ? "Please wait..."
-              : mode === "register"
-              ? "Create Account"
-              : "Continue"}
+            {loading ? "Please wait..." : mode === "register" ? "Create Account" : "Continue"}
           </button>
         </>
       )}
 
-      {/* OTP */}
+      {/* OTP input */}
       {step === "verify" && (
         <>
           <OTPInput length={6} value={code} onChange={setCode} />
@@ -338,12 +304,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         </>
       )}
 
-      {message && (
-        <p className="text-center text-sm text-green-600">{message}</p>
-      )}
-      {error && (
-        <p className="text-center text-sm text-red-600">{error}</p>
-      )}
+      {message && <p className="text-center text-sm text-green-600">{message}</p>}
+      {error && <p className="text-center text-sm text-red-600">{error}</p>}
     </div>
   );
 }
