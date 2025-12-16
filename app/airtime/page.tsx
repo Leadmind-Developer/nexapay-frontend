@@ -7,12 +7,16 @@ import api from "@/lib/api";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 
+/* ================= TYPES ================= */
 type Network = {
   id: string;
   label: string;
   icon: string;
 };
 
+type Stage = "form" | "review" | "paying" | "success" | "error";
+
+/* ================= DATA ================= */
 const NETWORKS: Network[] = [
   { id: "mtn", label: "MTN", icon: "/images/icons/MTN_logo.png" },
   { id: "glo", label: "Glo", icon: "/images/icons/Glo_button.png" },
@@ -23,313 +27,270 @@ const NETWORKS: Network[] = [
 const LS_NETWORK_KEY = "nexa:lastNetwork";
 const LS_RECENT_PHONES = "nexa:recentPhones";
 
+/* ================= PREFIX MAP ================= */
+const PREFIX_MAP: Record<string, string[]> = {
+  mtn: ["0803","0806","0703","0706","0810","0813","0814","0816","0903","0906","0913","0916"],
+  glo: ["0805","0807","0705","0811","0815","0905"],
+  airtel: ["0802","0808","0701","0708","0812","0901","0902","0904","0912"],
+  etisalat: ["0809","0817","0818","0908","0909"],
+};
+
+/* ================= PAGE ================= */
 export default function AirtimePage() {
+  const [stage, setStage] = useState<Stage>("form");
+
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [serviceID, setServiceID] = useState("");
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(0); // 0=Network+Phone, 1=Amount+Review, 2=Payment/Success
+
   const [receipt, setReceipt] = useState<any>(null);
   const [recentPhones, setRecentPhones] = useState<string[]>([]);
 
-  // Load last network and recent phones
+  /* ================= INIT ================= */
   useEffect(() => {
     const lastNetwork = localStorage.getItem(LS_NETWORK_KEY);
     if (lastNetwork) setServiceID(lastNetwork);
 
-    const storedPhones = localStorage.getItem(LS_RECENT_PHONES);
-    if (storedPhones) setRecentPhones(JSON.parse(storedPhones));
+    const stored = JSON.parse(localStorage.getItem(LS_RECENT_PHONES) || "[]");
+    setRecentPhones(stored);
   }, []);
 
-  // Persist network selection
   useEffect(() => {
     if (serviceID) localStorage.setItem(LS_NETWORK_KEY, serviceID);
   }, [serviceID]);
 
-  // Auto-detect network
+  /* ================= AUTO NETWORK ================= */
   useEffect(() => {
-    if (phone.length >= 4) detectNetwork(phone);
+    if (phone.length < 4) return;
+
+    const prefix = phone.replace(/\s+/g, "").slice(0, 4);
+    for (const [key, list] of Object.entries(PREFIX_MAP)) {
+      if (list.includes(prefix)) {
+        setServiceID(key);
+        return;
+      }
+    }
   }, [phone]);
 
-  // Detect redirect from Paystack
+  /* ================= VERIFY REDIRECT ================= */
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const ref = url.searchParams.get("ref");
+    const ref = new URL(window.location.href).searchParams.get("ref");
     if (ref) verifyAndPurchase(ref);
   }, []);
 
-  function detectNetwork(phone: string): string | null {
-    const prefixes: Record<string, string[]> = {
-      mtn: ["0803","0806","0703","0706","0810","0813","0814","0816","0903","0906","0913","0916"],
-      glo: ["0805","0807","0705","0811","0815","0905"],
-      airtel: ["0802","0808","0701","0708","0812","0902","0907","0901","0912"],
-      etisalat: ["0809","0817","0818","0909","0908"],
-    };
-    const start = phone.replace(/\s+/g, "").slice(0, 4);
-    for (const key in prefixes) if (prefixes[key].includes(start)) return key;
-    return null;
-  }
-
-  async function startPayment() {
-    const detectedNetwork = detectNetwork(phone);
-    if (!phone || !amount || !serviceID) return alert("Fill all required fields");
-    if (detectedNetwork && detectedNetwork !== serviceID)
-      return alert(`Selected network does not match phone number (${detectedNetwork.toUpperCase()})`);
+  /* ================= PAY ================= */
+  const startPayment = async () => {
+    if (!phone || !amount || !serviceID) return;
 
     try {
+      setStage("paying");
       setLoading(true);
+
       const reference = `AIRTIME-${Date.now()}`;
-      const initRes = await api.post("/paystack/initialize", {
+
+      const init = await api.post("/paystack/initialize", {
         email: "guest@nexa-pay.app",
         amount: Number(amount) * 100,
         reference,
-        metadata: { purpose: "airtime_purchase", phone, serviceID, amount: Number(amount) },
+        metadata: { purpose: "airtime_purchase", phone, serviceID, amount },
         callback_url: `${window.location.origin}/airtime?ref=${reference}`,
       });
-      window.location.href = initRes.data.data.authorization_url;
-    } catch (err: any) {
-      console.error(err);
-      alert(err.response?.data?.message || "Payment init failed");
-    } finally {
+
+      window.location.href = init.data.data.authorization_url;
+    } catch {
+      setStage("error");
       setLoading(false);
     }
-  }
+  };
 
-  async function verifyAndPurchase(reference: string) {
+  const verifyAndPurchase = async (reference: string) => {
     try {
-      setStep(2);
       const verify = await api.get(`/paystack/verify/${reference}`);
-      if (verify.data.status !== "success") {
-        alert("Payment not completed");
-        setStep(0);
-        return;
-      }
+      if (verify.data.status !== "success") throw new Error();
+
       const buy = await api.post("/vtpass/airtime/local", { phone, amount, serviceID });
-      setReceipt({ reference, phone, amount, serviceID, vtpass: buy.data.result });
 
-      setRecentPhones((prev) => {
-        const updated = [phone, ...prev.filter((p) => p !== phone)].slice(0, 5);
-        localStorage.setItem(LS_RECENT_PHONES, JSON.stringify(updated));
-        return updated;
-      });
-    } catch (err: any) {
-      console.error(err);
-      alert("Airtime purchase failed");
-      setStep(0);
+      setReceipt({ phone, amount, serviceID, reference, vtpass: buy.data.result });
+      setStage("success");
+
+      const updated = [phone, ...recentPhones.filter(p => p !== phone)].slice(0, 5);
+      localStorage.setItem(LS_RECENT_PHONES, JSON.stringify(updated));
+      setRecentPhones(updated);
+    } catch {
+      setStage("error");
     }
-  }
+  };
 
-  function NetworkSelector({ value, onChange, networks }: { value: string; onChange: (val: string) => void; networks: Network[] }) {
-    const [open, setOpen] = useState(false);
-    const selected = networks.find((n) => n.id === value);
-
-    return (
-      <div className="relative mb-4">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="w-full flex items-center gap-3 p-4 border rounded-xl bg-white shadow-sm active:scale-[0.98] transition"
-        >
-          {selected ? (
-            <>
-              <Image src={selected.icon} alt={selected.label} width={28} height={28} />
-              <span className="font-medium">{selected.label}</span>
-            </>
-          ) : (
-            <span className="text-gray-400">Select Network</span>
-          )}
-          <span className="ml-auto text-lg">▾</span>
-        </button>
-
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-              className="absolute z-20 mt-2 w-full bg-white border rounded-xl shadow-lg overflow-hidden"
-            >
-              {networks.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => {
-                    onChange(n.id);
-                    setOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition"
-                >
-                  <Image src={n.icon} alt={n.label} width={26} height={26} />
-                  <span className="font-medium">{n.label}</span>
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  }
-
-  const detectedNetwork = detectNetwork(phone);
-  const steps = ["Network & Phone", "Amount & Review", "Payment"];
+  /* ================= WIZARD ================= */
+  const steps = ["Details", "Review", "Payment", "Complete"];
+  const stageIndex = ["form","review","paying","success","error"].indexOf(stage);
 
   const selectedNetwork = NETWORKS.find(n => n.id === serviceID);
 
   return (
     <ResponsiveLandingWrapper>
       <BannersWrapper page="airtime">
-        <div className="max-w-lg mx-auto p-5">
-          <h1 className="text-2xl font-bold mb-4">Buy Airtime</h1>
+        <div className="max-w-md mx-auto px-4">
 
-          {/* Stepper */}
-          <div className="flex items-center mb-6">
-            {steps.map((label, idx) => (
-              <div key={idx} className="flex-1 flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= idx ? "bg-[#39358c] text-white" : "bg-gray-200 text-gray-500"}`}>
-                  {idx + 1}
+          {/* ===== WIZARD HEADER (SAME AS DATA & CABLE) ===== */}
+          <div className="flex items-center justify-between mb-8">
+            {steps.map((_, idx) => {
+              const active = idx <= stageIndex;
+              return (
+                <div key={idx} className="flex-1 flex items-center">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2
+                    ${active
+                      ? "bg-yellow-500 border-yellow-500 text-white"
+                      : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500"}`}
+                  >
+                    {idx + 1}
+                  </div>
+                  {idx < steps.length - 1 && (
+                    <div
+                      className={`flex-1 h-1 -ml-1
+                      ${idx < stageIndex ? "bg-yellow-500" : "bg-gray-300 dark:bg-gray-700"}`}
+                    />
+                  )}
                 </div>
-                {idx < steps.length - 1 && <div className={`flex-1 h-1 ${step > idx ? "bg-[#39358c]" : "bg-gray-200"} mx-2 rounded`}></div>}
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Step Content */}
+          {/* ================= FORM ================= */}
           <AnimatePresence mode="wait">
-            {step === 0 && (
+
+            {stage === "form" && (
               <motion.div
-                key="step1"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.25 }}
+                key="form"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
               >
-                <label className="block mb-2 font-semibold">Network</label>
-                <NetworkSelector value={serviceID} onChange={setServiceID} networks={NETWORKS} />
+                <h2 className="text-xl font-bold">Buy Airtime</h2>
 
-                {detectedNetwork && serviceID && detectedNetwork !== serviceID && (
-                  <div className="mb-3 text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded-lg p-3">
-                    ⚠️ Phone number looks like <strong>{detectedNetwork.toUpperCase()}</strong>, but you selected <strong>{serviceID.toUpperCase()}</strong>
-                  </div>
-                )}
+                {/* Network */}
+                <div className="grid grid-cols-4 gap-3">
+                  {NETWORKS.map(n => (
+                    <button
+                      key={n.id}
+                      onClick={() => setServiceID(n.id)}
+                      className={`border rounded-lg p-3 flex flex-col items-center
+                        ${serviceID === n.id ? "border-yellow-500 ring-2 ring-yellow-400" : "border-gray-200 dark:border-gray-700"}`}
+                    >
+                      <Image src={n.icon} alt={n.label} width={32} height={32} />
+                      <span className="text-xs font-semibold mt-1">{n.label}</span>
+                    </button>
+                  ))}
+                </div>
 
+                {/* Phone */}
+                <input
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="Phone number"
+                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400
+                  dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                />
+
+                {/* Recent */}
                 {recentPhones.length > 0 && (
-                  <div className="mb-4">
-                    <p className="font-semibold mb-2">Recent</p>
-                    <div className="flex gap-2 overflow-x-auto">
-                      {recentPhones.map((p) => (
-                        <button key={p} onClick={() => setPhone(p)} className="px-4 py-2 bg-gray-100 rounded-full text-sm whitespace-nowrap">{p}</button>
-                      ))}
-                    </div>
+                  <div className="flex gap-2 overflow-x-auto">
+                    {recentPhones.map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setPhone(p)}
+                        className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm"
+                      >
+                        {p}
+                      </button>
+                    ))}
                   </div>
                 )}
 
-                <label className="block mb-2 font-semibold">Phone Number</label>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="numeric" placeholder="08012345678" className="w-full p-4 border rounded-xl mb-4 text-lg" />
+                <button
+                  onClick={() => setStage("review")}
+                  disabled={!phone || !serviceID}
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold disabled:opacity-60"
+                >
+                  Review
+                </button>
+              </motion.div>
+            )}
 
-                <div className="flex justify-end">
+            {/* ================= REVIEW ================= */}
+            {stage === "review" && (
+              <motion.div
+                key="review"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
+              >
+                <h2 className="text-xl font-bold">Review</h2>
+
+                <p><b>Network:</b> {selectedNetwork?.label}</p>
+                <p><b>Phone:</b> {phone}</p>
+
+                <input
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  placeholder="Amount"
+                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400
+                  dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                />
+
+                <div className="flex gap-3">
                   <button
-                    onClick={() => setStep(1)}
-                    disabled={!phone || !serviceID}
-                    className="bg-[#39358c] text-white py-3 px-6 rounded-xl font-bold disabled:opacity-60 transition"
+                    onClick={() => setStage("form")}
+                    className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
                   >
-                    Next
+                    Back
+                  </button>
+                  <button
+                    onClick={startPayment}
+                    disabled={!amount}
+                    className="flex-1 bg-yellow-500 text-white py-3 rounded"
+                  >
+                    Pay
                   </button>
                 </div>
               </motion.div>
             )}
 
-            {step === 1 && (
-  <motion.div
-    key="step2"
-    initial={{ opacity: 0, x: 50 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -50 }}
-    transition={{ duration: 0.25 }}
-  >
-    <label className="block mb-2 font-semibold">Amount (₦)</label>
-    <input
-      value={amount}
-      onChange={(e) => setAmount(e.target.value)}
-      inputMode="numeric"
-      className="w-full p-4 border rounded-xl mb-4 text-lg"
-    />
-
-    {/* Animated Review Card */}
-    <motion.div
-      whileHover={{ scale: 1.03, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className="flex items-center gap-4 p-4 mb-6 bg-white border rounded-xl shadow-sm cursor-pointer"
-    >
-      {selectedNetwork && (
-        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-          <Image src={selectedNetwork.icon} alt={selectedNetwork.label} width={28} height={28} />
-        </div>
-      )}
-      <div className="flex-1">
-        <h3 className="font-semibold mb-1">Review</h3>
-        <p><span className="font-medium">Network:</span> {selectedNetwork?.label}</p>
-        <p><span className="font-medium">Phone:</span> {phone}</p>
-        <p><span className="font-medium">Amount:</span> ₦{amount}</p>
-      </div>
-    </motion.div>
-
-    <div className="flex justify-between">
-      <button
-        onClick={() => setStep(0)}
-        className="bg-gray-200 text-gray-700 py-3 px-6 rounded-xl font-bold transition"
-      >
-        Back
-      </button>
-      <button
-        onClick={startPayment}
-        disabled={!amount || !phone || !serviceID}
-        className="bg-[#39358c] text-white py-3 px-6 rounded-xl font-bold disabled:opacity-60 transition"
-      >
-        Pay & Buy Airtime
-      </button>
-    </div>
-  </motion.div>
-)}
-
-            {step === 2 && (
-              <motion.div
-                key="step3"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -50 }}
-                transition={{ duration: 0.25 }}
-              >
-                {!receipt ? (
-                  <div className="text-center">
-                    <p className="py-10">Confirming payment with Paystack…</p>
-                    <button onClick={startPayment} disabled={loading} className="bg-[#39358c] text-white py-4 px-6 rounded-xl font-bold transition">
-                      {loading ? "Processing…" : "Pay & Buy Airtime"}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800 p-4 rounded">
-                    <h2 className="text-xl font-bold mb-3">Airtime Successfully Purchased 🎉</h2>
-                    <p><strong>Phone:</strong> {receipt.phone}</p>
-                    <p><strong>Amount:</strong> ₦{receipt.amount}</p>
-                    <p><strong>Network:</strong> {receipt.serviceID}</p>
-                    <p><strong>Reference:</strong> {receipt.reference}</p>
-                    <hr className="my-4" />
-                    <button
-                      className="w-full bg-[#39358c] active:scale-[0.98] disabled:opacity-60 text-white py-4 rounded-xl font-bold text-lg transition"
-                      onClick={() => {
-                        setStep(0);
-                        setReceipt(null);
-                        setPhone("");
-                        setAmount("");
-                        setServiceID("");
-                      }}
-                    >
-                      Buy Again
-                    </button>
-                  </div>
-                )}
-              </motion.div>
+            {/* ================= PAYING / RESULT ================= */}
+            {stage === "paying" && (
+              <div className="bg-white dark:bg-gray-900 p-6 rounded text-center">
+                Redirecting to Paystack…
+              </div>
             )}
+
+            {stage === "success" && (
+              <div className="bg-green-100 dark:bg-green-900 p-6 rounded text-center">
+                <h2 className="text-xl font-bold">Airtime Purchased 🎉</h2>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
+                >
+                  Buy Again
+                </button>
+              </div>
+            )}
+
+            {stage === "error" && (
+              <div className="bg-red-100 dark:bg-red-900 p-6 rounded text-center">
+                Transaction failed
+                <button
+                  onClick={() => setStage("form")}
+                  className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
           </AnimatePresence>
         </div>
       </BannersWrapper>
