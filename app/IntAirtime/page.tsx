@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 
+/* ================= TYPES ================= */
 interface Country {
   code: string;
   name: string;
@@ -18,7 +19,7 @@ interface ProductType {
 interface Operator {
   id: string;
   name: string;
-  minLength?: number; // for dynamic customer number validation
+  minLength?: number;
   maxLength?: number;
 }
 
@@ -28,7 +29,12 @@ interface Variation {
   amount: number;
 }
 
+type Stage = "form" | "review" | "paying" | "success" | "error";
+
+/* ================= PAGE ================= */
 export default function IntAirtimePage() {
+  const [stage, setStage] = useState<Stage>("form");
+
   const [countries, setCountries] = useState<Country[]>([]);
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
@@ -38,84 +44,68 @@ export default function IntAirtimePage() {
   const [selectedProductType, setSelectedProductType] = useState("");
   const [selectedOperator, setSelectedOperator] = useState("");
   const [selectedVariation, setSelectedVariation] = useState("");
+
   const [billersCode, setBillersCode] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
-  const [selectedAmount, setSelectedAmount] = useState<number>(0);
+  const [selectedAmount, setSelectedAmount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [stage, setStage] = useState<"form" | "paying" | "success">("form");
   const [receipt, setReceipt] = useState<any>(null);
 
-  const [customerMinLength, setCustomerMinLength] = useState<number>(0);
-  const [customerMaxLength, setCustomerMaxLength] = useState<number>(20);
+  const [minLen, setMinLen] = useState(0);
+  const [maxLen, setMaxLen] = useState(20);
 
-  // Fetch countries
+  /* ================= FETCH FLOW ================= */
   useEffect(() => {
     api.get("/vtpass/intl/countries")
       .then(res => setCountries(res.data.data || []))
-      .catch(err => console.error(err));
+      .catch(console.error);
   }, []);
 
-  // Fetch product types when country changes
   useEffect(() => {
     if (!selectedCountry) return setProductTypes([]);
     api.get(`/vtpass/intl/product-types/${selectedCountry}`)
       .then(res => setProductTypes(res.data.data || []))
-      .catch(err => console.error(err));
+      .catch(console.error);
   }, [selectedCountry]);
 
-  // Fetch operators when country & product type selected
   useEffect(() => {
     if (!selectedCountry || !selectedProductType) return setOperators([]);
     api.get(`/vtpass/intl/operators?code=${selectedCountry}&product_type_id=${selectedProductType}`)
-      .then(res => {
-        setOperators(res.data.data || []);
-      })
-      .catch(err => console.error(err));
+      .then(res => setOperators(res.data.data || []))
+      .catch(console.error);
   }, [selectedCountry, selectedProductType]);
 
-  // Fetch variations when operator & product type selected
   useEffect(() => {
     if (!selectedOperator || !selectedProductType) return setVariations([]);
     api.get(`/vtpass/intl/variations?operator_id=${selectedOperator}&product_type_id=${selectedProductType}`)
       .then(res => setVariations(res.data.data || []))
-      .catch(err => console.error(err));
+      .catch(console.error);
   }, [selectedOperator, selectedProductType]);
 
-  // Update selected amount
   useEffect(() => {
-    const selected = variations.find(v => v.variation_code === selectedVariation);
-    setSelectedAmount(selected ? selected.amount : 0);
+    const v = variations.find(x => x.variation_code === selectedVariation);
+    setSelectedAmount(v ? v.amount : 0);
   }, [selectedVariation, variations]);
 
-  // Update customer number rules dynamically based on selected operator
   useEffect(() => {
     const op = operators.find(o => o.id === selectedOperator);
-    setCustomerMinLength(op?.minLength || 0);
-    setCustomerMaxLength(op?.maxLength || 20);
+    setMinLen(op?.minLength || 0);
+    setMaxLen(op?.maxLength || 20);
   }, [selectedOperator, operators]);
 
-  // Validate customer number
-  function validateCustomerNumber() {
-    if (!billersCode) return "Customer number is required";
-    if (billersCode.length < customerMinLength)
-      return `Customer number must be at least ${customerMinLength} digits`;
-    if (billersCode.length > customerMaxLength)
-      return `Customer number must not exceed ${customerMaxLength} digits`;
-    return null;
-  }
-
-  // Start Paystack payment
-  async function startPayment() {
-    const validationError = validateCustomerNumber();
-    if (validationError) return alert(validationError);
-    if (!selectedVariation) return alert("Select a variation");
+  /* ================= PAYMENT ================= */
+  const startPayment = async () => {
+    if (!selectedVariation || !billersCode) return;
 
     try {
+      setStage("paying");
       setLoading(true);
+
       const reference = `INT-${Date.now()}`;
-      const initRes = await api.post("/paystack/initialize", {
+
+      const init = await api.post("/paystack/initialize", {
         email: email || "guest@nexa-pay.app",
         amount: selectedAmount * 100,
         reference,
@@ -128,28 +118,20 @@ export default function IntAirtimePage() {
           billersCode,
           phone,
         },
-        callback_url: `${window.location.origin}/intl-airtime?ref=${reference}`,
+        callback_url: `${window.location.origin}/IntAirtime?ref=${reference}`,
       });
 
-      window.location.href = initRes.data.data.authorization_url;
-    } catch (err: any) {
-      console.error(err);
-      alert(err.response?.data?.message || "Payment init failed");
-    } finally {
+      window.location.href = init.data.data.authorization_url;
+    } catch {
+      setStage("error");
       setLoading(false);
     }
-  }
+  };
 
-  // Verify Paystack and purchase
-  async function verifyAndPurchase(reference: string) {
+  const verifyAndPurchase = async (reference: string) => {
     try {
-      setStage("paying");
       const verify = await api.get(`/paystack/verify/${reference}`);
-      if (verify.data.status !== "success") {
-        alert("Payment not completed");
-        setStage("form");
-        return;
-      }
+      if (verify.data.status !== "success") throw new Error();
 
       const purchase = await api.post("/vtpass/intl/purchase", {
         billersCode,
@@ -164,180 +146,174 @@ export default function IntAirtimePage() {
 
       setReceipt({ reference, amount: selectedAmount, data: purchase.data });
       setStage("success");
-    } catch (err: any) {
-      console.error(err);
-      alert("Purchase failed");
-      setStage("form");
+    } catch {
+      setStage("error");
     }
-  }
+  };
 
-  // Handle redirect from Paystack
   useEffect(() => {
     const ref = new URL(window.location.href).searchParams.get("ref");
     if (ref) verifyAndPurchase(ref);
   }, []);
 
+  /* ================= WIZARD ================= */
+  const steps = ["Details", "Review", "Payment", "Complete"];
+  const stageIndex = ["form","review","paying","success","error"].indexOf(stage);
+
   return (
-  <ResponsiveLandingWrapper>
-    <BannersWrapper page="int-airtime">
-      <div className="max-w-lg mx-auto p-5">
-        <h1 className="text-2xl font-bold mb-4">International Airtime</h1>
+    <ResponsiveLandingWrapper>
+      <BannersWrapper page="int-airtime">
+        <div className="max-w-md mx-auto px-4">
 
-        {stage === "form" && (
-          <>
-            <label className="block mb-2 font-semibold">Country</label>
-            <select
-              value={selectedCountry}
-              onChange={(e) => {
-                setSelectedCountry(e.target.value);
-                setSelectedProductType("");
-                setSelectedOperator("");
-                setSelectedVariation("");
-              }}
-              className="w-full p-3 border rounded mb-4"
-            >
-              <option value="">Select Country</option>
-              {countries.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-
-            <label className="block mb-2 font-semibold">Product Type</label>
-            <select
-              value={selectedProductType}
-              onChange={(e) => {
-                setSelectedProductType(e.target.value);
-                setSelectedOperator("");
-                setSelectedVariation("");
-              }}
-              className="w-full p-3 border rounded mb-4"
-            >
-              <option value="">Select Product</option>
-              {productTypes.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-
-            <label className="block mb-2 font-semibold">Operator</label>
-            <select
-              value={selectedOperator}
-              onChange={(e) => {
-                setSelectedOperator(e.target.value);
-                setSelectedVariation("");
-              }}
-              className="w-full p-3 border rounded mb-4"
-            >
-              <option value="">Select Operator</option>
-              {operators.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-
-            <label className="block mb-2 font-semibold">Variation</label>
-            <select
-              value={selectedVariation}
-              onChange={(e) => setSelectedVariation(e.target.value)}
-              className="w-full p-3 border rounded mb-4"
-            >
-              <option value="">Select Variation</option>
-              {variations.map((v) => (
-                <option key={v.variation_code} value={v.variation_code}>
-                  {v.name} — ₦{v.amount}
-                </option>
-              ))}
-            </select>
-
-            <label className="block mb-2 font-semibold">
-              Customer Number{" "}
-              {customerMinLength > 0 && `(min ${customerMinLength} digits)`}
-            </label>
-            <input
-              value={billersCode}
-              onChange={(e) => setBillersCode(e.target.value)}
-              placeholder="Enter customer number"
-              className="w-full p-3 border rounded mb-4"
-            />
-
-            <label className="block mb-2 font-semibold">Phone (optional)</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="08012345678"
-              className="w-full p-3 border rounded mb-4"
-            />
-
-            <label className="block mb-2 font-semibold">Email (optional)</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@example.com"
-              className="w-full p-3 border rounded mb-4"
-            />
-
-            <p className="mb-4 text-gray-600">
-              Amount: ₦{selectedAmount}
-            </p>
-
-            <button
-              onClick={startPayment}
-              disabled={loading || !selectedAmount}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
-            >
-              {loading ? "Processing..." : "Pay & Purchase"}
-            </button>
-          </>
-        )}
-
-        {stage === "paying" && (
-          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 text-center">
-            <p className="py-10">
-              Confirming payment with Paystack…
-            </p>
+          {/* ===== WIZARD HEADER (SHARED) ===== */}
+          <div className="flex items-center justify-between mb-8">
+            {steps.map((_, idx) => {
+              const active = idx <= stageIndex;
+              return (
+                <div key={idx} className="flex-1 flex items-center">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2
+                    ${active
+                      ? "bg-yellow-500 border-yellow-500 text-white"
+                      : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500"}`}
+                  >
+                    {idx + 1}
+                  </div>
+                  {idx < steps.length - 1 && (
+                    <div className={`flex-1 h-1 -ml-1 ${idx < stageIndex ? "bg-yellow-500" : "bg-gray-300 dark:bg-gray-700"}`} />
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
 
-        {stage === "success" && receipt && (
-          <div className="p-4 bg-green-100 border border-green-200 rounded">
-            <h2 className="text-xl font-bold mb-3">
-              Purchase Successful 🎉
-            </h2>
-            <p>
-              <strong>Amount:</strong> ₦{receipt.amount}
-            </p>
-            <p>
-              <strong>Reference:</strong> {receipt.reference}
-            </p>
+          {/* ================= FORM ================= */}
+          {stage === "form" && (
+            <div className="bg-white dark:bg-gray-900 shadow-md rounded-lg p-6 space-y-4">
+              <h2 className="text-xl font-bold">International Airtime</h2>
 
-            <hr className="my-4" />
+              <select className="w-full p-3 border rounded dark:bg-gray-800 dark:border-gray-700"
+                value={selectedCountry}
+                onChange={e => {
+                  setSelectedCountry(e.target.value);
+                  setSelectedProductType("");
+                  setSelectedOperator("");
+                  setSelectedVariation("");
+                }}>
+                <option value="">Select Country</option>
+                {countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+              </select>
 
-            <button
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded transition-colors"
-              onClick={() => {
-                setStage("form");
-                setSelectedCountry("");
-                setSelectedProductType("");
-                setSelectedOperator("");
-                setSelectedVariation("");
-                setBillersCode("");
-                setPhone("");
-                setEmail("");
-                setSelectedAmount(0);
-                setReceipt(null);
-              }}
-            >
-              Purchase Again
-            </button>
-          </div>
-        )}
-      </div>
-    </BannersWrapper>
-  </ResponsiveLandingWrapper>
-);
+              <select className="w-full p-3 border rounded dark:bg-gray-800 dark:border-gray-700"
+                value={selectedProductType}
+                onChange={e => {
+                  setSelectedProductType(e.target.value);
+                  setSelectedOperator("");
+                  setSelectedVariation("");
+                }}>
+                <option value="">Select Product</option>
+                {productTypes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
 
+              <select className="w-full p-3 border rounded dark:bg-gray-800 dark:border-gray-700"
+                value={selectedOperator}
+                onChange={e => {
+                  setSelectedOperator(e.target.value);
+                  setSelectedVariation("");
+                }}>
+                <option value="">Select Operator</option>
+                {operators.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+
+              <select className="w-full p-3 border rounded dark:bg-gray-800 dark:border-gray-700"
+                value={selectedVariation}
+                onChange={e => setSelectedVariation(e.target.value)}>
+                <option value="">Select Variation</option>
+                {variations.map(v => (
+                  <option key={v.variation_code} value={v.variation_code}>
+                    {v.name} — ₦{v.amount}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                value={billersCode}
+                onChange={e => setBillersCode(e.target.value)}
+                placeholder={`Customer number ${minLen ? `(min ${minLen})` : ""}`}
+                className="w-full p-3 border rounded dark:bg-gray-800 dark:border-gray-700"
+              />
+
+              <input value={phone} onChange={e => setPhone(e.target.value)}
+                placeholder="Phone (optional)"
+                className="w-full p-3 border rounded dark:bg-gray-800 dark:border-gray-700" />
+
+              <input value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="Email (optional)"
+                className="w-full p-3 border rounded dark:bg-gray-800 dark:border-gray-700" />
+
+              <button
+                onClick={() => setStage("review")}
+                disabled={!selectedAmount || !billersCode}
+                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold disabled:opacity-60"
+              >
+                Review
+              </button>
+            </div>
+          )}
+
+          {/* ================= REVIEW ================= */}
+          {stage === "review" && (
+            <div className="bg-white dark:bg-gray-900 shadow-md rounded-lg p-6 space-y-3">
+              <h2 className="text-xl font-bold">Review</h2>
+              <p><b>Country:</b> {selectedCountry}</p>
+              <p><b>Amount:</b> ₦{selectedAmount}</p>
+
+              <div className="flex gap-3">
+                <button onClick={() => setStage("form")}
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">
+                  Back
+                </button>
+                <button onClick={startPayment}
+                  className="flex-1 bg-yellow-500 text-white py-3 rounded">
+                  Pay
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ================= PAYING / RESULT ================= */}
+          {stage === "paying" && (
+            <div className="bg-white dark:bg-gray-900 p-6 rounded text-center">
+              Processing payment…
+            </div>
+          )}
+
+          {stage === "success" && (
+            <div className="bg-green-100 dark:bg-green-900 p-6 rounded text-center">
+              <h2 className="text-xl font-bold">Purchase Successful 🎉</h2>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
+              >
+                Buy Again
+              </button>
+            </div>
+          )}
+
+          {stage === "error" && (
+            <div className="bg-red-100 dark:bg-red-900 p-6 rounded text-center">
+              Transaction failed
+              <button
+                onClick={() => setStage("form")}
+                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+        </div>
+      </BannersWrapper>
+    </ResponsiveLandingWrapper>
+  );
 }
