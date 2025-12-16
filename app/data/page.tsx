@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import api from "@/lib/api";
@@ -40,6 +40,14 @@ const PREFIX_MAP: Record<string, string[]> = {
   etisalat: ["0709","0809","0817","0818","0908","0909"],
 };
 
+/* ================= HELPERS ================= */
+const normalizePhone = (value: string) => {
+  let v = value.replace(/\s+/g, "");
+  if (v.startsWith("+234")) v = "0" + v.slice(4);
+  else if (v.startsWith("234")) v = "0" + v.slice(3);
+  return v;
+};
+
 /* ================= PAGE ================= */
 export default function DataPurchasePage() {
   const [stage, setStage] = useState<Stage>("form");
@@ -52,14 +60,11 @@ export default function DataPurchasePage() {
   const [selectedVar, setSelectedVar] = useState<Variation | null>(null);
 
   const [loadingPlans, setLoadingPlans] = useState(false);
-  const [processing, setProcessing] = useState(false);
-
   const [recentPhones, setRecentPhones] = useState<string[]>([]);
 
   /* ================= RECENTS ================= */
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("recentDataPhones") || "[]");
-    setRecentPhones(stored);
+    setRecentPhones(JSON.parse(localStorage.getItem("recentDataPhones") || "[]"));
   }, []);
 
   const saveRecentPhone = (num: string) => {
@@ -68,14 +73,13 @@ export default function DataPurchasePage() {
     setRecentPhones(updated);
   };
 
-  /* ================= AUTO PROVIDER DETECT ================= */
+  /* ================= AUTO PROVIDER (PHONE) ================= */
   useEffect(() => {
     if (phone.length < 4) return;
+    const prefix = phone.slice(0, 4);
 
-    const normalized = phone.replace(/^234/, "0").slice(0, 4);
-
-    for (const [key, prefixes] of Object.entries(PREFIX_MAP)) {
-      if (prefixes.includes(normalized)) {
+    for (const [key, list] of Object.entries(PREFIX_MAP)) {
+      if (list.includes(prefix)) {
         const found = PROVIDERS.find(p => p.value === key);
         if (found && found.value !== provider?.value) {
           loadVariations(found);
@@ -83,6 +87,17 @@ export default function DataPurchasePage() {
       }
     }
   }, [phone]);
+
+  /* ================= AUTO PROVIDER (EMAIL → SMILE) ================= */
+  useEffect(() => {
+    if (!email) return;
+    if (email.toLowerCase().includes("@smile")) {
+      const smile = PROVIDERS.find(p => p.value === "smile");
+      if (smile && smile.value !== provider?.value) {
+        loadVariations(smile);
+      }
+    }
+  }, [email]);
 
   /* ================= LOAD PLANS ================= */
   const loadVariations = async (prov: Provider) => {
@@ -106,9 +121,7 @@ export default function DataPurchasePage() {
     if (!provider || !selectedVar) return;
 
     try {
-      setProcessing(true);
       setStage("paying");
-
       saveRecentPhone(phone);
 
       const reference = `DATA-${Date.now()}`;
@@ -128,7 +141,6 @@ export default function DataPurchasePage() {
 
       window.location.href = init.data.data.authorization_url;
     } catch {
-      setProcessing(false);
       setStage("form");
       alert("Payment failed to initialize");
     }
@@ -143,8 +155,7 @@ export default function DataPurchasePage() {
       try {
         setStage("pending");
         const res = await api.get(`/paystack/verify/${ref}`);
-        if (res.data.status === "success") setStage("success");
-        else setStage("error");
+        setStage(res.data.status === "success" ? "success" : "error");
       } catch {
         setStage("error");
       }
@@ -160,47 +171,40 @@ export default function DataPurchasePage() {
   return (
     <ResponsiveLandingWrapper>
       <BannersWrapper page="data">
-        <div className="max-w-md mx-auto px-4">
+        <div className="max-w-md mx-auto px-4 text-gray-900 dark:text-gray-100">
 
-          {/* ===== WIZARD HEADER (SAME AS CABLE) ===== */}
-          <div className="flex items-center justify-between mb-8">
-            {steps.map((_, idx) => {
-              const active = idx <= stageIndex;
-              return (
-                <div key={idx} className="flex-1 flex items-center">
-                  <motion.div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2
-                      ${active ? "bg-yellow-500 border-yellow-500 text-white" : "bg-white border-gray-300 text-gray-500"}`}
-                  >
-                    {idx + 1}
-                  </motion.div>
-                  {idx < steps.length - 1 && (
-                    <motion.div
-                      className="flex-1 h-1 -ml-1"
-                      animate={{ backgroundColor: idx < stageIndex ? "#F59E0B" : "#D1D5DB" }}
-                    />
-                  )}
+          {/* ===== WIZARD ===== */}
+          <div className="flex mb-8">
+            {steps.map((_, i) => (
+              <div key={i} className="flex-1 flex items-center">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2
+                  ${i <= stageIndex ? "bg-yellow-500 border-yellow-500 text-white" : "border-gray-400"}`}>
+                  {i + 1}
                 </div>
-              );
-            })}
+                {i < steps.length - 1 && (
+                  <div className={`flex-1 h-1 ${i < stageIndex ? "bg-yellow-500" : "bg-gray-300 dark:bg-gray-700"}`} />
+                )}
+              </div>
+            ))}
           </div>
 
           {/* ===== FORM ===== */}
           {stage === "form" && (
-            <div className="bg-white shadow-md rounded-lg p-6 space-y-4">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
               <h2 className="text-xl font-bold">Buy Data</h2>
 
               <div className="relative">
                 <input
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400"
+                  onChange={e => setPhone(normalizePhone(e.target.value))}
+                  className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
                   placeholder="Phone Number"
                 />
                 {recentPhones.length > 0 && phone && (
-                  <ul className="absolute z-10 w-full bg-white border rounded mt-1">
+                  <ul className="absolute w-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded mt-1 z-10">
                     {recentPhones.filter(p => p.includes(phone)).map(p => (
-                      <li key={p} onClick={() => setPhone(p)} className="p-2 hover:bg-gray-100 cursor-pointer">
+                      <li key={p} onClick={() => setPhone(p)}
+                        className="p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
                         {p}
                       </li>
                     ))}
@@ -210,35 +214,27 @@ export default function DataPurchasePage() {
 
               <input
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400"
+                onChange={e => setEmail(e.target.value)}
+                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
                 placeholder="Email"
               />
 
-              {/* Providers */}
               <div className="grid grid-cols-3 gap-3">
                 {PROVIDERS.map(p => (
-                  <button
-                    key={p.value}
-                    onClick={() => loadVariations(p)}
+                  <button key={p.value} onClick={() => loadVariations(p)}
                     className={`border rounded-lg p-3 flex flex-col items-center
-                      ${provider?.value === p.value ? "border-yellow-500 ring-2 ring-yellow-400" : ""}`}
-                  >
+                      ${provider?.value === p.value ? "border-yellow-500 ring-2 ring-yellow-400" : "dark:border-gray-700"}`}>
                     <Image src={p.icon} alt={p.label} width={36} height={36} />
                     <span className="text-xs mt-1 font-semibold">{p.label}</span>
                   </button>
                 ))}
               </div>
 
-              {!loadingPlans && variations.length > 0 && (
+              {variations.length > 0 && (
                 <select
-                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
                   value={selectedVar?.variation_code || ""}
-                  onChange={e =>
-                    setSelectedVar(
-                      variations.find(v => v.variation_code === e.target.value) || null
-                    )
-                  }
+                  onChange={e => setSelectedVar(variations.find(v => v.variation_code === e.target.value) || null)}
                 >
                   <option value="">Select Data Bundle</option>
                   {variations.map(v => (
@@ -252,8 +248,7 @@ export default function DataPurchasePage() {
               <button
                 disabled={!provider || !phone || !email || !selectedVar}
                 onClick={() => setStage("review")}
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold"
-              >
+                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold">
                 Review
               </button>
             </div>
@@ -261,7 +256,7 @@ export default function DataPurchasePage() {
 
           {/* ===== REVIEW ===== */}
           {stage === "review" && (
-            <motion.div className="bg-white shadow-md rounded-lg p-6 space-y-3">
+            <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-3 shadow">
               <h2 className="text-xl font-bold">Review</h2>
               <p><b>Provider:</b> {provider?.label}</p>
               <p><b>Phone:</b> {phone}</p>
@@ -269,37 +264,39 @@ export default function DataPurchasePage() {
               <p><b>Amount:</b> ₦{selectedVar?.variation_amount}</p>
 
               <div className="flex gap-3">
-                <button onClick={() => setStage("form")} className="flex-1 bg-gray-200 py-3 rounded">
+                <button onClick={() => setStage("form")}
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">
                   Back
                 </button>
-                <button onClick={initializePayment} className="flex-1 bg-yellow-500 text-white py-3 rounded">
+                <button onClick={initializePayment}
+                  className="flex-1 bg-yellow-500 text-white py-3 rounded">
                   Pay
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {(stage === "paying" || stage === "pending") && (
-            <div className="bg-white shadow-md rounded-lg p-6 text-center">
-              <p className="py-10">
-                {stage === "paying" ? "Redirecting to Paystack…" : "Processing…"}
-              </p>
+            <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow">
+              {stage === "paying" ? "Redirecting to Paystack…" : "Processing…"}
             </div>
           )}
 
           {stage === "success" && (
-            <div className="bg-green-100 p-6 rounded text-center">
+            <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center">
               <h2 className="text-xl font-bold">Data Purchase Successful 🎉</h2>
-              <button onClick={() => window.location.reload()} className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">
+              <button onClick={() => window.location.reload()}
+                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">
                 Buy Again
               </button>
             </div>
           )}
 
           {stage === "error" && (
-            <div className="bg-red-100 p-6 rounded text-center">
+            <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center">
               <p>❌ Transaction failed</p>
-              <button onClick={() => setStage("form")} className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">
+              <button onClick={() => setStage("form")}
+                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">
                 Retry
               </button>
             </div>
