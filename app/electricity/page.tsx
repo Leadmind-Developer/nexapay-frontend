@@ -78,75 +78,120 @@ export default function ElectricityPage() {
   }, []);
 
   // Step 1: Verify Meter
-  const handleVerifyMeter = async () => {
-    if (!serviceID || !billersCode) return setMessage("Please select a Disco and enter meter number");
+const handleVerifyMeter = async () => {
+  if (!serviceID || !billersCode) {
+    setMessage("Please select a Disco and enter meter number");
+    return;
+  }
 
-    setLoading(true); setMessage("");
-    try {
-      const res = await VTPassAPI.verify<VerifyMeterResponse>({ serviceID, billersCode, type });
-      setCustomerName(res.data.customer_name);
-      setVerified(true);
-      setMessage(`Meter verified: ${res.data.customer_name}`);
-      setStage("payment");
-    } catch (err: any) {
-      setVerified(false);
-      setCustomerName("");
-      setMessage(err.response?.data?.message || "Meter verification failed");
-    } finally { setLoading(false); }
-  };
+  setLoading(true);
+  setMessage("");
+  setVerified(false);
+  setCustomerName("");
 
-  // Step 2: Payment
-  const handlePurchase = async () => {
-    if (!verified) return setMessage("Please verify meter first");
-    if (!amount || !phone) return setMessage("Amount and phone number are required");
+  try {
+    const res = await api.post<VerifyMeterResponse>("/vtpass/electricity/verify", {
+      serviceID,
+      billersCode,
+      variation_code: type, // ensure VTpass uses 'variation_code'
+    });
 
-    setLoading(true); setMessage("");
-    try {
-      const request_id = crypto.randomUUID();
-      await VTPassAPI.pay({ request_id, serviceID, billersCode, variation_code: type, amount, phone });
+    if (!res.data?.customer_name) throw new Error("Invalid response from VTpass");
 
-      const reference = `ELEC-${Date.now()}`;
-      const guestEmail = email || `${phone}@nexapay.fake`;
-      const callback_url = `${window.location.origin}/electricity?reference=${reference}`;
+    setCustomerName(res.data.customer_name);
+    setVerified(true);
+    setMessage(`Meter verified: ${res.data.customer_name}`);
+    setStage("payment");
+  } catch (err: any) {
+    setMessage(err.response?.data?.message || err.message || "Meter verification failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
-      const ps = await api.post("/paystack/initialize", {
-        amount, email: guestEmail, reference, callback_url,
-        metadata: { request_id, purpose: "electricity_purchase" },
-      });
+// Step 2: Payment
+const handlePurchase = async () => {
+  if (!verified) return setMessage("Please verify meter first");
+  if (!amount || !phone) return setMessage("Amount and phone number are required");
 
-      window.location.href = ps.data.data.authorization_url;
-    } catch (err: any) {
-      setMessage(err.response?.data?.message || "Payment initialization failed");
-    } finally { setLoading(false); }
-  };
+  setLoading(true);
+  setMessage("");
 
-  // Step 3: Verify Payment
-  const verifyTransaction = async (reference: string) => {
-    setStage("verify"); setLoading(true); setMessage("");
-    try {
-      const paystackRes = await api.get<PaystackVerifyResponse>(`/paystack/verify/${reference}`);
-      if (paystackRes.data.status !== "success") throw new Error("Payment not successful");
+  try {
+    const request_id = crypto.randomUUID();
 
-      const request_id = paystackRes.data.metadata?.request_id;
-      if (!request_id) throw new Error("Invalid transaction reference");
+    // Call VTpass purchase endpoint
+    await api.post("/vtpass/electricity/purchase", {
+      request_id,
+      serviceID,
+      billersCode,
+      variation_code: type,
+      amount,
+      phone,
+    });
 
-      const vtpassRes = await api.post<VTpassStatusResponse>("/vtpass/electricity/status", { request_id });
-      const v = vtpassRes.data;
+    // Initialize Paystack payment
+    const reference = `ELEC-${Date.now()}`;
+    const guestEmail = email || `${phone}@nexapay.fake`;
+    const callback_url = `${window.location.origin}/electricity?reference=${reference}`;
 
-      setReceipt({
-        request_id,
-        amount: Number(v.amount || v.purchased_amount || 0),
-        status: v.response_description || v.status || "success",
-        customer_name: v.customer_name,
-        token: v.token || v.token_code,
-        meter_number: v.billersCode || v.billers_code,
-        type: v.variation_code,
-      });
-      setStage("success");
-    } catch (err: any) {
-      setMessage(err.message || "Verification failed");
-    } finally { setLoading(false); }
-  };
+    const psRes = await api.post("/paystack/initialize", {
+      amount,
+      email: guestEmail,
+      reference,
+      callback_url,
+      metadata: { request_id, purpose: "electricity_purchase" },
+    });
+
+    const authorizationUrl = psRes.data?.data?.authorization_url;
+    if (!authorizationUrl) throw new Error("Failed to get Paystack authorization URL");
+
+    window.location.href = authorizationUrl;
+  } catch (err: any) {
+    setMessage(err.response?.data?.message || err.message || "Payment initialization failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Step 3: Verify Payment
+const verifyTransaction = async (reference: string) => {
+  if (!reference) return;
+
+  setStage("verify");
+  setLoading(true);
+  setMessage("");
+
+  try {
+    // Verify Paystack transaction
+    const paystackRes = await api.get<PaystackVerifyResponse>(`/paystack/verify/${reference}`);
+    if (paystackRes.data.status !== "success") throw new Error("Payment not successful");
+
+    const request_id = paystackRes.data.metadata?.request_id;
+    if (!request_id) throw new Error("Invalid transaction reference");
+
+    // Check VTpass status
+    const vtpassRes = await api.post<VTpassStatusResponse>("/vtpass/electricity/status", { request_id });
+    const v = vtpassRes.data;
+
+    setReceipt({
+      request_id,
+      amount: Number(v.amount ?? v.purchased_amount ?? 0),
+      status: v.response_description || v.status || "success",
+      customer_name: v.customer_name,
+      token: v.token || v.token_code,
+      meter_number: v.billersCode || v.billers_code,
+      type: v.variation_code,
+    });
+
+    setStage("success");
+    setMessage("Purchase successful");
+  } catch (err: any) {
+    setMessage(err.response?.data?.message || err.message || "Verification failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const stepClasses = (step: number) =>
     `flex-1 text-center py-2 font-semibold ${
