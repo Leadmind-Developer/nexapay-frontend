@@ -71,13 +71,11 @@ export default function AirtimePage() {
     const ref = new URLSearchParams(window.location.search).get("ref");
     if (!ref) return;
 
-    setVerified(true);
-
-    // Only show success/error; actual purchase handled in webhook
     setStage("success");
+    
     saveRecentPhone(phone);
-  }, [authLoading, verified]);
-
+  }, []);
+  
   /* ================= PAYMENT ================= */
   const startPayment = async () => {
     if (!phone || !amount || !serviceID) return;
