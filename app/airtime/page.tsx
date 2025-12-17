@@ -6,15 +6,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
+import { useAuth } from "@/hooks/useAuth";
 
 /* ================= TYPES ================= */
-type Network = { id: string; label: string; icon: string; };
+type Network = { id: string; label: string; icon: string };
 type Stage = "form" | "review" | "paying" | "success" | "error";
-type User = {
-  email: string;
-};
-
-const user: User | null = null;
 
 /* ================= DATA ================= */
 const NETWORKS: Network[] = [
@@ -40,13 +36,12 @@ export default function AirtimePage() {
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [serviceID, setServiceID] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [receipt, setReceipt] = useState<any>(null);
   const [recentPhones, setRecentPhones] = useState<string[]>([]);
+  const [verified, setVerified] = useState(false);
 
-  // assume we have user info (null = guest)
-  const user = null; // replace with actual auth context if exists
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
 
+  /* ================= INIT ================= */
   useEffect(() => {
     const lastNetwork = localStorage.getItem(LS_NETWORK_KEY);
     if (lastNetwork) setServiceID(lastNetwork);
@@ -59,9 +54,10 @@ export default function AirtimePage() {
     if (serviceID) localStorage.setItem(LS_NETWORK_KEY, serviceID);
   }, [serviceID]);
 
-  // auto detect network from phone prefix
+  /* ================= AUTO NETWORK DETECT ================= */
   useEffect(() => {
     if (phone.length < 4) return;
+
     const prefix = phone.replace(/\s+/g, "").slice(0, 4);
     for (const [key, list] of Object.entries(PREFIX_MAP)) {
       if (list.includes(prefix)) {
@@ -71,34 +67,47 @@ export default function AirtimePage() {
     }
   }, [phone]);
 
-  // verify redirect (Paystack callback)
+  /* ================= PAYSTACK CALLBACK ================= */
   useEffect(() => {
-    const ref = new URL(window.location.href).searchParams.get("ref");
-    if (ref) {
-      user ? verifyAndPurchase(ref) : verifyGuestPayment(ref);
+    if (authLoading || verified) return;
+
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (!ref) return;
+
+    setVerified(true);
+
+    if (isAuthenticated) {
+      verifyAndPurchase(ref);
+    } else {
+      verifyGuestPayment(ref);
     }
-  }, []);
+  }, [authLoading, isAuthenticated, verified]);
 
   /* ================= LOGGED-IN FLOW ================= */
   const startPayment = async () => {
     if (!phone || !amount || !serviceID) return;
+
     try {
       setStage("paying");
-      setLoading(true);
 
       const reference = `AIRTIME-${Date.now()}`;
+
       const init = await api.post("/paystack/initialize", {
         email: user?.email ?? "guest@nexa.com.ng",
         amount: Number(amount) * 100,
         reference,
-        metadata: { purpose: "airtime_purchase", phone, serviceID, amount },
+        metadata: {
+          purpose: "airtime_purchase",
+          phone,
+          serviceID,
+          amount,
+        },
         callback_url: `${window.location.origin}/airtime?ref=${reference}`,
       });
 
       window.location.href = init.data.data.authorization_url;
     } catch {
       setStage("error");
-      setLoading(false);
     }
   };
 
@@ -107,13 +116,17 @@ export default function AirtimePage() {
       const verify = await api.get(`/paystack/verify/${reference}`);
       if (verify.data.status !== "success") throw new Error();
 
-      const buy = await api.post("/vtpass/airtime/local", { phone, amount, serviceID });
-      setReceipt({ phone, amount, serviceID, reference, vtpass: buy.data.result });
-      setStage("success");
+      // ✅ pull values from Paystack metadata (critical fix)
+      const { phone, serviceID, amount } = verify.data.data.metadata;
 
-      const updated = [phone, ...recentPhones.filter(p => p !== phone)].slice(0, 5);
-      localStorage.setItem(LS_RECENT_PHONES, JSON.stringify(updated));
-      setRecentPhones(updated);
+      await api.post("/vtpass/airtime/local", {
+        phone,
+        amount,
+        serviceID,
+      });
+
+      saveRecentPhone(phone);
+      setStage("success");
     } catch {
       setStage("error");
     }
@@ -122,9 +135,9 @@ export default function AirtimePage() {
   /* ================= GUEST FLOW ================= */
   const startGuestPayment = async () => {
     if (!phone || !amount || !serviceID) return;
+
     try {
       setStage("paying");
-      setLoading(true);
 
       const init = await api.post("/guest/initialize", {
         serviceType: "airtime",
@@ -135,25 +148,29 @@ export default function AirtimePage() {
       window.location.href = init.data.authorization_url;
     } catch {
       setStage("error");
-      setLoading(false);
     }
   };
 
   const verifyGuestPayment = async (reference: string) => {
     try {
       const verify = await api.get(`/guest/verify?ref=${reference}`);
-      setReceipt({ ...verify.data.result, reference });
-      setStage("success");
 
-      const updated = [phone, ...recentPhones.filter(p => p !== phone)].slice(0, 5);
-      localStorage.setItem(LS_RECENT_PHONES, JSON.stringify(updated));
-      setRecentPhones(updated);
+      // ✅ backend already validated payment & purchased airtime
+      saveRecentPhone(verify.data.result.phone);
+      setStage("success");
     } catch {
       setStage("error");
     }
   };
 
-  /* ================= WIZARD ================= */
+  /* ================= HELPERS ================= */
+  const saveRecentPhone = (phone: string) => {
+    const updated = [phone, ...recentPhones.filter(p => p !== phone)].slice(0, 5);
+    localStorage.setItem(LS_RECENT_PHONES, JSON.stringify(updated));
+    setRecentPhones(updated);
+  };
+
+  /* ================= UI ================= */
   const steps = ["Details", "Review", "Payment", "Complete"];
   const stageIndex = ["form","review","paying","success","error"].indexOf(stage);
   const selectedNetwork = NETWORKS.find(n => n.id === serviceID);
@@ -170,8 +187,8 @@ export default function AirtimePage() {
               return (
                 <div key={idx} className="flex-1 flex items-center">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2
-                    ${active ? "bg-yellow-500 border-yellow-500 text-white" :
-                    "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500"}`}>
+                    ${active ? "bg-yellow-500 border-yellow-500 text-white"
+                             : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500"}`}>
                     {idx + 1}
                   </div>
                   {idx < steps.length - 1 && (
@@ -182,82 +199,63 @@ export default function AirtimePage() {
             })}
           </div>
 
-          {/* ================= FORM / REVIEW / PAYING / RESULT ================= */}
+          {/* ================= CONTENT ================= */}
           <AnimatePresence mode="wait">
             {stage === "form" && (
-              <motion.div
-                key="form"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
-              >
+              <motion.div key="form" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4">
                 <h2 className="text-xl font-bold">Buy Airtime</h2>
 
                 <div className="grid grid-cols-4 gap-3">
                   {NETWORKS.map(n => (
-                    <button
-                      key={n.id}
-                      onClick={() => setServiceID(n.id)}
+                    <button key={n.id} onClick={() => setServiceID(n.id)}
                       className={`border rounded-lg p-3 flex flex-col items-center
-                        ${serviceID === n.id ? "border-yellow-500 ring-2 ring-yellow-400" : "border-gray-200 dark:border-gray-700"}`}
-                    >
+                        ${serviceID === n.id ? "border-yellow-500 ring-2 ring-yellow-400"
+                                             : "border-gray-200 dark:border-gray-700"}`}>
                       <Image src={n.icon} alt={n.label} width={32} height={32} />
                       <span className="text-xs font-semibold mt-1">{n.label}</span>
                     </button>
                   ))}
                 </div>
 
-                <input
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="Phone number"
-                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                />
+                <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone number"
+                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400 dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
 
                 {recentPhones.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto">
                     {recentPhones.map(p => (
-                      <button key={p} onClick={() => setPhone(p)} className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm">{p}</button>
+                      <button key={p} onClick={() => setPhone(p)}
+                        className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm">
+                        {p}
+                      </button>
                     ))}
                   </div>
                 )}
 
-                <button
-                  onClick={() => setStage("review")}
-                  disabled={!phone || !serviceID}
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold disabled:opacity-60"
-                >
+                <button onClick={() => setStage("review")} disabled={!phone || !serviceID}
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold disabled:opacity-60">
                   Review
                 </button>
               </motion.div>
             )}
 
             {stage === "review" && (
-              <motion.div
-                key="review"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
-              >
+              <motion.div key="review" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4">
                 <h2 className="text-xl font-bold">Review</h2>
                 <p><b>Network:</b> {selectedNetwork?.label}</p>
                 <p><b>Phone:</b> {phone}</p>
-                <input
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  placeholder="Amount"
-                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                />
+
+                <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount"
+                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400 dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
 
                 <div className="flex gap-3">
-                  <button onClick={() => setStage("form")} className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">Back</button>
-                  <button
-                    onClick={user ? startPayment : startGuestPayment}
-                    disabled={!amount}
-                    className="flex-1 bg-yellow-500 text-white py-3 rounded"
-                  >
+                  <button onClick={() => setStage("form")} className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">
+                    Back
+                  </button>
+                  <button onClick={isAuthenticated ? startPayment : startGuestPayment}
+                    disabled={!amount || authLoading}
+                    className="flex-1 bg-yellow-500 text-white py-3 rounded">
                     Pay
                   </button>
                 </div>
@@ -273,14 +271,20 @@ export default function AirtimePage() {
             {stage === "success" && (
               <div className="bg-green-100 dark:bg-green-900 p-6 rounded text-center">
                 <h2 className="text-xl font-bold">Airtime Purchased 🎉</h2>
-                <button onClick={() => window.location.reload()} className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">Buy Again</button>
+                <button onClick={() => window.location.reload()}
+                  className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">
+                  Buy Again
+                </button>
               </div>
             )}
 
             {stage === "error" && (
               <div className="bg-red-100 dark:bg-red-900 p-6 rounded text-center">
                 Transaction failed
-                <button onClick={() => setStage("form")} className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">Retry</button>
+                <button onClick={() => setStage("form")}
+                  className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">
+                  Retry
+                </button>
               </div>
             )}
           </AnimatePresence>
