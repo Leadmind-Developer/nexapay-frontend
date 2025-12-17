@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -213,7 +214,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     try {
       await api.post("/auth/resend-otp", {
         identifier: identifier.trim(),
-        purpose: mode,
+        purpose: mode === "register" ? "register" : "login",
       });
 
       setResendTimer(30);
