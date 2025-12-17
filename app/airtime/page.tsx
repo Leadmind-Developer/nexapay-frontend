@@ -10,6 +10,11 @@ import BannersWrapper from "@/components/BannersWrapper";
 /* ================= TYPES ================= */
 type Network = { id: string; label: string; icon: string; };
 type Stage = "form" | "review" | "paying" | "success" | "error";
+type User = {
+  email: string;
+};
+
+const user: User | null = null;
 
 /* ================= DATA ================= */
 const NETWORKS: Network[] = [
@@ -83,7 +88,7 @@ export default function AirtimePage() {
 
       const reference = `AIRTIME-${Date.now()}`;
       const init = await api.post("/paystack/initialize", {
-        email: user?.email || "guest@nexa-pay.app",
+        email: user?.email ?? "guest@nexa.com.ng",
         amount: Number(amount) * 100,
         reference,
         metadata: { purpose: "airtime_purchase", phone, serviceID, amount },
