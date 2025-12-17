@@ -18,23 +18,15 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const [step, setStep] = useState<Step>("input");
 
   const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-
-  // Registration only
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [userID, setUserID] = useState("");
-
-  // OTP / TOTP
   const [code, setCode] = useState("");
 
-  // State
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
-  // 2FA flags
   const [totpRequired, setTotpRequired] = useState(false);
   const [pushRequired, setPushRequired] = useState(false);
 
@@ -48,83 +40,38 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }, [resendTimer]);
 
   // -------------------------
-  // Validation helpers
-  // -------------------------
-  function validateInput(): boolean {
-    if (!identifier || !password) {
-      setError("Identifier and password are required");
-      return false;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return false;
-    }
-
-    if (mode === "register") {
-      if (!name || !userID) {
-        setError("All registration fields are required");
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  // -------------------------
-  // STEP 1: Start auth
+  // STEP 1: Send OTP (login/register)
   // -------------------------
   async function handleStartAuth() {
-    if (!validateInput()) return;
-
     setLoading(true);
     setError("");
     setMessage("");
 
     try {
-      const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
-
-      const payload =
-        mode === "register"
-          ? {
-              name: name.trim(),
-              email: identifier.trim().toLowerCase(),
-              phone: phone.trim() || undefined,
-              userID: userID.trim().toLowerCase(),
-              password,
-            }
-          : {
-              identifier: identifier.trim(),
-              password,
-            };
-
-      const { data } = await api.post(endpoint, payload);
-
-      if (!data.success) {
-        setError(data.message || "Authentication failed");
+      if (!identifier) {
+        setError("Email or phone is required");
         return;
       }
 
-      // Canonical identifier (important for OTP verify)
-      if (data.identifier) {
-        setIdentifier(data.identifier);
+      const type = identifier.includes("@") ? "email" : "phone";
+
+      const payload: any = { type, value: identifier.trim() };
+      if (mode === "register") {
+        payload.name = name.trim();
+        if (phone.trim()) payload.phone = phone.trim();
       }
 
-      // 2FA first
-      if (data.method === "totp" || data.method === "app-biometric") {
-        setTotpRequired(data.method === "totp");
-        setPushRequired(data.method === "app-biometric");
-        setStep("2fa");
-        setMessage("Additional verification required");
+      const res = await api.post("/otp/send-auth", payload);
+      if (!res.data.success) {
+        setError(res.data.message || "Failed to send OTP");
         return;
       }
 
-      // OTP flow
       setStep("verify");
       setResendTimer(30);
       setMessage("OTP sent successfully");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Authentication error");
+      setError(err.response?.data?.message || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -141,21 +88,26 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     setMessage("");
 
     try {
-      const endpoint =
-        mode === "register"
-          ? "/auth/confirm-registration"
-          : "/auth/confirm-login";
-
-      const { data } = await api.post(endpoint, {
-        identifier: identifier.trim(),
+      const type = identifier.includes("@") ? "email" : "phone";
+      const res = await api.post("/otp/verify-auth", {
+        type,
+        value: identifier.trim(),
         otp: code,
       });
+
+      const data = res.data;
 
       if (!data.success) {
         setError(data.message || "Invalid OTP");
         return;
       }
 
+      // Store JWT token for API calls
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
+      // Optional: handle 2FA if returned by backend
       if (data.method === "totp" || data.method === "app-biometric") {
         setTotpRequired(data.method === "totp");
         setPushRequired(data.method === "app-biometric");
@@ -163,7 +115,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         return;
       }
 
-      finalizeAuth();
+      finalizeLogin(data.user);
     } catch (err: any) {
       setError(err.response?.data?.message || "OTP verification failed");
     } finally {
@@ -172,7 +124,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }
 
   // -------------------------
-  // STEP 3: 2FA
+  // STEP 3: 2FA (optional)
   // -------------------------
   async function handle2FAConfirm(totpCode?: string) {
     setLoading(true);
@@ -180,22 +132,19 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     setMessage("Verifying...");
 
     try {
-      const endpoint =
-        mode === "register"
-          ? "/auth/confirm-registration"
-          : "/auth/confirm-login";
-
-      const { data } = await api.post(endpoint, {
+      const res = await api.post("/auth/confirm-login", {
         identifier: identifier.trim(),
         totpCode,
       });
+
+      const data = res.data;
 
       if (!data.success) {
         setError(data.message || "2FA verification failed");
         return;
       }
 
-      finalizeAuth();
+      finalizeLogin(data.user);
     } catch (err: any) {
       setError(err.response?.data?.message || "2FA verification failed");
     } finally {
@@ -204,33 +153,12 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }
 
   // -------------------------
-  // STEP 2b: Resend OTP (DEDICATED)
+  // Finalize login
   // -------------------------
-  async function handleResendOtp() {
-    setLoading(true);
-    setError("");
-
-    try {
-      await api.post("/auth/resend-otp", {
-        identifier: identifier.trim(),
-        purpose: mode === "register" ? "register" : "login",
-      });
-
-      setResendTimer(30);
-      setMessage("OTP resent successfully");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to resend OTP");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // -------------------------
-  // Finalize auth (cookie-based)
-  // -------------------------
-  function finalizeAuth() {
-    setMessage("Authentication successful. Redirecting…");
-    setTimeout(() => router.push("/dashboard"), 700);
+  function finalizeLogin(user: any) {
+    if (user) localStorage.setItem("user", JSON.stringify(user));
+    setMessage("Login successful. Redirecting…");
+    setTimeout(() => router.push("/dashboard"), 800);
   }
 
   // -------------------------
@@ -238,23 +166,35 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   // -------------------------
   return (
     <div className="max-w-md mx-auto mt-10 bg-white dark:bg-gray-800 rounded-2xl shadow p-6 space-y-6">
-      <h1 className="text-2xl font-semibold text-center">
+      <h1 className="text-2xl font-semibold text-center text-gray-800 dark:text-white">
         {mode === "register" ? "Create Account" : "Login"}
       </h1>
 
-      {/* Toggle */}
-      <p className="text-center text-sm text-gray-500">
+      {/* Mode toggle */}
+      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
         {mode === "register" ? (
           <>
             Already have an account?{" "}
-            <button onClick={() => { setMode("login"); setStep("input"); }}>
+            <button
+              className="text-blue-600 hover:underline"
+              onClick={() => {
+                setMode("login");
+                setStep("input");
+              }}
+            >
               Login
             </button>
           </>
         ) : (
           <>
             Don’t have an account?{" "}
-            <button onClick={() => { setMode("register"); setStep("input"); }}>
+            <button
+              className="text-blue-600 hover:underline"
+              onClick={() => {
+                setMode("register");
+                setStep("input");
+              }}
+            >
               Register
             </button>
           </>
@@ -264,35 +204,66 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       {/* Registration fields */}
       {mode === "register" && step === "input" && (
         <>
-          <input placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <input placeholder="Username / UserID" value={userID} onChange={(e) => setUserID(e.target.value)} />
+          <input
+            className="w-full p-3 border rounded-lg"
+            placeholder="Full name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className="w-full p-3 border rounded-lg"
+            placeholder="Phone (optional)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
         </>
       )}
 
-      {/* Credentials */}
+      {/* Identifier input */}
       {step === "input" && (
         <>
-          <input placeholder="Email / Phone / UserID" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <button onClick={handleStartAuth} disabled={loading}>
-            {loading ? "Please wait…" : mode === "register" ? "Create Account" : "Continue"}
+          <input
+            className="w-full p-3 border rounded-lg"
+            placeholder="Email / Phone"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+          />
+
+          <button
+            onClick={handleStartAuth}
+            disabled={loading || !identifier || (mode === "register" && !name)}
+            className={`w-full py-3 rounded-lg text-white font-medium ${
+              loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {loading ? "Please wait..." : mode === "register" ? "Create Account" : "Continue"}
           </button>
         </>
       )}
 
-      {/* OTP */}
+      {/* OTP input */}
       {step === "verify" && (
         <>
           <OTPInput length={6} value={code} onChange={setCode} />
-          <button onClick={handleConfirmOtp} disabled={loading || code.length < 6}>
+          <button
+            onClick={handleConfirmOtp}
+            disabled={loading || code.length < 6}
+            className="w-full py-3 rounded-lg bg-green-600 text-white hover:bg-green-700"
+          >
             Verify OTP
           </button>
 
           {resendTimer > 0 ? (
-            <p>Resend in {resendTimer}s</p>
+            <p className="text-center text-sm text-gray-500">
+              Resend available in {resendTimer}s
+            </p>
           ) : (
-            <button onClick={handleResendOtp}>Resend OTP</button>
+            <button
+              onClick={handleStartAuth}
+              className="text-blue-600 text-sm hover:underline"
+            >
+              Resend OTP
+            </button>
           )}
         </>
       )}
@@ -302,21 +273,39 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         <>
           {totpRequired && (
             <>
+              <p className="text-center text-sm">
+                Enter code from your authenticator app
+              </p>
               <OTPInput length={6} value={code} onChange={setCode} />
-              <button onClick={() => handle2FAConfirm(code)}>Verify Code</button>
+              <button
+                onClick={() => handle2FAConfirm(code)}
+                disabled={loading || code.length < 6}
+                className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                Verify Code
+              </button>
             </>
           )}
 
           {pushRequired && (
-            <button onClick={() => handle2FAConfirm()}>
-              I’ve approved on my device
-            </button>
+            <>
+              <p className="text-center text-sm">
+                Approve the login from your device
+              </p>
+              <button
+                onClick={() => handle2FAConfirm()}
+                disabled={loading}
+                className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                I’ve approved
+              </button>
+            </>
           )}
         </>
       )}
 
-      {message && <p className="text-green-600 text-sm text-center">{message}</p>}
-      {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+      {message && <p className="text-center text-sm text-green-600">{message}</p>}
+      {error && <p className="text-center text-sm text-red-600">{error}</p>}
     </div>
   );
 }
