@@ -8,11 +8,9 @@ import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 import { useAuth } from "@/hooks/useAuth";
 
-/* ================= TYPES ================= */
 type Network = { id: string; label: string; icon: string };
 type Stage = "form" | "review" | "paying" | "success" | "error";
 
-/* ================= DATA ================= */
 const NETWORKS: Network[] = [
   { id: "mtn", label: "MTN", icon: "/images/icons/MTN_logo.png" },
   { id: "glo", label: "Glo", icon: "/images/icons/Glo_button.png" },
@@ -30,7 +28,6 @@ const PREFIX_MAP: Record<string, string[]> = {
   etisalat: ["0809","0817","0818","0908","0909"],
 };
 
-/* ================= PAGE ================= */
 export default function AirtimePage() {
   const [stage, setStage] = useState<Stage>("form");
   const [phone, setPhone] = useState("");
@@ -76,14 +73,12 @@ export default function AirtimePage() {
 
     setVerified(true);
 
-    if (isAuthenticated) {
-      verifyAndPurchase(ref);
-    } else {
-      verifyGuestPayment(ref);
-    }
-  }, [authLoading, isAuthenticated, verified]);
+    // Only show success/error; actual purchase handled in webhook
+    setStage("success");
+    saveRecentPhone(phone);
+  }, [authLoading, verified]);
 
-  /* ================= LOGGED-IN FLOW ================= */
+  /* ================= PAYMENT ================= */
   const startPayment = async () => {
     if (!phone || !amount || !serviceID) return;
 
@@ -91,73 +86,22 @@ export default function AirtimePage() {
       setStage("paying");
 
       const reference = `AIRTIME-${Date.now()}`;
+      const email = user?.email ?? "guest@nexa.com.ng";
 
       const init = await api.post("/paystack/initialize", {
-        email: user?.email ?? "guest@nexa.com.ng",
+        email,
         amount: Number(amount) * 100,
         reference,
         metadata: {
           purpose: "airtime_purchase",
           phone,
           serviceID,
-          amount,
+          amount: Number(amount),
         },
         callback_url: `${window.location.origin}/airtime?ref=${reference}`,
       });
 
       window.location.href = init.data.data.authorization_url;
-    } catch {
-      setStage("error");
-    }
-  };
-
-  const verifyAndPurchase = async (reference: string) => {
-    try {
-      const verify = await api.get(`/paystack/verify/${reference}`);
-      if (verify.data.status !== "success") throw new Error();
-
-      // ✅ pull values from Paystack metadata (critical fix)
-      const { phone, serviceID, amount } = verify.data.data.metadata;
-
-      await api.post("/vtpass/airtime/local", {
-        phone,
-        amount,
-        serviceID,
-      });
-
-      saveRecentPhone(phone);
-      setStage("success");
-    } catch {
-      setStage("error");
-    }
-  };
-
-  /* ================= GUEST FLOW ================= */
-  const startGuestPayment = async () => {
-    if (!phone || !amount || !serviceID) return;
-
-    try {
-      setStage("paying");
-
-      const init = await api.post("/guest/initialize", {
-        serviceType: "airtime",
-        amount,
-        metadata: { phone, serviceID, amount },
-      });
-
-      window.location.href = init.data.authorization_url;
-    } catch {
-      setStage("error");
-    }
-  };
-
-  const verifyGuestPayment = async (reference: string) => {
-    try {
-      const verify = await api.get(`/guest/verify?ref=${reference}`);
-
-      // ✅ backend already validated payment & purchased airtime
-      saveRecentPhone(verify.data.result.phone);
-      setStage("success");
     } catch {
       setStage("error");
     }
@@ -253,8 +197,7 @@ export default function AirtimePage() {
                   <button onClick={() => setStage("form")} className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">
                     Back
                   </button>
-                  <button onClick={isAuthenticated ? startPayment : startGuestPayment}
-                    disabled={!amount || authLoading}
+                  <button onClick={startPayment} disabled={!amount || authLoading}
                     className="flex-1 bg-yellow-500 text-white py-3 rounded">
                     Pay
                   </button>
