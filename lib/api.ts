@@ -4,6 +4,8 @@ import axios, {
   AxiosResponse,
 } from "axios";
 
+import { TOKEN_KEY } from "@/lib/auth";
+
 // -------------------------------
 // ✅ BASE CONFIGURATION
 // -------------------------------
@@ -21,15 +23,37 @@ const api = axios.create({
 // -------------------------------
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
+    if (typeof window === "undefined") return config;
 
-      if (!config.headers) config.headers = new AxiosHeaders();
-      else if (!(config.headers instanceof AxiosHeaders))
-        config.headers = new AxiosHeaders(config.headers);
+    const token = localStorage.getItem(TOKEN_KEY);
 
-      if (token) config.headers.set("Authorization", `Bearer ${token}`);
+    if (!config.headers) {
+      config.headers = new AxiosHeaders();
+    } else if (!(config.headers instanceof AxiosHeaders)) {
+      config.headers = new AxiosHeaders(config.headers);
     }
+
+    // Always send platform
+    config.headers.set("x-platform", "web");
+
+    const PUBLIC_AUTH_ROUTES = [
+      "/auth/login",
+      "/auth/register",
+      "/auth/confirm-login",
+      "/auth/confirm-registration",
+      "/auth/resend-otp",
+      "/auth/forgot",
+      "/auth/reset",
+    ];
+
+    const isPublicAuthRoute = PUBLIC_AUTH_ROUTES.some(route =>
+      config.url?.startsWith(route)
+    );
+
+    if (token && !isPublicAuthRoute) {
+      config.headers.set("Authorization", `Bearer ${token}`);
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
