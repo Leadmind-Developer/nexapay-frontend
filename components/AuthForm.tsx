@@ -70,7 +70,9 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
               password,
             };
 
-      const res = await api.post(endpoint, payload);
+      const res = await api.post(endpoint, payload, {
+        headers: { "x-platform": "web" }, // Always send platform header
+      });
       const data = res.data;
 
       if (!data.success) {
@@ -78,19 +80,27 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         return;
       }
 
-      // 2FA first
-      if (data.method === "totp" || data.method === "app-biometric") {
-        setTotpRequired(data.method === "totp");
-        setPushRequired(data.method === "app-biometric");
-        setStep("2fa");
-        setMessage("Additional verification required");
-        return;
-      }
+      // Branch based on backend method
+      switch (data.method) {
+        case "totp":
+          setTotpRequired(true);
+          setPushRequired(false);
+          setStep("2fa");
+          setMessage("Two-factor authentication required");
+          break;
 
-      // OTP confirmation
-      setStep("verify");
-      setResendTimer(30);
-      setMessage("OTP sent successfully");
+        case "app-biometric":
+          setTotpRequired(false);
+          setPushRequired(true);
+          setStep("2fa");
+          setMessage("Approve the login from your device");
+          break;
+
+        default: // OTP
+          setStep("verify");
+          setResendTimer(30);
+          setMessage("OTP sent successfully");
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Authentication error");
     } finally {
@@ -114,10 +124,16 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           ? "/auth/confirm-registration"
           : "/auth/confirm-login";
 
-      const res = await api.post(endpoint, {
-        identifier: identifier.trim(),
-        token: code,
-      });
+      const res = await api.post(
+        endpoint,
+        {
+          identifier: identifier.trim(),
+          otp: code, // standardized field
+        },
+        {
+          headers: { "x-platform": "web" },
+        }
+      );
 
       const data = res.data;
 
@@ -126,15 +142,21 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         return;
       }
 
-      // 2FA after OTP (rare but supported)
-      if (data.method === "totp" || data.method === "app-biometric") {
-        setTotpRequired(data.method === "totp");
-        setPushRequired(data.method === "app-biometric");
-        setStep("2fa");
-        return;
+      // 2FA after OTP
+      switch (data.method) {
+        case "totp":
+          setTotpRequired(true);
+          setPushRequired(false);
+          setStep("2fa");
+          break;
+        case "app-biometric":
+          setTotpRequired(false);
+          setPushRequired(true);
+          setStep("2fa");
+          break;
+        default:
+          finalizeLogin(data.user);
       }
-
-      finalizeLogin(data.user);
     } catch (err: any) {
       setError(err.response?.data?.message || "OTP verification failed");
     } finally {
@@ -151,10 +173,16 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     setMessage("Verifying...");
 
     try {
-      const res = await api.post("/auth/confirm-login", {
-        identifier: identifier.trim(),
-        totpCode,
-      });
+      const res = await api.post(
+        "/auth/confirm-login",
+        {
+          identifier: identifier.trim(),
+          totpCode,
+        },
+        {
+          headers: { "x-platform": "web" },
+        }
+      );
 
       const data = res.data;
 
@@ -172,7 +200,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }
 
   // -------------------------
-  // Finalize login (cookie-based)
+  // Finalize login
   // -------------------------
   function finalizeLogin(user: any) {
     if (user) {
@@ -261,9 +289,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
             onClick={handleStartAuth}
             disabled={loading || !identifier || !password}
             className={`w-full py-3 rounded-lg text-white font-medium ${
-              loading
-                ? "bg-blue-400"
-                : "bg-blue-600 hover:bg-blue-700"
+              loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
             {loading
@@ -341,10 +367,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       {message && (
         <p className="text-center text-sm text-green-600">{message}</p>
       )}
-      {error && (
-        <p className="text-center text-sm text-red-600">{error}</p>
-      )}
+      {error && <p className="text-center text-sm text-red-600">{error}</p>}
     </div>
   );
 }
-
