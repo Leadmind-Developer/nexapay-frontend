@@ -36,7 +36,7 @@ export default function Features() {
         transition={{ duration: 0.7 }}
         className="text-4xl font-extrabold mb-12 text-gray-900 dark:text-white"
       >
-        Why Choose <span className="text-indigo-600">Nexa-Pay</span>?
+        Why Choose <span className="text-indigo-600">NexaPay</span>?
       </motion.h2>
 
       <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 max-w-6xl mx-auto px-6">
