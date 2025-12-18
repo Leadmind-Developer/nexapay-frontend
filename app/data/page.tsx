@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import api from "@/lib/api";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
@@ -59,7 +58,6 @@ export default function DataPurchasePage() {
   const [variations, setVariations] = useState<Variation[]>([]);
   const [selectedVar, setSelectedVar] = useState<Variation | null>(null);
 
-  const [loadingPlans, setLoadingPlans] = useState(false);
   const [recentPhones, setRecentPhones] = useState<string[]>([]);
 
   /* ================= RECENTS ================= */
@@ -104,15 +102,12 @@ export default function DataPurchasePage() {
     setProvider(prov);
     setSelectedVar(null);
     setVariations([]);
-    setLoadingPlans(true);
 
     try {
       const res = await api.get(`/vtpass/data/variations/${prov.value}`);
       setVariations(res.data.variations || []);
     } catch {
       alert("Failed to load data plans");
-    } finally {
-      setLoadingPlans(false);
     }
   };
 
@@ -146,10 +141,14 @@ export default function DataPurchasePage() {
     }
   };
 
-  /* ================= VERIFY ================= */
+  /* ================= VERIFY (ONE-TIME) ================= */
   useEffect(() => {
-    const ref = new URL(window.location.href).searchParams.get("ref");
+    const url = new URL(window.location.href);
+    const ref = url.searchParams.get("ref");
     if (!ref) return;
+
+    url.searchParams.delete("ref");
+    window.history.replaceState({}, "", url.toString());
 
     const verify = async () => {
       try {
@@ -164,53 +163,22 @@ export default function DataPurchasePage() {
     verify();
   }, []);
 
-  /* ================= WIZARD ================= */
-  const steps = ["Details", "Review", "Payment", "Complete"];
-  const stageIndex = ["form","review","paying","pending","success","error"].indexOf(stage);
-
   return (
     <ResponsiveLandingWrapper>
       <BannersWrapper page="data">
         <div className="max-w-md mx-auto px-4 text-gray-900 dark:text-gray-100">
 
-          {/* ===== WIZARD ===== */}
-          <div className="flex mb-8">
-            {steps.map((_, i) => (
-              <div key={i} className="flex-1 flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2
-                  ${i <= stageIndex ? "bg-yellow-500 border-yellow-500 text-white" : "border-gray-400"}`}>
-                  {i + 1}
-                </div>
-                {i < steps.length - 1 && (
-                  <div className={`flex-1 h-1 ${i < stageIndex ? "bg-yellow-500" : "bg-gray-300 dark:bg-gray-700"}`} />
-                )}
-              </div>
-            ))}
-          </div>
-
           {/* ===== FORM ===== */}
           {stage === "form" && (
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
+            <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
               <h2 className="text-xl font-bold">Buy Data</h2>
 
-              <div className="relative">
-                <input
-                  value={phone}
-                  onChange={e => setPhone(normalizePhone(e.target.value))}
-                  className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-                  placeholder="Phone Number"
-                />
-                {recentPhones.length > 0 && phone && (
-                  <ul className="absolute w-full bg-white dark:bg-gray-800 border dark:border-gray-700 rounded mt-1 z-10">
-                    {recentPhones.filter(p => p.includes(phone)).map(p => (
-                      <li key={p} onClick={() => setPhone(p)}
-                        className="p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              <input
+                value={phone}
+                onChange={e => setPhone(normalizePhone(e.target.value))}
+                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+                placeholder="Phone Number"
+              />
 
               <input
                 value={email}
@@ -221,9 +189,12 @@ export default function DataPurchasePage() {
 
               <div className="grid grid-cols-3 gap-3">
                 {PROVIDERS.map(p => (
-                  <button key={p.value} onClick={() => loadVariations(p)}
+                  <button
+                    key={p.value}
+                    onClick={() => loadVariations(p)}
                     className={`border rounded-lg p-3 flex flex-col items-center
-                      ${provider?.value === p.value ? "border-yellow-500 ring-2 ring-yellow-400" : "dark:border-gray-700"}`}>
+                      ${provider?.value === p.value ? "border-yellow-500 ring-2 ring-yellow-400" : "dark:border-gray-700"}`}
+                  >
                     <Image src={p.icon} alt={p.label} width={36} height={36} />
                     <span className="text-xs mt-1 font-semibold">{p.label}</span>
                   </button>
@@ -234,7 +205,11 @@ export default function DataPurchasePage() {
                 <select
                   className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
                   value={selectedVar?.variation_code || ""}
-                  onChange={e => setSelectedVar(variations.find(v => v.variation_code === e.target.value) || null)}
+                  onChange={e =>
+                    setSelectedVar(
+                      variations.find(v => v.variation_code === e.target.value) || null
+                    )
+                  }
                 >
                   <option value="">Select Data Bundle</option>
                   {variations.map(v => (
@@ -248,7 +223,8 @@ export default function DataPurchasePage() {
               <button
                 disabled={!provider || !phone || !email || !selectedVar}
                 onClick={() => setStage("review")}
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold">
+                className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
+              >
                 Review
               </button>
             </div>
@@ -257,19 +233,22 @@ export default function DataPurchasePage() {
           {/* ===== REVIEW ===== */}
           {stage === "review" && (
             <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-3 shadow">
-              <h2 className="text-xl font-bold">Review</h2>
               <p><b>Provider:</b> {provider?.label}</p>
               <p><b>Phone:</b> {phone}</p>
               <p><b>Plan:</b> {selectedVar?.name}</p>
               <p><b>Amount:</b> ₦{selectedVar?.variation_amount}</p>
 
               <div className="flex gap-3">
-                <button onClick={() => setStage("form")}
-                  className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">
+                <button
+                  onClick={() => setStage("form")}
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
+                >
                   Back
                 </button>
-                <button onClick={initializePayment}
-                  className="flex-1 bg-yellow-500 text-white py-3 rounded">
+                <button
+                  onClick={initializePayment}
+                  className="flex-1 bg-yellow-500 text-white py-3 rounded"
+                >
                   Pay
                 </button>
               </div>
@@ -285,20 +264,20 @@ export default function DataPurchasePage() {
           {stage === "success" && (
             <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center">
               <h2 className="text-xl font-bold">Data Purchase Successful 🎉</h2>
-              <button onClick={() => window.location.reload()}
-                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">
-                Buy Again
-              </button>
             </div>
           )}
 
           {stage === "error" && (
-            <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center">
-              <p>❌ Transaction failed</p>
-              <button onClick={() => setStage("form")}
-                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">
-                Retry
-              </button>
+            <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
+              <h2 className="text-lg font-bold">Transaction Status Unclear</h2>
+              <p className="text-sm">Your payment may have gone through, but we couldn’t confirm it.</p>
+              <p className="text-sm font-semibold">❗ Please do NOT retry this transaction.</p>
+              <a
+                href="/support"
+                className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
+              >
+                Contact Support
+              </a>
             </div>
           )}
 
