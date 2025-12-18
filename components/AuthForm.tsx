@@ -17,17 +17,23 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const [mode, setMode] = useState<AuthFormProps["mode"]>(initialMode);
   const [step, setStep] = useState<Step>("input");
 
+  // Credentials
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
 
   // Registration only
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [userID, setUserID] = useState(""); // ✅ REQUIRED by backend
 
-  // OTP / TOTP
+  // OTP / 2FA
   const [code, setCode] = useState("");
 
-  // State
+  // Backend-issued OTP context
+  const [otpIdentifier, setOtpIdentifier] = useState("");
+  const [otpPurpose, setOtpPurpose] = useState<"login" | "register">("login");
+
+  // UI state
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -46,75 +52,72 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     return () => clearInterval(i);
   }, [resendTimer]);
 
-// -------------------------
-// STEP 1: Start auth (password REQUIRED)
-// -------------------------
-async function handleStartAuth() {
-  setLoading(true);
-  setError("");
-  setMessage("");
+  // -------------------------
+  // STEP 1: Start auth
+  // -------------------------
+  async function handleStartAuth() {
+    setLoading(true);
+    setError("");
+    setMessage("");
 
-  try {
-    const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
+    try {
+      const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
 
-    const payload =
-      mode === "register"
-        ? {
-            name: name.trim(),
-            email: identifier.trim(),
-            phone: phone.trim() || undefined,
-            password,
-          }
-        : {
-            identifier: identifier.trim(),
-            password,
-          };
+      const payload =
+        mode === "register"
+          ? {
+              name: name.trim(),
+              email: identifier.trim(),
+              phone: phone.trim(),
+              userID: userID.trim(), // ✅ REQUIRED
+              password,
+            }
+          : {
+              identifier: identifier.trim(),
+              password,
+            };
 
-    const res = await api.post(endpoint, payload, {
-      headers: { "x-platform": "web" }, // Always send platform header
-    });
-    const data = res.data;
+      const res = await api.post(endpoint, payload, {
+        headers: { "x-platform": "web" },
+      });
 
-    // Handle account not verified automatically
-    if (!data.success && data.message?.includes("Account not verified")) {
-      setStep("verify");
-      setResendTimer(30);
-      setMessage("Account not verified. OTP sent to your email/phone.");
-      return;
+      const data = res.data;
+
+      if (!data.success) {
+        setError(data.message || "Authentication failed");
+        return;
+      }
+
+      // Store backend OTP context
+      if (data.identifier) {
+        setOtpIdentifier(data.identifier);
+        setOtpPurpose(data.purpose);
+      }
+
+      switch (data.method) {
+        case "totp":
+          setTotpRequired(true);
+          setPushRequired(false);
+          setStep("2fa");
+          break;
+
+        case "app-biometric":
+          setTotpRequired(false);
+          setPushRequired(true);
+          setStep("2fa");
+          break;
+
+        default:
+          setStep("verify");
+          setResendTimer(30);
+          setMessage("OTP sent successfully");
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Authentication error");
+    } finally {
+      setLoading(false);
     }
-
-    if (!data.success) {
-      setError(data.message || "Authentication failed");
-      return;
-    }
-
-    // Branch based on backend method
-    switch (data.method) {
-      case "totp":
-        setTotpRequired(true);
-        setPushRequired(false);
-        setStep("2fa");
-        setMessage("Two-factor authentication required");
-        break;
-
-      case "app-biometric":
-        setTotpRequired(false);
-        setPushRequired(true);
-        setStep("2fa");
-        setMessage("Approve the login from your device");
-        break;
-
-      default: // OTP
-        setStep("verify");
-        setResendTimer(30);
-        setMessage("OTP sent successfully");
-    }
-  } catch (err: any) {
-    setError(err.response?.data?.message || "Authentication error");
-  } finally {
-    setLoading(false);
   }
-}
 
   // -------------------------
   // STEP 2: OTP confirmation
@@ -135,12 +138,10 @@ async function handleStartAuth() {
       const res = await api.post(
         endpoint,
         {
-          identifier: identifier.trim(),
-          otp: code, // standardized field
+          identifier: otpIdentifier, // ✅ backend-issued identifier
+          otp: code,
         },
-        {
-          headers: { "x-platform": "web" },
-        }
+        { headers: { "x-platform": "web" } }
       );
 
       const data = res.data;
@@ -150,18 +151,19 @@ async function handleStartAuth() {
         return;
       }
 
-      // 2FA after OTP
       switch (data.method) {
         case "totp":
           setTotpRequired(true);
           setPushRequired(false);
           setStep("2fa");
           break;
+
         case "app-biometric":
           setTotpRequired(false);
           setPushRequired(true);
           setStep("2fa");
           break;
+
         default:
           finalizeLogin(data.user);
       }
@@ -173,23 +175,21 @@ async function handleStartAuth() {
   }
 
   // -------------------------
-  // STEP 3: 2FA (TOTP or Push)
+  // STEP 3: 2FA
   // -------------------------
   async function handle2FAConfirm(totpCode?: string) {
     setLoading(true);
     setError("");
-    setMessage("Verifying...");
+    setMessage("Verifying…");
 
     try {
       const res = await api.post(
         "/auth/confirm-login",
         {
-          identifier: identifier.trim(),
+          identifier: otpIdentifier,
           totpCode,
         },
-        {
-          headers: { "x-platform": "web" },
-        }
+        { headers: { "x-platform": "web" } }
       );
 
       const data = res.data;
@@ -223,12 +223,12 @@ async function handleStartAuth() {
   // -------------------------
   return (
     <div className="max-w-md mx-auto mt-10 bg-white dark:bg-gray-800 rounded-2xl shadow p-6 space-y-6">
-      <h1 className="text-2xl font-semibold text-center text-gray-800 dark:text-white">
+      <h1 className="text-2xl font-semibold text-center">
         {mode === "register" ? "Create Account" : "Login"}
       </h1>
 
       {/* Mode toggle */}
-      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-center text-sm text-gray-500">
         {mode === "register" ? (
           <>
             Already have an account?{" "}
@@ -269,7 +269,13 @@ async function handleStartAuth() {
           />
           <input
             className="w-full p-3 border rounded-lg"
-            placeholder="Phone (optional)"
+            placeholder="Username"
+            value={userID}
+            onChange={(e) => setUserID(e.target.value)}
+          />
+          <input
+            className="w-full p-3 border rounded-lg"
+            placeholder="Phone"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
@@ -296,15 +302,9 @@ async function handleStartAuth() {
           <button
             onClick={handleStartAuth}
             disabled={loading || !identifier || !password}
-            className={`w-full py-3 rounded-lg text-white font-medium ${
-              loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
-            }`}
+            className="w-full py-3 rounded-lg bg-blue-600 text-white"
           >
-            {loading
-              ? "Please wait..."
-              : mode === "register"
-              ? "Create Account"
-              : "Continue"}
+            {loading ? "Please wait…" : mode === "register" ? "Create Account" : "Continue"}
           </button>
         </>
       )}
@@ -316,7 +316,7 @@ async function handleStartAuth() {
           <button
             onClick={handleConfirmOtp}
             disabled={loading || code.length < 6}
-            className="w-full py-3 rounded-lg bg-green-600 text-white hover:bg-green-700"
+            className="w-full py-3 rounded-lg bg-green-600 text-white"
           >
             Verify OTP
           </button>
@@ -327,7 +327,25 @@ async function handleStartAuth() {
             </p>
           ) : (
             <button
-              onClick={handleStartAuth}
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  await api.post(
+                    "/auth/resend-otp",
+                    {
+                      identifier: otpIdentifier,
+                      purpose: otpPurpose,
+                    },
+                    { headers: { "x-platform": "web" } }
+                  );
+                  setResendTimer(30);
+                  setMessage("OTP resent");
+                } catch {
+                  setError("Failed to resend OTP");
+                } finally {
+                  setLoading(false);
+                }
+              }}
               className="text-blue-600 text-sm hover:underline"
             >
               Resend OTP
@@ -337,44 +355,20 @@ async function handleStartAuth() {
       )}
 
       {/* 2FA */}
-      {step === "2fa" && (
+      {step === "2fa" && totpRequired && (
         <>
-          {totpRequired && (
-            <>
-              <p className="text-center text-sm">
-                Enter code from your authenticator app
-              </p>
-              <OTPInput length={6} value={code} onChange={setCode} />
-              <button
-                onClick={() => handle2FAConfirm(code)}
-                disabled={loading || code.length < 6}
-                className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                Verify Code
-              </button>
-            </>
-          )}
-
-          {pushRequired && (
-            <>
-              <p className="text-center text-sm">
-                Approve the login from your device
-              </p>
-              <button
-                onClick={() => handle2FAConfirm()}
-                disabled={loading}
-                className="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              >
-                I’ve approved
-              </button>
-            </>
-          )}
+          <OTPInput length={6} value={code} onChange={setCode} />
+          <button
+            onClick={() => handle2FAConfirm(code)}
+            disabled={loading || code.length < 6}
+            className="w-full py-3 bg-purple-600 text-white rounded-lg"
+          >
+            Verify Code
+          </button>
         </>
       )}
 
-      {message && (
-        <p className="text-center text-sm text-green-600">{message}</p>
-      )}
+      {message && <p className="text-center text-sm text-green-600">{message}</p>}
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
     </div>
   );
