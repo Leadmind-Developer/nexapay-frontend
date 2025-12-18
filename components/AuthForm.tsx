@@ -6,10 +6,10 @@ import api from "@/lib/api";
 import OTPInput from "@/components/OTPInput";
 
 interface AuthFormProps {
-  mode: "login" | "register";
+  mode: "login" | "register" | "forgot";
 }
 
-type Step = "input" | "verify" | "2fa" | "forgot";
+type Step = "input" | "verify" | "2fa" | "reset";
 
 export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const router = useRouter();
@@ -67,7 +67,13 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
       if (mode === "register") {
         endpoint = "/auth/register";
-        payload = { name: name.trim(), email: email.trim(), phone: phone.trim(), userID: userID.trim(), password: password.trim() };
+        payload = {
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          userID: userID.trim(),
+          password: password.trim(),
+        };
       } else if (mode === "login") {
         endpoint = "/auth/login";
         payload = { identifier: identifier.trim(), password: password.trim() };
@@ -100,7 +106,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       } else if (mode === "forgot") {
         setStep("verify");
         setResendTimer(30);
-        setMessage("OTP sent to reset password");
+        setMessage("OTP sent! Enter the code to reset your password.");
       } else {
         setStep("verify");
         setResendTimer(30);
@@ -147,9 +153,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         setPushRequired(true);
         setStep("2fa");
       } else if (mode === "forgot") {
-        setStep("input");
-        setMessage("OTP verified! Set your new password below.");
-        setMode("reset-password");
+        setStep("reset");
+        setMessage("OTP verified! Enter your new password.");
       } else {
         finalizeLogin(data.user);
       }
@@ -186,6 +191,36 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }
 
   // -------------------------
+  // RESET PASSWORD CONFIRMATION
+  // -------------------------
+  async function handleResetPassword(newPassword: string) {
+    if (!newPassword) return;
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const res = await api.post("/auth/reset-password", { identifier: otpIdentifier, newPassword }, { headers: { "x-platform": "web" } });
+      const data = res.data;
+
+      if (!data.success) {
+        setError(data.message || "Reset password failed");
+        return;
+      }
+
+      setMessage("Password reset successfully! Please login.");
+      setMode("login");
+      setStep("input");
+      setPassword("");
+      setCode("");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Reset password failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // -------------------------
   // FINALIZE LOGIN
   // -------------------------
   function finalizeLogin(user: any) {
@@ -200,7 +235,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   return (
     <div className="max-w-md mx-auto mt-10 bg-white dark:bg-gray-800 rounded-2xl shadow p-6 space-y-6">
       <h1 className="text-2xl font-semibold text-center">
-        {mode === "register" ? "Create Account" : mode === "forgot" ? "Forgot Password" : "Login"}
+        {mode === "register" ? "Create Account" : mode === "forgot" ? "Forgot Password" : step === "reset" ? "Set New Password" : "Login"}
       </h1>
 
       {/* Mode toggle */}
@@ -247,16 +282,22 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         </>
       )}
 
-      {/* Login / Forgot password input */}
-      {(mode === "login" || mode === "forgot" || mode === "reset-password") && step === "input" && (
+      {/* Login / Forgot / Reset input */}
+      {(mode === "login" || mode === "forgot" || step === "reset") && step !== "verify" && step !== "2fa" && (
         <>
           <input className="w-full p-3 border rounded-lg" placeholder="Email / Phone / Username" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
-          {(mode === "login" || mode === "reset-password") && (
+          {(mode === "login" || step === "reset") && (
             <input type="password" className="w-full p-3 border rounded-lg" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
           )}
-          <button onClick={handleStartAuth} disabled={loading || !identifier || ((mode !== "forgot") && !password)} className="w-full py-3 rounded-lg bg-blue-600 text-white">
-            {loading ? "Please wait…" : mode === "login" ? "Login" : mode === "forgot" ? "Send OTP" : "Set New Password"}
-          </button>
+          {step === "reset" ? (
+            <button onClick={() => handleResetPassword(password)} disabled={loading || !password} className="w-full py-3 rounded-lg bg-blue-600 text-white">
+              {loading ? "Please wait…" : "Set New Password"}
+            </button>
+          ) : (
+            <button onClick={handleStartAuth} disabled={loading || !identifier || (mode === "login" && !password)} className="w-full py-3 rounded-lg bg-blue-600 text-white">
+              {loading ? "Please wait…" : mode === "login" ? "Login" : "Send OTP"}
+            </button>
+          )}
         </>
       )}
 
