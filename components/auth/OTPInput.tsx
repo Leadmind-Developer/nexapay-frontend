@@ -4,10 +4,12 @@ export default function OTPInput({
   length = 6,
   value,
   onChange,
+  disabled = false,
 }: {
   length?: number;
   value: string;
   onChange: (v: string) => void;
+  disabled?: boolean;
 }) {
   const [values, setValues] = useState(Array(length).fill(""));
 
@@ -24,6 +26,7 @@ export default function OTPInput({
           maxLength={1}
           value={v}
           onChange={(e) => {
+            if (disabled) return; // prevent typing when disabled
             const val = e.target.value.replace(/\D/, "");
             setValues((prev) => {
               const copy = [...prev];
@@ -32,6 +35,7 @@ export default function OTPInput({
             });
           }}
           className="w-12 h-12 text-center border rounded-lg"
+          disabled={disabled} // actually pass to input
         />
       ))}
     </div>
