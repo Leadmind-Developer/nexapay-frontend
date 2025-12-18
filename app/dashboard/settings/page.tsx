@@ -10,7 +10,7 @@ import {
   IoChevronForward,
 } from "react-icons/io5";
 import api from "@/lib/api";
-import OTPInput from "@/components/OTPInput";
+import OTPInput from "@/components/auth/OTPInput";
 
 export default function SettingsPage() {
   // Preferences
