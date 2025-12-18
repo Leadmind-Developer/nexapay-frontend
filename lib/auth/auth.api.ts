@@ -1,62 +1,58 @@
+// lib/auth/auth.api.ts
 import api, { Payload } from "../api";
 import { AxiosResponse } from "axios";
+import type { LoginResponse } from "./auth.types";
 
-// -------------------------------
-// ✅ AUTH API
-// -------------------------------
 export const AuthAPI = {
-  // Login with identifier + password
-  login: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/login", payload),
+  login(payload: Payload): Promise<AxiosResponse<LoginResponse>> {
+    return api.post("/auth/login", payload);
+  },
 
-  // Confirm login with OTP / 2FA
-  confirmLogin: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/confirm-login", payload),
+  confirmLogin(payload: Payload) {
+    return api.post("/auth/confirm-login", payload);
+  },
 
-  // Register new user
-  register: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/register", payload),
+  register(payload: Payload) {
+    return api.post("/auth/register", payload);
+  },
 
-  // Confirm registration (OTP)
-  confirmRegistration: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/confirm-registration", payload),
+  confirmRegistration(payload: Payload) {
+    return api.post("/auth/confirm-registration", payload);
+  },
 
-  // Resend OTP for login / registration / forgot password
-  resendOtp: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/resend-otp", payload),
+  resendOtp(payload: Payload) {
+    return api.post("/auth/resend-otp", payload);
+  },
 
-  // Request forgot password (send OTP/email)
-  forgot: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/forgot", payload),
+  forgot(payload: Payload) {
+    return api.post("/auth/forgot", payload);
+  },
 
-  // Reset password using OTP/token
-  reset: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/reset", payload),
+  reset(payload: Payload) {
+    return api.post("/auth/reset", payload);
+  },
 
-  // Logout user
-  logout: <T>(): Promise<AxiosResponse<T>> =>
-    api.post("/auth/logout"),
+  logout() {
+    return api.post("/auth/logout");
+  },
 
-  // Verify current session
-  verify: <T>(): Promise<AxiosResponse<T>> =>
-    api.get("/auth/verify"),
+  verify() {
+    return api.get("/auth/verify");
+  },
 
-  // Refresh session token
-  refresh: <T>(): Promise<AxiosResponse<T>> =>
-    api.post("/auth/refresh"),
+  refresh() {
+    return api.post("/auth/refresh");
+  },
 
-  // Toggle 2FA
-  toggle2FA: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/2fa/toggle", payload),
+  toggle2FA(payload: Payload) {
+    return api.post("/auth/2fa/toggle", payload);
+  },
 
-  // Request biometric setup
-  requestBiometric: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/request-biometric", payload),
+  requestBiometric(payload: Payload) {
+    return api.post("/auth/request-biometric", payload);
+  },
 
-  // Verify biometric login
-  verifyBiometric: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/verify-biometric", payload),
+  verifyBiometric(payload: Payload) {
+    return api.post("/auth/verify-biometric", payload);
+  },
 };
-
-export type AuthPayload = Payload;
-export default AuthAPI;
