@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useSearchParams } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AuthLayout from "@/components/auth/AuthLayout";
 import AuthSubmit from "@/components/auth/AuthSubmit";
 import OTPInput from "@/components/auth/OTPInput";
@@ -24,7 +24,9 @@ export default function VerifyPage() {
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "Verification failed");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -33,7 +35,9 @@ export default function VerifyPage() {
       footer={<a href="/auth/login" className="text-blue-600">Back to login</a>}
     >
       <OTPInput value={code} onChange={setCode} />
-      <AuthSubmit onClick={handleVerify} loading={loading}>Verify OTP</AuthSubmit>
+      <AuthSubmit onClick={handleVerify} loading={loading}>
+        Verify OTP
+      </AuthSubmit>
       {error && <p className="text-red-600 text-sm">{error}</p>}
     </AuthLayout>
   );
