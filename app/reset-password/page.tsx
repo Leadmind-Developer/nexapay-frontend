@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useSearchParams } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AuthLayout from "@/components/auth/AuthLayout";
 import AuthInput from "@/components/auth/AuthInput";
 import AuthSubmit from "@/components/auth/AuthSubmit";
@@ -28,7 +28,9 @@ export default function ResetPasswordPage() {
       router.push("/auth/login");
     } catch (err: any) {
       setError(err.response?.data?.message || "Reset failed");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -37,8 +39,15 @@ export default function ResetPasswordPage() {
       footer={<a href="/auth/login" className="text-blue-600">Back to login</a>}
     >
       <AuthInput placeholder="OTP" value={otp} onChange={setOtp} />
-      <AuthInput type="password" placeholder="New Password" value={newPassword} onChange={setNewPassword} />
-      <AuthSubmit onClick={handleReset} loading={loading}>Reset Password</AuthSubmit>
+      <AuthInput
+        type="password"
+        placeholder="New Password"
+        value={newPassword}
+        onChange={setNewPassword}
+      />
+      <AuthSubmit onClick={handleReset} loading={loading}>
+        Reset Password
+      </AuthSubmit>
       {message && <p className="text-green-600 text-sm">{message}</p>}
       {error && <p className="text-red-600 text-sm">{error}</p>}
     </AuthLayout>
