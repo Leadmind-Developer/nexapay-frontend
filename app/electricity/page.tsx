@@ -93,7 +93,7 @@ const handleVerifyMeter = async () => {
     const res = await api.post<VerifyMeterResponse>("/vtpass/electricity/verify", {
       serviceID,
       billersCode,
-      variation_code: type, // ensure VTpass uses 'variation_code'
+      type,
     });
 
     if (!res.data?.customer_name) throw new Error("Invalid response from VTpass");
