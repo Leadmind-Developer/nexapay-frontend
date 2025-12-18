@@ -15,26 +15,32 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
+  const token = getToken();
 
-    if (!token || !isLoggedIn()) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
+  if (!token) {
+    setUser(null);
+    setLoading(false);
+    return;
+  }
 
-    api
-      .get("/auth/me")
-      .then(res => {
+  api
+    .get("/auth/verify", {
+      headers: { "x-platform": "web" },
+    })
+    .then(res => {
+      if (res.data?.success && res.data.user) {
         setUser(res.data.user);
-      })
-      .catch(() => {
+      } else {
         setUser(null);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+      }
+    })
+    .catch(() => {
+      setUser(null);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+}, []);
 
   return {
     user,
