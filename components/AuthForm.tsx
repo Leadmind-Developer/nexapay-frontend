@@ -46,67 +46,75 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     return () => clearInterval(i);
   }, [resendTimer]);
 
-  // -------------------------
-  // STEP 1: Start auth (password REQUIRED)
-  // -------------------------
-  async function handleStartAuth() {
-    setLoading(true);
-    setError("");
-    setMessage("");
+// -------------------------
+// STEP 1: Start auth (password REQUIRED)
+// -------------------------
+async function handleStartAuth() {
+  setLoading(true);
+  setError("");
+  setMessage("");
 
-    try {
-      const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
+  try {
+    const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
 
-      const payload =
-        mode === "register"
-          ? {
-              name: name.trim(),
-              email: identifier.trim(),
-              phone: phone.trim() || undefined,
-              password,
-            }
-          : {
-              identifier: identifier.trim(),
-              password,
-            };
+    const payload =
+      mode === "register"
+        ? {
+            name: name.trim(),
+            email: identifier.trim(),
+            phone: phone.trim() || undefined,
+            password,
+          }
+        : {
+            identifier: identifier.trim(),
+            password,
+          };
 
-      const res = await api.post(endpoint, payload, {
-        headers: { "x-platform": "web" }, // Always send platform header
-      });
-      const data = res.data;
+    const res = await api.post(endpoint, payload, {
+      headers: { "x-platform": "web" }, // Always send platform header
+    });
+    const data = res.data;
 
-      if (!data.success) {
-        setError(data.message || "Authentication failed");
-        return;
-      }
-
-      // Branch based on backend method
-      switch (data.method) {
-        case "totp":
-          setTotpRequired(true);
-          setPushRequired(false);
-          setStep("2fa");
-          setMessage("Two-factor authentication required");
-          break;
-
-        case "app-biometric":
-          setTotpRequired(false);
-          setPushRequired(true);
-          setStep("2fa");
-          setMessage("Approve the login from your device");
-          break;
-
-        default: // OTP
-          setStep("verify");
-          setResendTimer(30);
-          setMessage("OTP sent successfully");
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Authentication error");
-    } finally {
-      setLoading(false);
+    // Handle account not verified automatically
+    if (!data.success && data.message?.includes("Account not verified")) {
+      setStep("verify");
+      setResendTimer(30);
+      setMessage("Account not verified. OTP sent to your email/phone.");
+      return;
     }
+
+    if (!data.success) {
+      setError(data.message || "Authentication failed");
+      return;
+    }
+
+    // Branch based on backend method
+    switch (data.method) {
+      case "totp":
+        setTotpRequired(true);
+        setPushRequired(false);
+        setStep("2fa");
+        setMessage("Two-factor authentication required");
+        break;
+
+      case "app-biometric":
+        setTotpRequired(false);
+        setPushRequired(true);
+        setStep("2fa");
+        setMessage("Approve the login from your device");
+        break;
+
+      default: // OTP
+        setStep("verify");
+        setResendTimer(30);
+        setMessage("OTP sent successfully");
+    }
+  } catch (err: any) {
+    setError(err.response?.data?.message || "Authentication error");
+  } finally {
+    setLoading(false);
   }
+}
 
   // -------------------------
   // STEP 2: OTP confirmation
