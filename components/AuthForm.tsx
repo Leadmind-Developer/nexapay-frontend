@@ -56,68 +56,68 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   // STEP 1: Start auth
   // -------------------------
   async function handleStartAuth() {
-    setLoading(true);
-    setError("");
-    setMessage("");
+  setLoading(true);
+  setError("");
+  setMessage("");
 
-    try {
-      const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
+  try {
+    const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
 
-      const payload =
-        mode === "register"
-          ? {
-              name: name.trim(),
-              email: identifier.trim(),
-              phone: phone.trim(),
-              userID: userID.trim(), // ✅ REQUIRED
-              password,
-            }
-          : {
-              identifier: identifier.trim(),
-              password,
-            };
+    const payload =
+      mode === "register"
+        ? {
+            name: name.trim(),
+            email: email.trim(),    // ✅ separate email field
+            phone: phone.trim(),
+            userID: userID.trim(),
+            password: password.trim(),
+          }
+        : {
+            identifier: identifier.trim(),
+            password: password.trim(),
+          };
 
-      const res = await api.post(endpoint, payload, {
-        headers: { "x-platform": "web" },
-      });
+    const res = await api.post(endpoint, payload, {
+      headers: { "x-platform": "web" },
+    });
 
-      const data = res.data;
+    const data = res.data;
 
-      if (!data.success) {
-        setError(data.message || "Authentication failed");
-        return;
-      }
-
-      // Store backend OTP context
-      if (data.identifier) {
-        setOtpIdentifier(data.identifier);
-        setOtpPurpose(data.purpose);
-      }
-
-      switch (data.method) {
-        case "totp":
-          setTotpRequired(true);
-          setPushRequired(false);
-          setStep("2fa");
-          break;
-
-        case "app-biometric":
-          setTotpRequired(false);
-          setPushRequired(true);
-          setStep("2fa");
-          break;
-
-        default:
-          setStep("verify");
-          setResendTimer(30);
-          setMessage("OTP sent successfully");
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Authentication error");
-    } finally {
-      setLoading(false);
+    if (!data.success) {
+      setError(data.message || "Authentication failed");
+      return;
     }
+
+    // Store backend OTP context
+    if (data.identifier) {
+      setOtpIdentifier(data.identifier);
+      setOtpPurpose(data.purpose);
+    }
+
+    switch (data.method) {
+      case "totp":
+        setTotpRequired(true);
+        setPushRequired(false);
+        setStep("2fa");
+        break;
+
+      case "app-biometric":
+        setTotpRequired(false);
+        setPushRequired(true);
+        setStep("2fa");
+        break;
+
+      default:
+        setStep("verify");
+        setResendTimer(30);
+        setMessage("OTP sent successfully");
+    }
+  } catch (err: any) {
+    setError(err.response?.data?.message || "Authentication error");
+  } finally {
+    setLoading(false);
   }
+}
 
   // -------------------------
   // STEP 2: OTP confirmation
@@ -258,56 +258,63 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         )}
       </p>
 
-      {/* Registration fields */}
-      {mode === "register" && step === "input" && (
-        <>
-          <input
-            className="w-full p-3 border rounded-lg"
-            placeholder="Full name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            className="w-full p-3 border rounded-lg"
-            placeholder="Username"
-            value={userID}
-            onChange={(e) => setUserID(e.target.value)}
-          />
-          <input
-            className="w-full p-3 border rounded-lg"
-            placeholder="Phone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </>
-      )}
+      {/* -------------------------
+   Registration fields
+------------------------- */}
+{mode === "register" && step === "input" && (
+  <>
+    {/* Full Name */}
+    <input
+      className="w-full p-3 border rounded-lg"
+      placeholder="Full Name"
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+    />
 
-      {/* Identifier + password */}
-      {step === "input" && (
-        <>
-          <input
-            className="w-full p-3 border rounded-lg"
-            placeholder="Email / Phone / UserID"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-          />
-          <input
-            type="password"
-            className="w-full p-3 border rounded-lg"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+    {/* Username / UserID */}
+    <input
+      className="w-full p-3 border rounded-lg"
+      placeholder="Username"
+      value={userID}
+      onChange={(e) => setUserID(e.target.value)}
+    />
 
-          <button
-            onClick={handleStartAuth}
-            disabled={loading || !identifier || !password}
-            className="w-full py-3 rounded-lg bg-blue-600 text-white"
-          >
-            {loading ? "Please wait…" : mode === "register" ? "Create Account" : "Continue"}
-          </button>
-        </>
-      )}
+    {/* Phone */}
+    <input
+      className="w-full p-3 border rounded-lg"
+      placeholder="Phone"
+      value={phone}
+      onChange={(e) => setPhone(e.target.value)}
+    />
+
+    {/* Email */}
+    <input
+      className="w-full p-3 border rounded-lg"
+      placeholder="Email"
+      type="email"
+      value={email}
+      onChange={(e) => setEmail(e.target.value)}
+    />
+
+    {/* Password */}
+    <input
+      type="password"
+      className="w-full p-3 border rounded-lg"
+      placeholder="Password"
+      value={password}
+      onChange={(e) => setPassword(e.target.value)}
+    />
+
+    {/* Submit */}
+    <button
+      onClick={handleStartAuth}
+      disabled={loading || !name || !userID || !phone || !email || !password}
+      className="w-full py-3 rounded-lg bg-blue-600 text-white"
+    >
+      {loading ? "Please wait…" : "Create Account"}
+    </button>
+  </>
+)}
 
       {/* OTP */}
       {step === "verify" && (
