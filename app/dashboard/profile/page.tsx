@@ -5,7 +5,7 @@ import { IoPersonCircleOutline } from "react-icons/io5";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import api from "@/lib/api";
 import { saveToken } from "@/lib/auth";
-import OTPInput from "@/components/OTPInput";
+import OTPInput from "@/components/auth/OTPInput";
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
