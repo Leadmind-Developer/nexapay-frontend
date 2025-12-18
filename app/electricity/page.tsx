@@ -135,8 +135,11 @@ const handlePurchase = async () => {
     const guestEmail = email || `${phone}@nexapay.fake`;
     const callback_url = `${window.location.origin}/electricity?reference=${reference}`;
 
+    // ⚡ Convert amount to kobo before sending to Paystack
+    const amountInKobo = Math.round(amount * 100);
+
     const psRes = await api.post("/paystack/initialize", {
-      amount,
+      amount: amountInKobo,
       email: guestEmail,
       reference,
       callback_url,
