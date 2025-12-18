@@ -1,50 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
-import { getToken, isLoggedIn } from "@/lib/auth";
+import { TOKEN_KEY } from "@/lib/auth";
 
-export type AuthUser = {
+export interface AuthUser {
   id: string;
-  email: string;
+  email?: string;
+  phone?: string;
   name?: string;
-};
+}
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-  const token = getToken();
+  const setToken = (token: string | null) => {
+    if (!token) localStorage.removeItem(TOKEN_KEY);
+    else localStorage.setItem(TOKEN_KEY, token);
+  };
 
-  if (!token) {
-    setUser(null);
-    setLoading(false);
-    return;
-  }
-
-  api
-    .get("/auth/verify", {
-      headers: { "x-platform": "web" },
-    })
-    .then(res => {
-      if (res.data?.success && res.data.user) {
+  const verify = useCallback(async () => {
+    try {
+      const res = await api.get("/auth/verify");
+      if (res.data?.success) {
         setUser(res.data.user);
-      } else {
-        setUser(null);
+        return true;
       }
-    })
-    .catch(() => {
-      setUser(null);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-}, []);
+    } catch {}
+    setUser(null);
+    setToken(null);
+    return false;
+  }, []);
+
+  const login = (token: string) => {
+    setToken(token);
+    verify();
+  };
+
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {}
+    setUser(null);
+    setToken(null);
+  };
+
+  useEffect(() => {
+    verify().finally(() => setLoading(false));
+  }, [verify]);
 
   return {
     user,
-    isAuthenticated: !!user,
     loading,
+    isAuthenticated: !!user,
+    login,
+    logout,
+    refresh: verify,
   };
 }
