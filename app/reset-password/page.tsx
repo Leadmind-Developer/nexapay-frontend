@@ -6,9 +6,9 @@ export default function ResetPasswordPage() {
   return (
     <AuthPage
       videoSrc="/videos/login-bg.mp4"
-      imageSrc="/images/login-bg.jpg" // desktop still image
+      imageSrc="/images/login-bg.jpg"
     >
-      <AuthForm mode="forgot" /> {/* 'forgot' mode triggers reset password flow */}
+      <AuthForm mode="forgot" /> {/* now allowed */}
     </AuthPage>
   );
 }
