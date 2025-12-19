@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import AuthLayout from "@/components/auth/AuthLayout";
 import AuthSubmit from "@/components/auth/AuthSubmit";
 import OTPInput from "@/components/auth/OTPInput";
 import { AuthAPI } from "@/lib/auth/auth.api";
 
 export default function VerifyPage() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const identifier = searchParams.get("i") || "";
 
+  const [identifier, setIdentifier] = useState(""); // Optional: you can set this if passed via props or context
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
