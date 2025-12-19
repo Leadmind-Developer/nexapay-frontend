@@ -1,58 +1,60 @@
 // lib/auth/auth.api.ts
 import api, { Payload } from "../api";
-import { AxiosResponse } from "axios";
+import { AxiosRequestConfig, AxiosResponse } from "axios";
 import type { LoginResponse } from "./auth.types";
 
+type OptionalConfig = AxiosRequestConfig;
+
 export const AuthAPI = {
-  login(payload: Payload): Promise<AxiosResponse<LoginResponse>> {
-    return api.post("/auth/login", payload);
+  login(payload: Payload, config?: OptionalConfig): Promise<AxiosResponse<LoginResponse>> {
+    return api.post("/auth/login", payload, config);
   },
 
-  confirmLogin(payload: Payload) {
-    return api.post("/auth/confirm-login", payload);
+  confirmLogin(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/confirm-login", payload, config);
   },
 
-  register(payload: Payload) {
-    return api.post("/auth/register", payload);
+  register(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/register", payload, config);
   },
 
-  confirmRegistration(payload: Payload) {
-    return api.post("/auth/confirm-registration", payload);
+  confirmRegistration(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/confirm-registration", payload, config);
   },
 
-  resendOtp(payload: Payload) {
-    return api.post("/auth/resend-otp", payload);
+  resendOtp(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/resend-otp", payload, config);
   },
 
-  forgot(payload: Payload) {
-    return api.post("/auth/forgot", payload);
+  forgot(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/forgot", payload, config);
   },
 
-  reset(payload: Payload) {
-    return api.post("/auth/reset", payload);
+  reset(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/reset", payload, config);
   },
 
-  logout() {
-    return api.post("/auth/logout");
+  logout(config?: OptionalConfig) {
+    return api.post("/auth/logout", undefined, config);
   },
 
-  verify() {
-    return api.get("/auth/verify");
+  verify(config?: OptionalConfig) {
+    return api.get("/auth/verify", config);
   },
 
-  refresh() {
-    return api.post("/auth/refresh");
+  refresh(config?: OptionalConfig) {
+    return api.post("/auth/refresh", undefined, config);
   },
 
-  toggle2FA(payload: Payload) {
-    return api.post("/auth/2fa/toggle", payload);
+  toggle2FA(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/2fa/toggle", payload, config);
   },
 
-  requestBiometric(payload: Payload) {
-    return api.post("/auth/request-biometric", payload);
+  requestBiometric(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/request-biometric", payload, config);
   },
 
-  verifyBiometric(payload: Payload) {
-    return api.post("/auth/verify-biometric", payload);
+  verifyBiometric(payload: Payload, config?: OptionalConfig) {
+    return api.post("/auth/verify-biometric", payload, config);
   },
 };
