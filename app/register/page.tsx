@@ -9,39 +9,94 @@ import { AuthAPI } from "@/lib/auth/auth.api";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
+
+  // Form fields
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [userID, setUserID] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Handle registration
   async function handleRegister() {
     setLoading(true);
     setError("");
+
     try {
-      const res = await AuthAPI.register({ name, userID, phone, email, password });
-      if (res.data?.method === "otp") {
+      const res = await AuthAPI.register({
+        firstName,
+        lastName,
+        userID,
+        phone,
+        email,
+        password,
+      });
+
+      if (res.data?.identifier) {
+        // Redirect to OTP verification page
         router.push(`/auth/verify?i=${res.data.identifier}`);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <AuthLayout
       title="Create Account"
-      footer={<a href="/auth/login" className="text-blue-600">Already have an account? Login</a>}
+      footer={
+        <a href="/auth/login" className="text-blue-600">
+          Already have an account? Login
+        </a>
+      }
     >
-      <AuthInput placeholder="Full Name" value={name} onChange={setName} />
-      <AuthInput placeholder="Username" value={userID} onChange={setUserID} />
-      <AuthInput placeholder="Phone" value={phone} onChange={setPhone} />
-      <AuthInput placeholder="Email" value={email} onChange={setEmail} />
-      <AuthInput type="password" placeholder="Password" value={password} onChange={setPassword} />
-      <AuthSubmit onClick={handleRegister} loading={loading}>Register</AuthSubmit>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+      <div className="flex gap-2">
+        <AuthInput
+          placeholder="First Name"
+          value={firstName}
+          onChange={setFirstName}
+        />
+        <AuthInput
+          placeholder="Last Name"
+          value={lastName}
+          onChange={setLastName}
+        />
+      </div>
+
+      <AuthInput
+        placeholder="Username"
+        value={userID}
+        onChange={setUserID}
+      />
+      <AuthInput
+        placeholder="Phone"
+        value={phone}
+        onChange={setPhone}
+      />
+      <AuthInput
+        placeholder="Email"
+        value={email}
+        onChange={setEmail}
+      />
+      <AuthInput
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={setPassword}
+      />
+
+      <AuthSubmit onClick={handleRegister} loading={loading}>
+        Register
+      </AuthSubmit>
+
+      {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
     </AuthLayout>
   );
 }
