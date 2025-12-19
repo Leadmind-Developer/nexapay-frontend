@@ -12,7 +12,7 @@ export default function RegisterPage() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [username, setUsername] = useState(""); // now maps to identifier
+  const [username, setUsername] = useState(""); // maps to userID
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,12 +26,12 @@ export default function RegisterPage() {
 
     const fName = firstName.trim();
     const lName = lastName.trim();
-    const identifier = username.trim();
+    const userID = username.trim(); // matches backend
     const ph = phone.trim();
     const em = email.trim();
     const pw = password.trim();
 
-    if (!fName || !lName || !identifier || !ph || !em || !pw) {
+    if (!fName || !lName || !userID || !ph || !em || !pw) {
       setError("All fields are required");
       setLoading(false);
       return;
@@ -39,19 +39,21 @@ export default function RegisterPage() {
 
     try {
       const payload = {
-        identifier,             // THIS IS REQUIRED
-        name: `${fName} ${lName}`,
+        userID,
+        firstName: fName,
+        lastName: lName,
         phone: ph,
         email: em,
         password: pw,
       };
 
+      // Cleanly pass headers as optional config
       const res = await AuthAPI.register(payload, {
         headers: { "x-platform": "web" },
       });
 
-      if (res.data?.identifier) {
-        router.push(`/auth/verify?i=${res.data.identifier}`);
+      if (res.data?.userID) {
+        router.push(`/auth/verify?i=${res.data.userID}`);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed");
@@ -79,7 +81,9 @@ export default function RegisterPage() {
       <AuthInput placeholder="Email" value={email} onChange={setEmail} />
       <AuthInput type="password" placeholder="Password" value={password} onChange={setPassword} />
 
-      <AuthSubmit onClick={handleRegister} loading={loading}>Register</AuthSubmit>
+      <AuthSubmit onClick={handleRegister} loading={loading}>
+        Register
+      </AuthSubmit>
 
       {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
     </AuthLayout>
