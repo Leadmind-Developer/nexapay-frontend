@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import AuthLayout from "@/components/auth/AuthLayout";
 import AuthInput from "@/components/auth/AuthInput";
 import AuthSubmit from "@/components/auth/AuthSubmit";
@@ -9,8 +9,6 @@ import { AuthAPI } from "@/lib/auth/auth.api";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const identifier = searchParams.get("i") || "";
 
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
