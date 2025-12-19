@@ -49,6 +49,8 @@ export default function RegisterPage() {
       phone: ph,
       email: em,
       password: pw,
+    }, {
+      headers: { "x-platform": "web" }
     });
 
     if (res.data?.identifier) {
