@@ -1,13 +1,13 @@
 // lib/auth/auth.types.ts
-
 export interface LoginResponse {
-  token: string;
+  method?: "otp" | "password"; // add all possible login methods
+  identifier?: string;         // used for OTP flow
+  token?: string;              // if login returns token immediately
   refreshToken?: string;
-  user: {
+  user?: {
     id: string;
     name: string;
     email: string;
     phone?: string;
-    // add other fields as returned by your backend
   };
 }
