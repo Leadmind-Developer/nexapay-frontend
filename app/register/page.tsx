@@ -24,29 +24,42 @@ export default function RegisterPage() {
 
   // Handle registration
   async function handleRegister() {
-    setLoading(true);
-    setError("");
+  setLoading(true);
+  setError("");
 
-    try {
-      const res = await AuthAPI.register({
-        firstName,
-        lastName,
-        userID,
-        phone,
-        email,
-        password,
-      });
+  // Trim all inputs
+  const fName = firstName.trim();
+  const lName = lastName.trim();
+  const uID = userID.trim();
+  const ph = phone.trim();
+  const em = email.trim();
+  const pw = password.trim();
 
-      if (res.data?.identifier) {
-        // Redirect to OTP verification page
-        router.push(`/auth/verify?i=${res.data.identifier}`);
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed");
-    } finally {
-      setLoading(false);
-    }
+  if (!fName || !lName || !uID || !ph || !em || !pw) {
+    setError("All fields are required");
+    setLoading(false);
+    return;
   }
+
+  try {
+    const res = await AuthAPI.register({
+      firstName: fName,
+      lastName: lName,
+      userID: uID,
+      phone: ph,
+      email: em,
+      password: pw,
+    });
+
+    if (res.data?.identifier) {
+      router.push(`/auth/verify?i=${res.data.identifier}`);
+    }
+  } catch (err: any) {
+    setError(err.response?.data?.message || "Registration failed");
+  } finally {
+    setLoading(false);
+  }
+}
 
   return (
     <AuthLayout
