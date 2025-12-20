@@ -1,42 +1,53 @@
-import { useState, useEffect } from "react";
+"use client";
+
+import { useRef } from "react";
+
+interface OTPInputProps {
+  length?: number;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}
 
 export default function OTPInput({
   length = 6,
   value,
   onChange,
   disabled = false,
-}: {
-  length?: number;
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-}) {
-  const [values, setValues] = useState(Array(length).fill(""));
-
-  useEffect(() => {
-    onChange(values.join(""));
-  }, [values]);
+}: OTPInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="flex space-x-2 justify-center">
-      {values.map((v, i) => (
-        <input
+    <div
+      className="flex justify-center gap-2 cursor-text"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {/* Hidden real input */}
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={length}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, "").slice(0, length);
+          onChange(digits);
+        }}
+        className="absolute opacity-0 pointer-events-none"
+      />
+
+      {/* Visual boxes */}
+      {Array.from({ length }).map((_, i) => (
+        <div
           key={i}
-          type="text"
-          maxLength={1}
-          value={v}
-          onChange={(e) => {
-            if (disabled) return; // prevent typing when disabled
-            const val = e.target.value.replace(/\D/, "");
-            setValues((prev) => {
-              const copy = [...prev];
-              copy[i] = val;
-              return copy;
-            });
-          }}
-          className="w-12 h-12 text-center border rounded-lg"
-          disabled={disabled} // actually pass to input
-        />
+          className={`w-12 h-12 flex items-center justify-center border rounded-lg text-xl
+            ${value[i] ? "border-blue-500" : "border-gray-300"}
+          `}
+        >
+          {value[i] || ""}
+        </div>
       ))}
     </div>
   );
