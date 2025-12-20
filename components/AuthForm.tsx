@@ -130,8 +130,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     try {
       const endpoint =
         otpPurpose === "register"
-          ? "/auth/web/confirm-registration"
-          : "/auth/web/confirm-login";
+          ? "/auth/web/register/confirm"
+          : "/auth/web/login/confirm";
 
       const { data } = await api.post(endpoint, {
         identifier: otpIdentifier,
@@ -283,7 +283,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
             <button
               className="text-sm text-blue-600 hover:underline"
               onClick={async () => {
-                await api.post("/auth/resend-otp", {
+                await api.post("/auth/web/resend-otp", {
                   identifier: otpIdentifier,
                   purpose: otpPurpose,
                 });
