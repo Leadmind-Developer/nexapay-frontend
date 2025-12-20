@@ -1,19 +1,28 @@
-import React, { useState } from "react";
+"use client";
+
+import { useState, ChangeEvent, FormEvent } from "react";
+
+interface ContactForm {
+  name: string;
+  email: string;
+  message: string;
+}
+
+type Status = "sending" | "sent" | "error" | null;
 
 export default function ContactPage() {
-  const [form, setForm] = useState({ name: "", email: "", message: "" });
-  const [status, setStatus] = useState(null);
+  const [form, setForm] = useState<ContactForm>({ name: "", email: "", message: "" });
+  const [status, setStatus] = useState<Status>(null);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus("sending");
 
     try {
-      // Replace with your backend endpoint
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -24,7 +33,7 @@ export default function ContactPage() {
 
       setStatus("sent");
       setForm({ name: "", email: "", message: "" });
-    } catch (err) {
+    } catch {
       setStatus("error");
     }
   };
@@ -33,33 +42,22 @@ export default function ContactPage() {
     <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-md p-8">
         <h1 className="text-2xl font-semibold mb-2">Contact Us</h1>
-        <p className="text-gray-600 mb-6">
-          Have a question or need help? Send us a message.
-        </p>
+        <p className="text-gray-600 mb-6">Have a question or need help? Send us a message.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium">Name</label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-            />
-          </div>
+          {["name", "email"].map(field => (
+            <div key={field}>
+              <label className="block text-sm font-medium capitalize">{field}</label>
+              <input
+                type={field === "email" ? "email" : "text"}
+                name={field}
+                value={form[field as keyof ContactForm]}
+                onChange={handleChange}
+                required
+                className="mt-1 w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
+              />
+            </div>
+          ))}
 
           <div>
             <label className="block text-sm font-medium">Message</label>
@@ -82,12 +80,8 @@ export default function ContactPage() {
           </button>
         </form>
 
-        {status === "sent" && (
-          <p className="mt-4 text-green-600 text-sm">Message sent successfully.</p>
-        )}
-        {status === "error" && (
-          <p className="mt-4 text-red-600 text-sm">Failed to send message.</p>
-        )}
+        {status === "sent" && <p className="mt-4 text-green-600 text-sm">Message sent successfully.</p>}
+        {status === "error" && <p className="mt-4 text-red-600 text-sm">Failed to send message.</p>}
       </div>
     </main>
   );
