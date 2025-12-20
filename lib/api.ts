@@ -46,9 +46,9 @@ export const AuthAPI = {
   register: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
     api.post("/auth/web/register", payload),
 
-  verify: <T>(): Promise<AxiosResponse<T>> => api.get("/auth/verify"),
+  verify: <T>(): Promise<AxiosResponse<T>> => api.get("/auth/web/verify-session"),
 
-  logout: <T>(): Promise<AxiosResponse<T>> => api.post("/auth/logout"),
+  logout: <T>(): Promise<AxiosResponse<T>> => api.post("/auth/web/logout"),
 };
 
 // -------------------------------
