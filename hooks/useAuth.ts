@@ -10,6 +10,12 @@ export interface AuthUser {
   name?: string;
 }
 
+// Type for verify response
+interface VerifyResponse {
+  success: boolean;
+  user?: AuthUser;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,9 +23,9 @@ export function useAuth() {
   // -------------------------------
   // Verify session (HttpOnly cookie)
   // -------------------------------
-  const verify = useCallback(async () => {
+  const verify = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await AuthAPI.verify(); // cookie-based verify
+      const res = await AuthAPI.verify<VerifyResponse>(); // ✅ typed response
       if (res.data?.success && res.data.user) {
         setUser(res.data.user);
         return true;
@@ -35,7 +41,6 @@ export function useAuth() {
   // Cookie-based login (just verify)
   // -------------------------------
   const login = async () => {
-    // ✅ Just re-verify session
     return await verify();
   };
 
@@ -44,7 +49,7 @@ export function useAuth() {
   // -------------------------------
   const logout = async () => {
     try {
-      await AuthAPI.logout(); // clears cookies on server
+      await AuthAPI.logout();
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
@@ -63,7 +68,7 @@ export function useAuth() {
     user,
     loading,
     isAuthenticated: !!user,
-    login,   // ✅ No args needed
+    login,   // ✅ no args needed
     logout,
     refresh: verify,
   };
