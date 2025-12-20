@@ -3,11 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
+import AuthInput from "@/components/auth/AuthInput";
+import AuthSubmit from "@/components/auth/AuthSubmit";
 import api from "@/lib/api";
 
-export default function ResetPasswordPage() {
+export default function ForgotResetPasswordPage() {
   const router = useRouter();
 
+  /* -------------------------
+     Form state
+  ------------------------- */
+  const [step, setStep] = useState<"identifier" | "reset">("identifier");
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -15,25 +21,33 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  /* -------------------------
+     UI state
+  ------------------------- */
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
 
-  /* =========================================================
-     REQUEST RESET OTP
-  ========================================================= */
-  async function handleRequestOtp() {
+  /* -------------------------
+     Send OTP
+  ------------------------- */
+  async function handleSendOtp() {
+    if (!identifier.trim()) {
+      setError("Please enter your email, phone, or username");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setMessage("");
 
     try {
       const { data } = await api.post("/auth/forgot", { identifier });
-
       if (data.success) {
-        setOtpSent(true);
+        setStep("reset");
         setMessage("OTP sent! Check your email or phone.");
+        setResendTimer(30);
       } else {
         setError(data.message || "Failed to send OTP");
       }
@@ -44,10 +58,14 @@ export default function ResetPasswordPage() {
     }
   }
 
-  /* =========================================================
-     RESET PASSWORD
-  ========================================================= */
+  /* -------------------------
+     Reset password
+  ------------------------- */
   async function handleResetPassword() {
+    if (!otp || !newPassword || !confirmPassword) {
+      setError("All fields are required");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -66,7 +84,7 @@ export default function ResetPasswordPage() {
 
       if (data.success) {
         setMessage("Password reset successfully. Redirecting to login…");
-        setTimeout(() => router.push("/auth/login"), 1000);
+        setTimeout(() => router.push("/auth/login"), 1200);
       } else {
         setError(data.message || "Reset failed");
       }
@@ -77,40 +95,45 @@ export default function ResetPasswordPage() {
     }
   }
 
+  /* -------------------------
+     Resend OTP timer
+  ------------------------- */
+  React.useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
   return (
     <ResponsiveLandingWrapper>
       <div className="max-w-md mx-auto mt-10 bg-white dark:bg-gray-800 rounded-2xl shadow p-6 space-y-4">
-        <h1 className="text-2xl font-semibold text-center">Reset Password</h1>
+        <h1 className="text-2xl font-semibold text-center">
+          {step === "identifier" ? "Forgot Password" : "Reset Password"}
+        </h1>
 
-        {/* Identifier (email/phone/username) */}
-        {!otpSent && (
+        {step === "identifier" && (
           <>
-            <input
-              className="w-full p-3 border rounded-lg"
+            <AuthInput
               placeholder="Email / Phone / Username"
               value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
+              onChange={setIdentifier}
             />
-            <button
-              onClick={handleRequestOtp}
-              disabled={loading || !identifier.trim()}
-              className="w-full py-3 rounded-lg bg-blue-600 text-white"
-            >
-              {loading ? "Sending OTP…" : "Send OTP"}
-            </button>
+            <AuthSubmit onClick={handleSendOtp} loading={loading}>
+              Send OTP
+            </AuthSubmit>
+            <div className="text-center mt-2">
+              <a href="/auth/login" className="text-blue-600 hover:underline">
+                Back to login
+              </a>
+            </div>
           </>
         )}
 
-        {/* OTP + New Password */}
-        {otpSent && (
+        {step === "reset" && (
           <>
-            <input
-              className="w-full p-3 border rounded-lg"
-              placeholder="OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-            />
+            <AuthInput placeholder="OTP" value={otp} onChange={setOtp} />
 
+            {/* New Password */}
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -128,6 +151,7 @@ export default function ResetPasswordPage() {
               </button>
             </div>
 
+            {/* Confirm Password */}
             <div className="relative">
               <input
                 type={showConfirmPassword ? "text" : "password"}
@@ -145,21 +169,29 @@ export default function ResetPasswordPage() {
               </button>
             </div>
 
-            <button
+            <AuthSubmit
               onClick={handleResetPassword}
-              disabled={loading || !otp || !newPassword || !confirmPassword}
-              className="w-full py-3 rounded-lg bg-green-600 text-white"
+              loading={loading}
+              disabled={!otp || !newPassword || !confirmPassword}
             >
-              {loading ? "Resetting…" : "Reset Password"}
-            </button>
+              Reset Password
+            </AuthSubmit>
+
+            {/* Resend OTP */}
+            {resendTimer > 0 ? (
+              <p className="text-center text-sm text-gray-500">
+                Resend in {resendTimer}s
+              </p>
+            ) : (
+              <button
+                className="text-sm text-blue-600 hover:underline mx-auto block"
+                onClick={handleSendOtp}
+              >
+                Resend OTP
+              </button>
+            )}
           </>
         )}
-
-        <div className="text-center mt-2">
-          <a href="/auth/login" className="text-blue-600 hover:underline">
-            Back to login
-          </a>
-        </div>
 
         {message && <p className="text-green-600 text-sm text-center">{message}</p>}
         {error && <p className="text-red-600 text-sm text-center">{error}</p>}
