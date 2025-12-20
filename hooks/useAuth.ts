@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import api from "@/lib/api";
-import { TOKEN_KEY } from "@/lib/auth";
+import api, { AuthAPI } from "@/lib/api";
 
 export interface AuthUser {
   id: string;
@@ -15,37 +14,56 @@ export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const setToken = (token: string | null) => {
-    if (!token) localStorage.removeItem(TOKEN_KEY);
-    else localStorage.setItem(TOKEN_KEY, token);
-  };
-
+  // -------------------------------
+  // Verify session
+  // -------------------------------
   const verify = useCallback(async () => {
     try {
-      const res = await api.get("/auth/verify");
-      if (res.data?.success) {
+      const res = await AuthAPI.verify();
+      if (res.data?.success && res.data.user) {
         setUser(res.data.user);
         return true;
       }
-    } catch {}
+    } catch (err) {
+      console.error("Auth verify failed:", err);
+    }
     setUser(null);
-    setToken(null);
     return false;
   }, []);
 
-  const login = (token: string) => {
-    setToken(token);
-    verify();
+  // -------------------------------
+  // Login (trigger verification)
+  // -------------------------------
+  const login = async (payload: { identifier: string; password: string }) => {
+    try {
+      const res = await AuthAPI.login(payload);
+      if (res.data?.success) {
+        // ✅ Tokens are in HttpOnly cookies, just verify session
+        await verify();
+      }
+      return res.data;
+    } catch (err) {
+      console.error("Login failed:", err);
+      throw err;
+    }
   };
 
+  // -------------------------------
+  // Logout
+  // -------------------------------
   const logout = async () => {
     try {
-      await api.post("/auth/logout");
-    } catch {}
-    setUser(null);
-    setToken(null);
+      await AuthAPI.logout();
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      setUser(null);
+    }
   };
 
+  // -------------------------------
+  // Auto-verify on load
+  // -------------------------------
   useEffect(() => {
     verify().finally(() => setLoading(false));
   }, [verify]);
