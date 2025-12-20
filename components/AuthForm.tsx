@@ -71,7 +71,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       let payload: any = {};
 
       if (mode === "register") {
-        endpoint = "/auth/register";
+        endpoint = "/auth/web/register";
         payload = {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -81,7 +81,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           password: password.trim(),
         };
       } else {
-        endpoint = "/auth/login";
+        endpoint = "/auth/web/login";
         payload = {
           identifier: identifier.trim(),
           password: password.trim(),
@@ -130,8 +130,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     try {
       const endpoint =
         otpPurpose === "register"
-          ? "/auth/confirm-registration"
-          : "/auth/confirm-login";
+          ? "/auth/web/confirm-registration"
+          : "/auth/web/confirm-login";
 
       const { data } = await api.post(endpoint, {
         identifier: otpIdentifier,
@@ -173,7 +173,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     setError("");
 
     try {
-      const { data } = await api.post("/auth/confirm-login", {
+      const { data } = await api.post("/auth/web/confirm-login", {
         identifier: otpIdentifier,
         totpCode: code,
       });
