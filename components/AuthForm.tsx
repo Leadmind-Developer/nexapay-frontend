@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import OTPInput from "@/components/auth/OTPInput";
-import ResponsiveLandingWrapper from "./ResponsiveLandingWrapper";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 
@@ -15,7 +14,7 @@ type Step = "input" | "verify" | "2fa";
 
 export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const router = useRouter();
-  const { login: verifyLogin } = useAuth(); // HttpOnly cookie login
+  const { login: verifyLogin } = useAuth();
 
   const [mode, setMode] = useState<AuthFormProps["mode"]>(initialMode);
   const [step, setStep] = useState<Step>("input");
@@ -55,7 +54,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const [resendTimer, setResendTimer] = useState(0);
 
   // -------------------------
-  // Resend timer
+  // Resend OTP timer
   // -------------------------
   useEffect(() => {
     if (resendTimer <= 0) return;
@@ -73,7 +72,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
     try {
       let endpoint = "";
-      let payload: Record<string, any> = {};
+      let payload: any = {};
 
       if (mode === "register") {
         if (password !== confirmPassword) {
@@ -120,14 +119,14 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       if (data.method === "totp") {
         setTotpRequired(true);
         setStep("2fa");
-        setOtpIdentifier(data.identifier || identifier);
         return;
       }
 
-      // Login/register success with HttpOnly cookies
+      // Login/register success with HttpOnly cookie
       if (mode === "login") {
         setMessage("Login successful. Redirecting…");
-        router.push("/coming-soon"), 700);
+        await verifyLogin(); // ✅ no args needed for cookie-based login
+        setTimeout(() => router.push("/dashboard"), 700);
       } else {
         setMessage("Registration successful. Please login.");
         setTimeout(() => {
@@ -178,7 +177,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       }
 
       setMessage("Login successful. Redirecting…");
-      router.push("/coming-soon"), 700);
+      await verifyLogin(); // ✅ cookie-based login
+      setTimeout(() => router.push("/dashboard"), 700);
     } catch (err: any) {
       setError(err.response?.data?.message || "OTP verification failed");
     } finally {
@@ -207,7 +207,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       }
 
       setMessage("Login successful. Redirecting…");
-      router.push("/dashboard"), 700);
+      await verifyLogin(); // ✅ cookie-based login
+      setTimeout(() => router.push("/dashboard"), 700);
     } catch (err: any) {
       setError(err.response?.data?.message || "2FA verification failed");
     } finally {
@@ -215,14 +216,13 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
     }
   }
 
-  return (
-    <ResponsiveLandingWrapper>
+  return (    
       <div className="max-w-md mx-auto mt-10 bg-white dark:bg-gray-800 rounded-2xl shadow p-6 space-y-6">
         <h1 className="text-2xl font-semibold text-center">
           {mode === "register" ? "Create Account" : "Login"}
         </h1>
 
-        {/* Mode toggle */}
+        {/* Toggle */}
         <p className="text-center text-sm text-gray-500">
           {mode === "register" ? (
             <>
@@ -253,8 +253,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           )}
         </p>
 
-        {/* INPUT FORM */}
-        {step === "input" && mode === "register" && (
+        {/* REGISTER */}
+        {mode === "register" && step === "input" && (
           <>
             <div className="flex gap-2">
               <input
@@ -320,17 +320,19 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
                 {showConfirmPassword ? "Hide" : "Show"}
               </button>
             </div>
+
             <button
               onClick={handleStart}
               disabled={loading}
-              className="w-full py-3 rounded-lg bg-blue-600 text-white disabled:opacity-50"
+              className="w-full py-3 rounded-lg bg-blue-600 text-white"
             >
               {loading ? "Please wait…" : "Create Account"}
             </button>
           </>
         )}
 
-        {step === "input" && mode === "login" && (
+        {/* LOGIN */}
+        {mode === "login" && step === "input" && (
           <>
             <input
               className="w-full p-3 border rounded-lg"
@@ -354,10 +356,11 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+
             <button
               onClick={handleStart}
               disabled={loading}
-              className="w-full py-3 rounded-lg bg-blue-600 text-white disabled:opacity-50"
+              className="w-full py-3 rounded-lg bg-blue-600 text-white"
             >
               {loading ? "Please wait…" : "Login"}
             </button>
@@ -380,10 +383,11 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
             <button
               onClick={handleConfirmOtp}
               disabled={loading}
-              className="w-full py-3 bg-green-600 text-white rounded-lg disabled:opacity-50"
+              className="w-full py-3 bg-green-600 text-white rounded-lg"
             >
               Verify OTP
             </button>
+
             {resendTimer > 0 ? (
               <p className="text-center text-sm text-gray-500">
                 Resend in {resendTimer}s
@@ -412,7 +416,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
             <button
               onClick={handle2FAConfirm}
               disabled={loading}
-              className="w-full py-3 bg-purple-600 text-white rounded-lg disabled:opacity-50"
+              className="w-full py-3 bg-purple-600 text-white rounded-lg"
             >
               Verify Code
             </button>
@@ -421,7 +425,6 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
         {message && <p className="text-center text-sm text-green-600">{message}</p>}
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
-      </div>
-    </ResponsiveLandingWrapper>
+      </div>    
   );
 }
