@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import api, { AuthAPI } from "@/lib/api";
+import { AuthAPI } from "@/lib/api";
 
 export interface AuthUser {
   id: string;
@@ -15,11 +15,11 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   // -------------------------------
-  // Verify session
+  // Verify session (HttpOnly cookie)
   // -------------------------------
   const verify = useCallback(async () => {
     try {
-      const res = await AuthAPI.verify();
+      const res = await AuthAPI.verify(); // cookie-based verify
       if (res.data?.success && res.data.user) {
         setUser(res.data.user);
         return true;
@@ -32,20 +32,11 @@ export function useAuth() {
   }, []);
 
   // -------------------------------
-  // Login (trigger verification)
+  // Cookie-based login (just verify)
   // -------------------------------
-  const login = async (payload: { identifier: string; password: string }) => {
-    try {
-      const res = await AuthAPI.login(payload);
-      if (res.data?.success) {
-        // ✅ Tokens are in HttpOnly cookies, just verify session
-        await verify();
-      }
-      return res.data;
-    } catch (err) {
-      console.error("Login failed:", err);
-      throw err;
-    }
+  const login = async () => {
+    // ✅ Just re-verify session
+    return await verify();
   };
 
   // -------------------------------
@@ -53,7 +44,7 @@ export function useAuth() {
   // -------------------------------
   const logout = async () => {
     try {
-      await AuthAPI.logout();
+      await AuthAPI.logout(); // clears cookies on server
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
@@ -72,7 +63,7 @@ export function useAuth() {
     user,
     loading,
     isAuthenticated: !!user,
-    login,
+    login,   // ✅ No args needed
     logout,
     refresh: verify,
   };
