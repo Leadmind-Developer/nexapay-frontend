@@ -15,7 +15,7 @@ type Step = "input" | "verify" | "2fa";
 
 export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const router = useRouter();
-  const { login: verifyLogin } = useAuth();
+  const { login: verifyLogin } = useAuth(); // HttpOnly cookie login
 
   const [mode, setMode] = useState<AuthFormProps["mode"]>(initialMode);
   const [step, setStep] = useState<Step>("input");
@@ -59,8 +59,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   // -------------------------
   useEffect(() => {
     if (resendTimer <= 0) return;
-    const i = setInterval(() => setResendTimer((t) => t - 1), 1000);
-    return () => clearInterval(i);
+    const interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
+    return () => clearInterval(interval);
   }, [resendTimer]);
 
   // -------------------------
@@ -73,7 +73,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
     try {
       let endpoint = "";
-      let payload: any = {};
+      let payload: Record<string, any> = {};
 
       if (mode === "register") {
         if (password !== confirmPassword) {
@@ -120,13 +120,14 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       if (data.method === "totp") {
         setTotpRequired(true);
         setStep("2fa");
+        setOtpIdentifier(data.identifier || identifier);
         return;
       }
 
-      // Login/register success with cookies
+      // Login/register success with HttpOnly cookies
       if (mode === "login") {
         setMessage("Login successful. Redirecting…");
-        await verifyLogin({ identifier, password }); // refresh user state
+        await verifyLogin(); // ✅ relies on HttpOnly cookie
         setTimeout(() => router.push("/dashboard"), 700);
       } else {
         setMessage("Registration successful. Please login.");
@@ -178,7 +179,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       }
 
       setMessage("Login successful. Redirecting…");
-      await verifyLogin({ identifier }); // cookies login
+      await verifyLogin(); // ✅ HttpOnly cookie login
       setTimeout(() => router.push("/dashboard"), 700);
     } catch (err: any) {
       setError(err.response?.data?.message || "OTP verification failed");
@@ -208,7 +209,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       }
 
       setMessage("Login successful. Redirecting…");
-      await verifyLogin({ identifier: otpIdentifier }); // cookies login
+      await verifyLogin(); // ✅ HttpOnly cookie login
       setTimeout(() => router.push("/dashboard"), 700);
     } catch (err: any) {
       setError(err.response?.data?.message || "2FA verification failed");
@@ -224,7 +225,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           {mode === "register" ? "Create Account" : "Login"}
         </h1>
 
-        {/* Toggle */}
+        {/* Mode toggle */}
         <p className="text-center text-sm text-gray-500">
           {mode === "register" ? (
             <>
@@ -255,8 +256,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           )}
         </p>
 
-        {/* REGISTER */}
-        {mode === "register" && step === "input" && (
+        {/* INPUT FORM */}
+        {step === "input" && mode === "register" && (
           <>
             <div className="flex gap-2">
               <input
@@ -322,19 +323,17 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
                 {showConfirmPassword ? "Hide" : "Show"}
               </button>
             </div>
-
             <button
               onClick={handleStart}
               disabled={loading}
-              className="w-full py-3 rounded-lg bg-blue-600 text-white"
+              className="w-full py-3 rounded-lg bg-blue-600 text-white disabled:opacity-50"
             >
               {loading ? "Please wait…" : "Create Account"}
             </button>
           </>
         )}
 
-        {/* LOGIN */}
-        {mode === "login" && step === "input" && (
+        {step === "input" && mode === "login" && (
           <>
             <input
               className="w-full p-3 border rounded-lg"
@@ -358,16 +357,14 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-
             <button
               onClick={handleStart}
               disabled={loading}
-              className="w-full py-3 rounded-lg bg-blue-600 text-white"
+              className="w-full py-3 rounded-lg bg-blue-600 text-white disabled:opacity-50"
             >
               {loading ? "Please wait…" : "Login"}
             </button>
 
-            {/* Reset password */}
             <div className="text-center mt-2">
               <a
                 href="/reset-password"
@@ -386,11 +383,10 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
             <button
               onClick={handleConfirmOtp}
               disabled={loading}
-              className="w-full py-3 bg-green-600 text-white rounded-lg"
+              className="w-full py-3 bg-green-600 text-white rounded-lg disabled:opacity-50"
             >
               Verify OTP
             </button>
-
             {resendTimer > 0 ? (
               <p className="text-center text-sm text-gray-500">
                 Resend in {resendTimer}s
@@ -418,7 +414,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
             <OTPInput length={6} value={code} onChange={setCode} />
             <button
               onClick={handle2FAConfirm}
-              className="w-full py-3 bg-purple-600 text-white rounded-lg"
+              disabled={loading}
+              className="w-full py-3 bg-purple-600 text-white rounded-lg disabled:opacity-50"
             >
               Verify Code
             </button>
