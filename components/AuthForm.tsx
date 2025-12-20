@@ -208,7 +208,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
       setMessage("Login successful. Redirecting…");
       await verifyLogin(); // ✅ cookie-based login
-      setTimeout(() => router.push("/dashboard"), 700);
+      setTimeout(() => router.push("/coming-soon"), 700);
     } catch (err: any) {
       setError(err.response?.data?.message || "2FA verification failed");
     } finally {
