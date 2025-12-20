@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import AuthInput from "@/components/auth/AuthInput";
@@ -10,9 +10,9 @@ import api from "@/lib/api";
 export default function ForgotResetPasswordPage() {
   const router = useRouter();
 
-  /* -------------------------
-     Form state
-  ------------------------- */
+  // -------------------------
+  // Form state
+  // -------------------------
   const [step, setStep] = useState<"identifier" | "reset">("identifier");
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
@@ -21,18 +21,18 @@ export default function ForgotResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  /* -------------------------
-     UI state
-  ------------------------- */
+  // -------------------------
+  // UI state
+  // -------------------------
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
-  /* -------------------------
-     Send OTP
-  ------------------------- */
-  async function handleSendOtp() {
+  // -------------------------
+  // Send OTP
+  // -------------------------
+  const handleSendOtp = async () => {
     if (!identifier.trim()) {
       setError("Please enter your email, phone, or username");
       return;
@@ -56,12 +56,12 @@ export default function ForgotResetPasswordPage() {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  /* -------------------------
-     Reset password
-  ------------------------- */
-  async function handleResetPassword() {
+  // -------------------------
+  // Reset password
+  // -------------------------
+  const handleResetPassword = async () => {
     if (!otp || !newPassword || !confirmPassword) {
       setError("All fields are required");
       return;
@@ -93,12 +93,12 @@ export default function ForgotResetPasswordPage() {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  /* -------------------------
-     Resend OTP timer
-  ------------------------- */
-  React.useEffect(() => {
+  // -------------------------
+  // Resend OTP timer
+  // -------------------------
+  useEffect(() => {
     if (resendTimer <= 0) return;
     const interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
     return () => clearInterval(interval);
