@@ -20,16 +20,19 @@ interface Props {
 
 export default function TicketTypesPage({ eventId }: Props) {
   const router = useRouter();
+
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [form, setForm] = useState<Partial<TicketType>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null); // ID of ticket being deleted
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const fetchTicketTypes = async () => {
     try {
-      const res: AxiosResponse<TicketType[]> = await api.get(`/organizer/events/${eventId}`);
+      const res: AxiosResponse<{ ticketTypes: TicketType[] }> = await api.get(
+        `/organizer/events/${eventId}/tickets`
+      );
       setTicketTypes(res.data.ticketTypes || []);
     } catch (err: any) {
       console.error(err);
@@ -39,7 +42,7 @@ export default function TicketTypesPage({ eventId }: Props) {
 
   useEffect(() => {
     fetchTicketTypes();
-  }, []);
+  }, [eventId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -145,65 +148,72 @@ export default function TicketTypesPage({ eventId }: Props) {
         </button>
       </form>
 
-      {/* Ticket Type List */}
-      <div className="bg-white rounded-xl shadow-md p-6 space-y-4 relative">
-        <h2 className="text-lg font-medium mb-4">Existing Ticket Types</h2>
-        {ticketTypes.length === 0 && <p className="text-gray-500">No ticket types yet.</p>}
-        <ul className="space-y-2">
-          {ticketTypes.map((tt) => (
-            <li key={tt.id} className="flex justify-between items-center border-b pb-2">
-              <div>
-                <span className="font-medium">{tt.name}</span> — ${tt.price} | Qty: {tt.quantity} | Sold: {tt.sold}
-              </div>
-              <div className="space-x-2">
-                <button
-                  onClick={() => handleEdit(tt)}
-                  className="px-3 py-1 bg-yellow-400 text-black rounded-xl hover:opacity-90"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => confirmDelete(tt.id)}
-                  className="px-3 py-1 bg-red-500 text-white rounded-xl hover:opacity-90"
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {/* Inline Modal */}
-        {showDeleteModal && deletingId && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white rounded-xl p-6 w-96 space-y-4">
-              <h3 className="text-lg font-semibold">Confirm Deletion</h3>
-              <p>Are you sure you want to delete this ticket type? This action cannot be undone.</p>
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-300 hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="px-4 py-2 rounded-xl bg-red-500 text-white hover:opacity-90"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Ticket Table */}
+      <div className="bg-white rounded-xl shadow-md p-6 overflow-x-auto">
+        {ticketTypes.length === 0 ? (
+          <p className="text-gray-500">No ticket types yet.</p>
+        ) : (
+          <table className="w-full table-auto border-collapse">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border px-4 py-2 text-left">Name</th>
+                <th className="border px-4 py-2">Price</th>
+                <th className="border px-4 py-2">Quantity</th>
+                <th className="border px-4 py-2">Sold</th>
+                <th className="border px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ticketTypes.map((tt) => (
+                <tr key={tt.id} className="hover:bg-gray-50">
+                  <td className="border px-4 py-2">{tt.name}</td>
+                  <td className="border px-4 py-2">${tt.price}</td>
+                  <td className="border px-4 py-2">{tt.quantity}</td>
+                  <td className="border px-4 py-2">{tt.sold}</td>
+                  <td className="border px-4 py-2 space-x-2">
+                    <button
+                      onClick={() => handleEdit(tt)}
+                      className="px-3 py-1 bg-yellow-400 text-black rounded-xl hover:opacity-90"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(tt.id)}
+                      className="px-3 py-1 bg-red-500 text-white rounded-xl hover:opacity-90"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
-    </main>
-  );
-}
 
-          ))}
-        </tbody>
-      </table>
-    </div>
+      {/* Delete Modal */}
+      {showDeleteModal && deletingId && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-xl p-6 w-96 space-y-4">
+            <h3 className="text-lg font-semibold">Confirm Deletion</h3>
+            <p>Are you sure you want to delete this ticket type? This action cannot be undone.</p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-xl border border-gray-300 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 rounded-xl bg-red-500 text-white hover:opacity-90"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }
