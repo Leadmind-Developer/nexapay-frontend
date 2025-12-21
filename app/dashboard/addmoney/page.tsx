@@ -19,21 +19,35 @@ export default function AddMoneyPage() {
 
   /* --------------------------- Fetch user + wallet ------------------------ */
   const fetchUserAndWallet = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const userRes = await api.get("/user/me");
-      if (userRes.data.success) setUser(userRes.data.user);
+    const userRes = await api.get("/user/me");
+    if (userRes.data.success) {
+      const u = userRes.data.user;
 
-      const walletRes = await api.get("/wallet/me");
-      if (walletRes.data.success) setBalance(walletRes.data.wallet.balance);
-    } catch (err) {
-      console.error("Failed to load user/wallet:", err);
-      alert("Failed to load wallet or user data");
-    } finally {
-      setLoading(false);
+      // normalize virtual account
+      let va = null;
+      if (u.virtualAccount || u.titanAccountNumber) {
+        va = {
+          accountNumber: u.virtualAccount?.accountNumber || u.titanAccountNumber,
+          bankName: u.virtualAccount?.bankName || u.titanBankName || "N/A",
+          accountName: u.virtualAccount?.name || `${u.firstName || ""} ${u.lastName || ""}`.trim() || "N/A",
+        };
+      }
+
+      setUser({ ...u, virtualAccount: va });
     }
-  };
+
+    const walletRes = await api.get("/wallet/me");
+    if (walletRes.data.success) setBalance(walletRes.data.wallet.balance);
+  } catch (err) {
+    console.error("Failed to load user/wallet:", err);
+    alert("Failed to load wallet or user data");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchUserAndWallet();
