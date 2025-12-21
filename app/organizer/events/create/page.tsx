@@ -15,7 +15,7 @@ interface EventPayload {
 export default function EventFormPage() {
   const params = useParams();
   const router = useRouter();
-  const eventId = params.id; // <- use this to fetch/edit existing event
+  const eventId = params.id;
 
   const [form, setForm] = useState<EventPayload>({
     title: "",
@@ -27,7 +27,7 @@ export default function EventFormPage() {
 
   const [status, setStatus] = useState<"saving" | "success" | "error" | null>(null);
 
-  // Fetch event if editing
+  // Fetch existing event for editing
   useEffect(() => {
     if (!eventId) return;
 
@@ -37,9 +37,19 @@ export default function EventFormPage() {
       .catch(console.error);
   }, [eventId]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+  // Handle input changes
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value, type } = e.target;
+
+    // Narrow type for checkboxes
+    if (type === "checkbox") {
+      const target = e.target as HTMLInputElement;
+      setForm((prev) => ({ ...prev, [name]: target.checked }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,7 +58,7 @@ export default function EventFormPage() {
 
     try {
       if (eventId) {
-        await api.patch(`/organizer/events/${eventId}`, form); // fixed syntax
+        await api.patch(`/organizer/events/${eventId}`, form);
       } else {
         await api.post("/organizer/events", form);
       }
@@ -62,7 +72,9 @@ export default function EventFormPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{eventId ? "Edit Event" : "Create Event"}</h1>
+      <h1 className="text-2xl font-bold mb-4">
+        {eventId ? "Edit Event" : "Create Event"}
+      </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
@@ -92,6 +104,7 @@ export default function EventFormPage() {
           required
           className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
         />
+
         <input
           type="datetime-local"
           name="endAt"
@@ -120,7 +133,9 @@ export default function EventFormPage() {
         </button>
       </form>
 
-      {status === "error" && <p className="text-red-500 mt-2">Failed to save event.</p>}
+      {status === "error" && (
+        <p className="text-red-500 mt-2">Failed to save event.</p>
+      )}
     </div>
   );
 }
