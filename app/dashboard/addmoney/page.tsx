@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-/* ---------------------------------- Types --------------------------------- */
+/* ------------------------------- Types ----------------------------------- */
 interface VirtualAccount {
   accountNumber: string;
   bankName: string;
@@ -14,77 +14,41 @@ interface VirtualAccount {
 export default function AddMoneyPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [balance, setBalance] = useState(0); // NAIRA
-  const [va, setVA] = useState<VirtualAccount | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [balance, setBalance] = useState(0);
 
-  /* --------------------------- Load wallet + VA ---------------------------- */
-  const loadWallet = async () => {
+  /* --------------------------- Fetch user + wallet ------------------------ */
+  const fetchUserAndWallet = async () => {
     try {
       setLoading(true);
 
-      // Fetch wallet + VA
-      const res = await api.get("/wallet/me");
-      console.log("Wallet response:", res.data);
+      // Fetch user (includes virtualAccount)
+      const userRes = await api.get("/user/me");
+      if (userRes.data.success) setUser(userRes.data.user);
 
-      if (!res.data?.success) return;
-
-      setBalance(res.data.wallet.balance);
-
-      if (res.data.virtualAccount) {
-        // VA exists
-        setVA(res.data.virtualAccount);
-      } else {
-        // No VA → fetch user directly (like setup page)
-        const userRes = await api.get("/user/me");
-        if (userRes.data?.titanAccountNumber) {
-          setVA({
-            accountNumber: userRes.data.titanAccountNumber,
-            bankName: userRes.data.titanBankName,
-            accountName: `${userRes.data.firstName} ${userRes.data.lastName}`.trim(),
-          });
-        } else {
-          setVA(null); // truly no VA
-        }
-      }
+      // Fetch wallet balance
+      const walletRes = await api.get("/wallet/me");
+      if (walletRes.data.success) setBalance(walletRes.data.wallet.balance);
     } catch (err) {
-      console.error("Failed to load wallet:", err);
+      console.error("Failed to load user/wallet:", err);
+      alert("Failed to load wallet or user data");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadWallet();
+    fetchUserAndWallet();
   }, []);
 
-  /* -------------------------- Virtual Account copy -------------------------- */
-  const handleVACopy = () => {
-    if (!va) return;
-
-    navigator.clipboard.writeText(
-      `Bank: ${va.bankName}\nAccount Number: ${va.accountNumber}\nAccount Name: ${va.accountName}`
-    );
-    alert("Virtual account details copied.\n\nMake a bank transfer to fund your wallet.");
-  };
-
-  /* -------------------------- Confirm transfer -------------------------- */
-  const handleConfirmTransfer = async () => {
-    const sent = confirm("Have you sent the money to the virtual account?");
-    if (sent) {
-      await loadWallet(); // refresh balance + VA
-      alert("Balance updated!");
-      router.push("/dashboard");
-    }
-  };
-
-  /* -------------------------- Create VA -------------------------- */
+  /* -------------------------- Create Virtual Account ---------------------- */
   const handleCreateVA = async () => {
     try {
       setLoading(true);
-      const res = await api.post("/wallet/provision"); // backend creates VA
-      if (res.data?.success) {
+      const res = await api.post("/wallet/provision");
+      if (res.data.success) {
         alert("Virtual account created successfully!");
-        await loadWallet(); // refresh VA + balance
+        await fetchUserAndWallet(); // refresh VA + balance
       } else {
         alert(res.data?.message || "Failed to create virtual account");
       }
@@ -93,6 +57,26 @@ export default function AddMoneyPage() {
       alert("Failed to create virtual account");
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* -------------------------- Copy VA details ----------------------------- */
+  const handleVACopy = () => {
+    if (!user?.virtualAccount) return;
+    const va = user.virtualAccount;
+    navigator.clipboard.writeText(
+      `Bank: ${va.bankName}\nAccount Number: ${va.accountNumber}\nAccount Name: ${va.accountName}`
+    );
+    alert("Virtual account details copied.\n\nMake a bank transfer to fund your wallet.");
+  };
+
+  /* -------------------------- Confirm transfer ---------------------------- */
+  const handleConfirmTransfer = async () => {
+    const sent = confirm("Have you sent the money to the virtual account?");
+    if (sent) {
+      await fetchUserAndWallet(); // refresh balance + VA
+      alert("Balance updated!");
+      router.push("/dashboard"); // redirect to dashboard
     }
   };
 
@@ -116,8 +100,8 @@ export default function AddMoneyPage() {
         </p>
       </div>
 
-      {/* ---------------- Virtual Account Card ---------------- */}
-      {va ? (
+      {/* ---------------- Virtual Account ---------------- */}
+      {user?.virtualAccount ? (
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg relative">
           <h3 className="font-semibold text-lg mb-4">Virtual Account</h3>
 
@@ -126,13 +110,13 @@ export default function AddMoneyPage() {
             className="cursor-pointer p-5 bg-white bg-opacity-10 rounded-xl space-y-3 hover:bg-opacity-20 transition"
           >
             <p className="text-sm opacity-80">Bank</p>
-            <p className="text-lg font-semibold">{va.bankName}</p>
+            <p className="text-lg font-semibold">{user.virtualAccount.bankName}</p>
 
             <p className="text-sm opacity-80">Account Number</p>
-            <p className="text-lg font-semibold">{va.accountNumber}</p>
+            <p className="text-lg font-semibold">{user.virtualAccount.accountNumber}</p>
 
             <p className="text-sm opacity-80">Account Name</p>
-            <p className="text-lg font-semibold">{va.accountName}</p>
+            <p className="text-lg font-semibold">{user.virtualAccount.accountName}</p>
 
             <p className="text-xs text-gray-200 mt-2">Tap to copy details</p>
           </div>
