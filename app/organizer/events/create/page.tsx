@@ -15,7 +15,8 @@ interface EventPayload {
 export default function EventFormPage() {
   const params = useParams();
   const router = useRouter();
-  
+  const eventId = params.id; // <- use this to fetch/edit existing event
+
   const [form, setForm] = useState<EventPayload>({
     title: "",
     description: "",
@@ -26,14 +27,15 @@ export default function EventFormPage() {
 
   const [status, setStatus] = useState<"saving" | "success" | "error" | null>(null);
 
+  // Fetch event if editing
   useEffect(() => {
-    if (event) {
-      api
-        .get<EventPayload>(`/organizer/events`)
-        .then((res) => setForm(res.data))
-        .catch(console.error);
-    }
-  }, [event]);
+    if (!eventId) return;
+
+    api
+      .get<EventPayload>(`/organizer/events/${eventId}`)
+      .then((res) => setForm(res.data))
+      .catch(console.error);
+  }, [eventId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type, checked } = e.target;
@@ -45,8 +47,8 @@ export default function EventFormPage() {
     setStatus("saving");
 
     try {
-      if (event) {
-        await api.patch(`/organizer/events, form);
+      if (eventId) {
+        await api.patch(`/organizer/events/${eventId}`, form); // fixed syntax
       } else {
         await api.post("/organizer/events", form);
       }
@@ -60,7 +62,7 @@ export default function EventFormPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{"Create Event"}</h1>
+      <h1 className="text-2xl font-bold mb-4">{eventId ? "Edit Event" : "Create Event"}</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
