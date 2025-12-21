@@ -2,7 +2,6 @@
 
 import { ReactNode, useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import ResponsiveLandingWrapper from "./ResponsiveLandingWrapper";
 
 interface AuthPageProps {
   videoSrc: string;
@@ -10,7 +9,11 @@ interface AuthPageProps {
   children: ReactNode;
 }
 
-export default function AuthPage({ videoSrc, imageSrc, children }: AuthPageProps) {
+export default function AuthPage({
+  videoSrc,
+  imageSrc,
+  children,
+}: AuthPageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -24,48 +27,50 @@ export default function AuthPage({ videoSrc, imageSrc, children }: AuthPageProps
   useEffect(() => {
     if (videoRef.current) {
       const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) playPromise.catch((err) => console.warn("Video autoplay prevented:", err));
+      if (playPromise !== undefined) {
+        playPromise.catch((err) =>
+          console.warn("Video autoplay prevented:", err)
+        );
+      }
     }
   }, []);
 
   return (
-    <ResponsiveLandingWrapper>
-      <div className="relative w-full h-screen overflow-hidden bg-gray-900">
-        {/* Desktop background image */}
-        <div
-          className="hidden md:block absolute w-full h-full bg-center bg-cover"
-          style={{
-            backgroundImage: `url(${imageSrc})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
+    <div className="relative w-full h-screen overflow-hidden bg-gray-900">
+      {/* Desktop background image */}
+      <div
+        className="hidden md:block absolute w-full h-full bg-center bg-cover"
+        style={{
+          backgroundImage: `url(${imageSrc})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
 
-        {/* Mobile video background */}
-        <video
-          ref={videoRef}
-          src={videoSrc}
-          muted
-          loop
-          autoPlay
-          playsInline
-          className={`block md:hidden absolute w-full h-full object-cover ${
-            isMobile ? "object-top" : "object-center"
-          }`}
-        />
+      {/* Mobile video background */}
+      <video
+        ref={videoRef}
+        src={videoSrc}
+        muted
+        loop
+        autoPlay
+        playsInline
+        className={`block md:hidden absolute w-full h-full object-cover ${
+          isMobile ? "object-top" : "object-center"
+        }`}
+      />
 
-        {/* Form container */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
-          className="relative z-10 flex flex-col items-center justify-start h-full pt-40 px-4 md:pt-24"
-        >
-          <div className="w-full max-w-md bg-black/30 backdrop-blur-md p-8 rounded-2xl shadow-lg">
-            {children}
-          </div>
-        </motion.div>
-      </div>
-    </ResponsiveLandingWrapper>
+      {/* Form container */}
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
+        className="relative z-10 flex flex-col items-center justify-start h-full pt-40 px-4 md:pt-24"
+      >
+        <div className="w-full max-w-md bg-black/30 backdrop-blur-md p-8 rounded-2xl shadow-lg">
+          {children}
+        </div>
+      </motion.div>
+    </div>
   );
 }
