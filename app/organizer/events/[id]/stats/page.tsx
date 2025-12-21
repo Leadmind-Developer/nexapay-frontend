@@ -18,10 +18,16 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!eventId) return; // guard against undefined
+
+    setLoading(true);
     api
       .get<EventStats>(`/organizer/events/${eventId}/stats`)
       .then((res) => setStats(res.data))
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setStats(null);
+      })
       .finally(() => setLoading(false));
   }, [eventId]);
 
