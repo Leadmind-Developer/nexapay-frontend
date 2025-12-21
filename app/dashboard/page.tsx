@@ -67,7 +67,7 @@ export default function DashboardPage() {
   } finally {
     setLoading(false);
   }
-}}, []);
+}, []);
 
   /* ------------------------- Auto-refresh on focus ------------------------- */
   useEffect(() => {
