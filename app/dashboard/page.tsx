@@ -16,6 +16,7 @@ import {
   IoEyeOffOutline,
   IoCopyOutline,
 } from "react-icons/io5";
+import { usePathname } from "next/navigation";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 import api from "@/lib/api";
@@ -32,8 +33,8 @@ export default function DashboardPage() {
   const [firstName, setFirstName] = useState("User");
   const [loading, setLoading] = useState(true);
   const [hideBalance, setHideBalance] = useState(false);
-  const [virtualAccount, setVirtualAccount] =
-    useState<VirtualAccount | null>(null);
+  const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
+  const pathname = usePathname();
 
   /* ----------------------------- Fetch user data ---------------------------- */
   const fetchUserData = useCallback(async () => {
@@ -72,66 +73,25 @@ export default function DashboardPage() {
     }
   }, []);
 
+  /* ----------------------------- Initial & refresh on navigate ----------------------------- */
   useEffect(() => {
     fetchUserData();
-  }, [fetchUserData]);
+  }, [fetchUserData, pathname]);
 
   /* ----------------------------- UI Config ----------------------------- */
   const quickActions = [
-    {
-      title: "Add Money",
-      screen: "/dashboard/addmoney",
-      icon: <IoAddCircleOutline size={26} />,
-    },
-    {
-      title: "Withdraw",
-      screen: "/dashboard/withdraw",
-      icon: <IoSwapHorizontalOutline size={26} />,
-    },
-    {
-      title: "Send Money",
-      screen: "/dashboard/internaltransfer",
-      icon: <IoPaperPlaneOutline size={26} />,
-    },
+    { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26} /> },
+    { title: "Withdraw", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
+    { title: "Send Money", screen: "/dashboard/internaltransfer", icon: <IoPaperPlaneOutline size={26} /> },
   ];
 
   const services = [
-    {
-      title: "Airtime",
-      screen: "/airtime",
-      color: "#4B7BE5",
-      icon: <IoCallOutline size={22} />,
-    },
-    {
-      title: "Buy Data",
-      screen: "/data",
-      color: "#00A86B",
-      icon: <IoWifiOutline size={22} />,
-    },
-    {
-      title: "Electricity",
-      screen: "/electricity",
-      color: "#FFB300",
-      icon: <IoFlashOutline size={22} />,
-    },
-    {
-      title: "Pay TV",
-      screen: "/cable",
-      color: "#8A39E1",
-      icon: <IoTvOutline size={22} />,
-    },
-    {
-      title: "Education",
-      screen: "/education",
-      color: "#1E90FF",
-      icon: <IoBookOutline size={22} />,
-    },
-    {
-      title: "More",
-      screen: "/dashboard/more",
-      color: "#4B7BE5",
-      icon: <IoGridOutline size={22} />,
-    },
+    { title: "Airtime", screen: "/airtime", color: "#4B7BE5", icon: <IoCallOutline size={22} /> },
+    { title: "Buy Data", screen: "/data", color: "#00A86B", icon: <IoWifiOutline size={22} /> },
+    { title: "Electricity", screen: "/electricity", color: "#FFB300", icon: <IoFlashOutline size={22} /> },
+    { title: "Pay TV", screen: "/cable", color: "#8A39E1", icon: <IoTvOutline size={22} /> },
+    { title: "Education", screen: "/education", color: "#1E90FF", icon: <IoBookOutline size={22} /> },
+    { title: "More", screen: "/dashboard/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
   ];
 
   /* ------------------------------ Loading ------------------------------ */
@@ -140,9 +100,7 @@ export default function DashboardPage() {
       <ResponsiveLandingWrapper>
         <BannersWrapper page="dashboard">
           <div className="flex justify-center items-center h-[60vh]">
-            <p className="text-gray-400 dark:text-gray-300 animate-pulse">
-              Loading dashboard…
-            </p>
+            <p className="text-gray-400 dark:text-gray-300 animate-pulse">Loading dashboard…</p>
           </div>
         </BannersWrapper>
       </ResponsiveLandingWrapper>
@@ -156,9 +114,7 @@ export default function DashboardPage() {
         <div className="max-w-5xl mx-auto p-6 space-y-6">
           {/* ---------------- Greeting & Balance ---------------- */}
           <div className="bg-blue-600 p-6 rounded-2xl shadow-md text-white">
-            <p className="text-sm opacity-90">
-              Welcome back, {firstName}
-            </p>
+            <p className="text-sm opacity-90">Welcome back, {firstName}</p>
 
             <div className="flex justify-between items-center mt-2">
               <div>
@@ -166,19 +122,12 @@ export default function DashboardPage() {
                 <p className="text-3xl font-bold">
                   {hideBalance
                     ? "₦••••••"
-                    : `₦${balance.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}`}
+                    : `₦${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </p>
               </div>
 
               <button onClick={() => setHideBalance(!hideBalance)}>
-                {hideBalance ? (
-                  <IoEyeOffOutline size={26} />
-                ) : (
-                  <IoEyeOutline size={26} />
-                )}
+                {hideBalance ? <IoEyeOffOutline size={26} /> : <IoEyeOutline size={26} />}
               </button>
             </div>
 
@@ -186,12 +135,8 @@ export default function DashboardPage() {
             {virtualAccount ? (
               <div className="mt-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-4 rounded-lg flex justify-between items-center">
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-300">
-                    Virtual Account
-                  </p>
-                  <p className="font-semibold">
-                    {virtualAccount.bank} • {virtualAccount.number}
-                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-300">Virtual Account</p>
+                  <p className="font-semibold">{virtualAccount.bank} • {virtualAccount.number}</p>
                 </div>
 
                 <button
@@ -219,44 +164,26 @@ export default function DashboardPage() {
               <motion.a
                 key={i}
                 href={q.screen}
-                whileHover={{
-                  scale: 1.05,
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-                }}
-                transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 20,
-                }}
+                whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className="bg-white dark:bg-gray-800 rounded-xl p-4 flex flex-col items-center shadow"
               >
                 {q.icon}
-                <p className="text-sm font-semibold mt-2 text-gray-900 dark:text-gray-100">
-                  {q.title}
-                </p>
+                <p className="text-sm font-semibold mt-2 text-gray-900 dark:text-gray-100">{q.title}</p>
               </motion.a>
             ))}
           </div>
 
           {/* ---------------- Services ---------------- */}
           <div>
-            <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">
-              Services
-            </h2>
+            <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">Services</h2>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
               {services.map((s, i) => (
                 <motion.a
                   key={i}
                   href={s.screen}
-                  whileHover={{
-                    scale: 1.05,
-                    boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-                  }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 20,
-                  }}
+                  whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl shadow"
                 >
                   <div
@@ -265,9 +192,7 @@ export default function DashboardPage() {
                   >
                     {s.icon}
                   </div>
-                  <p className="text-xs font-semibold text-center text-gray-900 dark:text-gray-100">
-                    {s.title}
-                  </p>
+                  <p className="text-xs font-semibold text-center text-gray-900 dark:text-gray-100">{s.title}</p>
                 </motion.a>
               ))}
             </div>
