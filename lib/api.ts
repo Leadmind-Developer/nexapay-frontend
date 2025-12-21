@@ -3,7 +3,7 @@ import axios, { AxiosHeaders, AxiosResponse, InternalAxiosRequestConfig } from "
 // -------------------------------
 // ✅ BACKEND CONFIG
 // -------------------------------
-const BACKEND = process.env.NEXT_PUBLIC_API_BASE!;
+const BACKEND = process.env.NEXT_PUBLIC_API_BASE || "https://api.nexa.com.ng/api";
 
 const api = axios.create({
   baseURL: BACKEND,
