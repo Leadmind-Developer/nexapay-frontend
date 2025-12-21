@@ -15,90 +15,70 @@ import {
   IoEyeOutline,
   IoEyeOffOutline,
   IoCopyOutline,
+  IoRefreshOutline,
 } from "react-icons/io5";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 import api from "@/lib/api";
 
-/* ---------------------------------- Types --------------------------------- */
+/* ----------------------------- Types ----------------------------- */
 interface VirtualAccount {
   number: string;
   bank: string;
-  name: string;
 }
 
 export default function DashboardPage() {
   const [balance, setBalance] = useState<number>(0);
   const [firstName, setFirstName] = useState("User");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
 
-  /* ----------------------------- Fetch user info ---------------------------- */
-  const fetchUser = useCallback(async () => {
+  /* ------------------------- Fetch User Data ------------------------- */
+  const fetchUserData = useCallback(async () => {
     try {
+      if (!refreshing) setLoading(true);
       const res = await api.get("/user/me");
-      if (res.data?.success) {
-        const u = res.data.user;
-        const first =
-          u.name?.split(" ")?.[0] ||
-          u.email?.split("@")?.[0] ||
-          "User";
-        setFirstName(first);
+      if (!res.data?.success) return;
+
+      const u = res.data.user;
+
+      // First name
+      const first = u.name?.split(" ")[0] || u.email?.split("@")[0] || "User";
+      setFirstName(first);
+
+      // Wallet balance
+      setBalance((u.balance ?? 0) / 100);
+
+      // Virtual account
+      if (u.virtualAccount) {
+        setVirtualAccount({
+          number: u.virtualAccount.accountNumber,
+          bank: u.virtualAccount.bank,
+        });
+      } else {
+        setVirtualAccount(null);
       }
     } catch (err) {
-      console.error("Failed to fetch user info:", err);
-    }
-  }, []);
-
-  /* ----------------------------- Fetch wallet info ---------------------------- */
-  const fetchWallet = useCallback(async () => {
-    try {
-      const res = await api.get("/wallet/me");
-      if (res.data?.success) {
-        const wallet = res.data.wallet;
-
-        // Convert KOBO → NAIRA
-        if (typeof wallet.balance === "number") {
-          setBalance(wallet.balance / 100);
-        }
-
-        // Virtual account
-        if (res.data.virtualAccount) {
-          const va = res.data.virtualAccount;
-          setVirtualAccount({
-            number: va.accountNumber,
-            bank: va.bankName,
-            name: va.accountName,
-          });
-        } else {
-          setVirtualAccount(null);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch wallet info:", err);
-    }
-  }, []);
-
-  /* ------------------------- Auto-refresh on focus ------------------------- */
-  useEffect(() => {
-    setLoading(true);
-
-    const loadData = async () => {
-      await Promise.all([fetchUser(), fetchWallet()]);
+      console.error("Failed to fetch dashboard data:", err);
+    } finally {
       setLoading(false);
-    };
+      setRefreshing(false);
+    }
+  }, [refreshing]);
 
-    loadData();
-
-    const handleFocus = () => {
-      fetchUser();
-      fetchWallet();
-    };
-
+  useEffect(() => {
+    fetchUserData();
+    const handleFocus = () => fetchUserData();
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [fetchUser, fetchWallet]);
+  }, [fetchUserData]);
+
+  const refreshBalance = () => {
+    setRefreshing(true);
+    fetchUserData();
+  };
 
   /* ----------------------------- UI Config ----------------------------- */
   const quickActions = [
@@ -136,9 +116,16 @@ export default function DashboardPage() {
     <ResponsiveLandingWrapper>
       <BannersWrapper page="dashboard">
         <div className="max-w-5xl mx-auto p-6 space-y-6">
-          {/* ---------------- Greeting & Balance ---------------- */}
+          {/* Greeting & Balance */}
           <div className="bg-blue-600 p-6 rounded-2xl shadow-md text-white">
-            <p className="text-sm opacity-90">Welcome back, {firstName}</p>
+            <div className="flex justify-between items-center">
+              <p className="text-sm opacity-90">Welcome back, {firstName}</p>
+              {/* Refresh Button */}
+              <button onClick={refreshBalance} disabled={refreshing} className="flex items-center gap-1 text-sm opacity-80 hover:opacity-100">
+                <IoRefreshOutline size={20} className={refreshing ? "animate-spin" : ""} />
+                <span>Refresh</span>
+              </button>
+            </div>
 
             <div className="flex justify-between items-center mt-2">
               <div>
@@ -146,10 +133,7 @@ export default function DashboardPage() {
                 <p className="text-3xl font-bold">
                   {hideBalance
                     ? "₦••••••"
-                    : `₦${balance.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}`}
+                    : `₦${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </p>
               </div>
               <button onClick={() => setHideBalance(!hideBalance)}>
@@ -157,7 +141,7 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* ---------------- Virtual Account ---------------- */}
+            {/* Virtual Account */}
             {virtualAccount ? (
               <div className="mt-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-4 rounded-lg flex justify-between items-center">
                 <div>
@@ -183,7 +167,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* ---------------- Quick Actions ---------------- */}
+          {/* Quick Actions */}
           <div className="grid grid-cols-3 gap-4">
             {quickActions.map((q, i) => (
               <motion.a
@@ -199,7 +183,7 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* ---------------- Services ---------------- */}
+          {/* Services */}
           <div>
             <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">Services</h2>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
