@@ -22,11 +22,9 @@ export default function AddMoneyPage() {
     try {
       setLoading(true);
 
-      // Fetch user (includes virtualAccount)
       const userRes = await api.get("/user/me");
       if (userRes.data.success) setUser(userRes.data.user);
 
-      // Fetch wallet balance
       const walletRes = await api.get("/wallet/me");
       if (walletRes.data.success) setBalance(walletRes.data.wallet.balance);
     } catch (err) {
@@ -48,7 +46,7 @@ export default function AddMoneyPage() {
       const res = await api.post("/wallet/provision");
       if (res.data.success) {
         alert("Virtual account created successfully!");
-        await fetchUserAndWallet(); // refresh VA + balance
+        await fetchUserAndWallet();
       } else {
         alert(res.data?.message || "Failed to create virtual account");
       }
@@ -74,9 +72,9 @@ export default function AddMoneyPage() {
   const handleConfirmTransfer = async () => {
     const sent = confirm("Have you sent the money to the virtual account?");
     if (sent) {
-      await fetchUserAndWallet(); // refresh balance + VA
+      await fetchUserAndWallet();
       alert("Balance updated!");
-      router.push("/dashboard"); // redirect to dashboard
+      router.push("/dashboard");
     }
   };
 
@@ -84,7 +82,7 @@ export default function AddMoneyPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <span className="text-blue-600 text-xl font-semibold">Loading…</span>
+        <span className="text-blue-500 dark:text-blue-400 text-xl font-semibold">Loading…</span>
       </div>
     );
   }
@@ -93,9 +91,9 @@ export default function AddMoneyPage() {
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6">
       {/* ---------------- Wallet Balance ---------------- */}
-      <div className="bg-white p-6 rounded-xl shadow text-center">
-        <h2 className="text-xl font-bold text-gray-700">Wallet Balance</h2>
-        <p className="text-3xl font-bold text-gray-900">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow text-center">
+        <h2 className="text-xl font-bold text-gray-700 dark:text-gray-200">Wallet Balance</h2>
+        <p className="text-3xl font-bold text-gray-900 dark:text-white">
           ₦{balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
         </p>
       </div>
@@ -107,7 +105,7 @@ export default function AddMoneyPage() {
 
           <div
             onClick={handleVACopy}
-            className="cursor-pointer p-5 bg-white bg-opacity-10 rounded-xl space-y-3 hover:bg-opacity-20 transition"
+            className="cursor-pointer p-5 bg-white bg-opacity-10 dark:bg-opacity-20 rounded-xl space-y-3 hover:bg-opacity-20 dark:hover:bg-opacity-30 transition"
           >
             <p className="text-sm opacity-80">Bank</p>
             <p className="text-lg font-semibold">{user.virtualAccount.bankName}</p>
