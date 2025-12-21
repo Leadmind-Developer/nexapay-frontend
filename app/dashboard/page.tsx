@@ -39,21 +39,21 @@ const fetchUserData = useCallback(async () => {
   try {
     setLoading(true);
 
-    // Fetch wallet info (balance, transactions, VA)
+    // Fetch wallet info
     const walletRes = await api.get("/wallet/me");
     if (!walletRes.data?.success) return;
 
     const wallet = walletRes.data.wallet;
-    const va = walletRes.data.virtualAccount;
+    const vaData = walletRes.data.virtualAccount; // fix destructuring
 
-    setBalance(wallet.balance); // balance is already in NAIRA
+    setBalance(wallet.balance);
 
     setVirtualAccount(
-      va
+      vaData
         ? {
-            number: va.accountNumber,
-            bank: va.bankName,
-            name: va.accountName,
+            number: vaData.accountNumber,
+            bank: vaData.bankName,
+            name: vaData.accountName,
           }
         : null
     );
