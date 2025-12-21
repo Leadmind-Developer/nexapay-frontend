@@ -60,7 +60,7 @@ export default function DashboardPage() {
   { title: "Electricity", screen: "/electricity", color: "#FFB300", icon: <IoFlashOutline size={22} /> },
   { title: "Pay TV", screen: "/cable", color: "#8A39E1", icon: <IoTvOutline size={22} /> },
   { title: "Education", screen: "/education", color: "#1E90FF", icon: <IoBookOutline size={22} /> },
-  { title: "More", screen: "/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
+  { title: "More", screen: "/dashboard/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
 ];
 
   if (loading) {
