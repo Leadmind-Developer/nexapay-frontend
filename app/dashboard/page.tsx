@@ -36,39 +36,38 @@ export default function DashboardPage() {
 
   /* ----------------------------- Fetch user data ---------------------------- */
   const fetchUserData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/user/me");
-      if (!res.data?.success) return;
+  try {
+    setLoading(true);
+    const res = await api.get("/user/me");
+    if (!res.data?.success) return;
 
-      const u = res.data.user;
+    const u = res.data.user;
 
-      const first =
-        u.firstName ||
-        u.name?.split(" ")?.[0] ||
-        u.email?.split("@")?.[0] ||
-        "User";
-      setFirstName(first);
+    const first =
+      u.name?.split(" ")?.[0] ||
+      u.email?.split("@")?.[0] ||
+      "User";
+    setFirstName(first);
 
-      if (typeof u.balance === "number") {
-        setBalance(u.balance / 100);
-      }
-
-      if (u.titanAccountNumber && u.titanBankName) {
-        setVirtualAccount({
-          number: u.titanAccountNumber,
-          bank: u.titanBankName,
-          name: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
-        });
-      } else {
-        setVirtualAccount(null);
-      }
-    } catch (err) {
-      console.error("Failed to fetch dashboard data:", err);
-    } finally {
-      setLoading(false);
+    if (typeof u.balance === "number") {
+      setBalance(u.balance / 100); // assuming balance is in kobo
     }
-  }, []);
+
+    if (u.virtualAccount) {
+      setVirtualAccount({
+        number: u.virtualAccount.accountNumber,
+        bank: u.virtualAccount.bank,
+        name: u.virtualAccount.name,
+      });
+    } else {
+      setVirtualAccount(null);
+    }
+  } catch (err) {
+    console.error("Failed to fetch dashboard data:", err);
+  } finally {
+    setLoading(false);
+  }
+}}, []);
 
   /* ------------------------- Auto-refresh on focus ------------------------- */
   useEffect(() => {
