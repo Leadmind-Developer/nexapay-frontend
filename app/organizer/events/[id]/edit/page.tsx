@@ -27,18 +27,27 @@ export default function EventFormPage() {
 
   const [status, setStatus] = useState<"saving" | "success" | "error" | null>(null);
 
+  // Fetch event if editing
   useEffect(() => {
-    if (eventId) {
-      api
-        .get<EventPayload>(`/organizer/events/${eventId}`)
-        .then((res) => setForm(res.data))
-        .catch(console.error);
-    }
+    if (!eventId) return;
+
+    api
+      .get<EventPayload>(`/organizer/events/${eventId}`)
+      .then((res) => setForm(res.data))
+      .catch(console.error);
   }, [eventId]);
 
+  // Handle form input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    const { name, value, type } = e.target;
+
+    // Type narrowing for checkboxes
+    if (type === "checkbox") {
+      const target = e.target as HTMLInputElement;
+      setForm((prev) => ({ ...prev, [name]: target.checked }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,6 +100,7 @@ export default function EventFormPage() {
           required
           className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
         />
+
         <input
           type="datetime-local"
           name="endAt"
