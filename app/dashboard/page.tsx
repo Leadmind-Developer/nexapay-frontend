@@ -39,19 +39,12 @@ export default function DashboardPage() {
   const fetchUserData = useCallback(async () => {
     try {
       setLoading(true);
-
-      /**
-       * Source of truth:
-       * - /user/me contains titanAccountNumber + titanBankName
-       * - balance is still stored in KOBO
-       */
       const res = await api.get("/user/me");
 
       if (!res.data?.success) return;
 
       const u = res.data.user;
 
-      // ---------------- Name ----------------
       const first =
         u.firstName ||
         u.name?.split(" ")?.[0] ||
@@ -59,13 +52,10 @@ export default function DashboardPage() {
         "User";
       setFirstName(first);
 
-      // ---------------- Balance (KOBO → NAIRA) ----------------
       if (typeof u.balance === "number") {
         setBalance(u.balance / 100);
       }
 
-      // ---------------- Virtual Account (FIX 1) ----------------
-      // Normalize backend fields → frontend-friendly object
       if (u.titanAccountNumber && u.titanBankName) {
         setVirtualAccount({
           number: u.titanAccountNumber,
@@ -150,7 +140,7 @@ export default function DashboardPage() {
       <ResponsiveLandingWrapper>
         <BannersWrapper page="dashboard">
           <div className="flex justify-center items-center h-[60vh]">
-            <p className="text-gray-500 animate-pulse">
+            <p className="text-gray-400 dark:text-gray-300 animate-pulse">
               Loading dashboard…
             </p>
           </div>
@@ -172,7 +162,7 @@ export default function DashboardPage() {
 
             <div className="flex justify-between items-center mt-2">
               <div>
-                <p className="text-xs opacity-70">Wallet Balance</p>
+                <p className="text-xs opacity-80">Wallet Balance</p>
                 <p className="text-3xl font-bold">
                   {hideBalance
                     ? "₦••••••"
@@ -194,22 +184,19 @@ export default function DashboardPage() {
 
             {/* ---------------- Virtual Account ---------------- */}
             {virtualAccount ? (
-              <div className="mt-4 bg-white text-gray-900 p-4 rounded-lg flex justify-between items-center">
+              <div className="mt-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-4 rounded-lg flex justify-between items-center">
                 <div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-300">
                     Virtual Account
                   </p>
                   <p className="font-semibold">
-                    {virtualAccount.bank} •{" "}
-                    {virtualAccount.number}
+                    {virtualAccount.bank} • {virtualAccount.number}
                   </p>
                 </div>
 
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(
-                      virtualAccount.number
-                    );
+                    navigator.clipboard.writeText(virtualAccount.number);
                     alert("Account number copied");
                   }}
                 >
@@ -219,7 +206,7 @@ export default function DashboardPage() {
             ) : (
               <a
                 href="/dashboard/setupnairaaccount"
-                className="mt-4 inline-block bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg"
+                className="mt-4 inline-block bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 font-semibold py-2 px-4 rounded-lg"
               >
                 Create Naira Account
               </a>
@@ -241,10 +228,10 @@ export default function DashboardPage() {
                   stiffness: 300,
                   damping: 20,
                 }}
-                className="bg-white rounded-xl p-4 flex flex-col items-center shadow"
+                className="bg-white dark:bg-gray-800 rounded-xl p-4 flex flex-col items-center shadow"
               >
                 {q.icon}
-                <p className="text-sm font-semibold mt-2">
+                <p className="text-sm font-semibold mt-2 text-gray-900 dark:text-gray-100">
                   {q.title}
                 </p>
               </motion.a>
@@ -253,7 +240,9 @@ export default function DashboardPage() {
 
           {/* ---------------- Services ---------------- */}
           <div>
-            <h2 className="text-lg font-bold mb-3">Services</h2>
+            <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">
+              Services
+            </h2>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
               {services.map((s, i) => (
                 <motion.a
@@ -268,7 +257,7 @@ export default function DashboardPage() {
                     stiffness: 300,
                     damping: 20,
                   }}
-                  className="flex flex-col items-center p-4 bg-white rounded-xl shadow"
+                  className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl shadow"
                 >
                   <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center mb-2"
@@ -276,7 +265,7 @@ export default function DashboardPage() {
                   >
                     {s.icon}
                   </div>
-                  <p className="text-xs font-semibold text-center">
+                  <p className="text-xs font-semibold text-center text-gray-900 dark:text-gray-100">
                     {s.title}
                   </p>
                 </motion.a>
