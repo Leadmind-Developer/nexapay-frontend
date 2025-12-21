@@ -3,11 +3,8 @@ import axios, { AxiosHeaders, AxiosResponse, InternalAxiosRequestConfig } from "
 // -------------------------------
 // ✅ BACKEND CONFIG
 // -------------------------------
-const BACKEND =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  "https://nexapay-backend-138118361183.us-central1.run.app/api";
+const BACKEND = process.env.NEXT_PUBLIC_API_BASE!;
 
-// Axios instance
 const api = axios.create({
   baseURL: BACKEND,
   headers: new AxiosHeaders({ "Content-Type": "application/json" }),
