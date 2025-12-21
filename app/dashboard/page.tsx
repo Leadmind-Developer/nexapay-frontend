@@ -16,7 +16,6 @@ import {
   IoEyeOffOutline,
   IoCopyOutline,
 } from "react-icons/io5";
-import { usePathname } from "next/navigation";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 import api from "@/lib/api";
@@ -34,14 +33,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
-  const pathname = usePathname();
 
   /* ----------------------------- Fetch user data ---------------------------- */
   const fetchUserData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get("/user/me");
-
       if (!res.data?.success) return;
 
       const u = res.data.user;
@@ -73,10 +70,17 @@ export default function DashboardPage() {
     }
   }, []);
 
-  /* ----------------------------- Initial & refresh on navigate ----------------------------- */
+  /* ------------------------- Auto-refresh on focus ------------------------- */
   useEffect(() => {
     fetchUserData();
-  }, [fetchUserData, pathname]);
+
+    const handleFocus = () => {
+      fetchUserData();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [fetchUserData]);
 
   /* ----------------------------- UI Config ----------------------------- */
   const quickActions = [
@@ -100,7 +104,9 @@ export default function DashboardPage() {
       <ResponsiveLandingWrapper>
         <BannersWrapper page="dashboard">
           <div className="flex justify-center items-center h-[60vh]">
-            <p className="text-gray-400 dark:text-gray-300 animate-pulse">Loading dashboard…</p>
+            <p className="text-gray-400 dark:text-gray-300 animate-pulse">
+              Loading dashboard…
+            </p>
           </div>
         </BannersWrapper>
       </ResponsiveLandingWrapper>
@@ -122,10 +128,12 @@ export default function DashboardPage() {
                 <p className="text-3xl font-bold">
                   {hideBalance
                     ? "₦••••••"
-                    : `₦${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    : `₦${balance.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`}
                 </p>
               </div>
-
               <button onClick={() => setHideBalance(!hideBalance)}>
                 {hideBalance ? <IoEyeOffOutline size={26} /> : <IoEyeOutline size={26} />}
               </button>
@@ -138,7 +146,6 @@ export default function DashboardPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-300">Virtual Account</p>
                   <p className="font-semibold">{virtualAccount.bank} • {virtualAccount.number}</p>
                 </div>
-
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(virtualAccount.number);
@@ -186,10 +193,7 @@ export default function DashboardPage() {
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl shadow"
                 >
-                  <div
-                    className="w-12 h-12 rounded-lg flex items-center justify-center mb-2"
-                    style={{ backgroundColor: s.color }}
-                  >
+                  <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: s.color }}>
                     {s.icon}
                   </div>
                   <p className="text-xs font-semibold text-center text-gray-900 dark:text-gray-100">{s.title}</p>
