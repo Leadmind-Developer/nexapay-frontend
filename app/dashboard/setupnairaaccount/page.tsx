@@ -1,61 +1,72 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import colors from "@/theme/colors";
 
 export default function SetupNairaAccountPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [vaCreated, setVaCreated] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   // -----------------------
-  // Fetch user
+  // Fetch user with VA info
   // -----------------------
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get("/user/me");
       if (res.data.success) setUser(res.data.user);
 
-      // If VA exists, mark as created
-      if (res.data.user.virtualAccount) setVaCreated(true);
+      // If VA exists, redirect automatically
+      if (res.data.user?.titanAccountNumber && res.data.user?.titanBankName) {
+        router.replace("/dashboard");
+      }
     } catch (err) {
-      console.error(err);
-      alert("Failed to load user data");
+      console.error("Failed to fetch user:", err);
+      alert("Failed to load user data. Please refresh the page.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchUser();
-  }, []);
+  }, [fetchUser]);
 
   // -----------------------
-  // Create Virtual Account
+  // Create Virtual Account (retry if fails)
   // -----------------------
   const createVirtualAccount = async () => {
     try {
       setLoading(true);
-      const res = await api.post("/wallet/provision");
-      if (res.data.success) {
-        setVaCreated(true);
-        alert("Virtual Naira account created successfully");
 
-        // Refresh user
-        await fetchUser();
+      let attempts = 0;
+      let success = false;
 
-        // Optional username check
-        if (!res.data.user.userID) {
-          alert("Please set your username next");
+      while (!success && attempts < 3) {
+        attempts += 1;
+        try {
+          const res = await api.post("/wallet/provision");
+          if (res.data.success) {
+            success = true;
+            break;
+          }
+        } catch (err) {
+          console.warn(`Attempt ${attempts} failed to create VA`, err);
         }
+        await new Promise((r) => setTimeout(r, 1000)); // small delay before retry
       }
+
+      if (!success) throw new Error("Unable to create virtual account. Try again later.");
+
+      // Refresh user data
+      await fetchUser();
+
+      alert("Virtual Naira account created successfully. Redirecting to dashboard...");
     } catch (err: any) {
       console.error(err);
-      alert(err.response?.data?.message || "Failed to create virtual account");
+      alert(err.message || "Failed to create virtual account");
     } finally {
       setLoading(false);
     }
@@ -78,55 +89,12 @@ export default function SetupNairaAccountPage() {
         To start using your Nexa wallet, you need a virtual Naira account.
       </p>
 
-      {vaCreated && user?.virtualAccount ? (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 text-sm">Account Name:</span>
-            <p className="font-semibold text-gray-800 dark:text-gray-100">
-              {user.virtualAccount.name}
-            </p>
-          </div>
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 text-sm">Account Number:</span>
-            <p className="font-semibold text-gray-800 dark:text-gray-100">
-              {user.virtualAccount.accountNumber}
-            </p>
-          </div>
-
-          <button
-            className="w-full bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 font-semibold py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-            onClick={() => {
-              navigator.clipboard.writeText(user.virtualAccount.accountNumber);
-              alert("Account number copied to clipboard");
-            }}
-          >
-            Copy Account Number
-          </button>
-
-          {!user.userID && (
-            <button
-              className="w-full bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700"
-              onClick={() => alert("Navigate to Set Username page")}
-            >
-              Set Username
-            </button>
-          )}
-
-          <button
-            className="w-full mt-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100 font-semibold py-2 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
-            onClick={() => router.push("/dashboard")}
-          >
-            Back to Dashboard
-          </button>
-        </div>
-      ) : (
-        <button
-          className="w-full bg-blue-600 text-white font-semibold py-3 rounded hover:bg-blue-700"
-          onClick={createVirtualAccount}
-        >
-          Create Virtual Account
-        </button>
-      )}
+      <button
+        className="w-full bg-blue-600 text-white font-semibold py-3 rounded hover:bg-blue-700"
+        onClick={createVirtualAccount}
+      >
+        Create Virtual Account
+      </button>
     </div>
   );
 }
