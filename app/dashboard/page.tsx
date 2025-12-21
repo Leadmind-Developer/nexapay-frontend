@@ -38,29 +38,34 @@ export default function DashboardPage() {
   const fetchUserData = useCallback(async () => {
   try {
     setLoading(true);
-    const res = await api.get("/user/me");
-    if (!res.data?.success) return;
 
-    const u = res.data.user;
+    // Fetch wallet info for balance & VA
+    const walletRes = await api.get("/wallet/me");
+    if (walletRes.data?.success) {
+      const wallet = walletRes.data.wallet;
+      setBalance(wallet.balance / 100); // Convert KOBO → NAIRA
 
-    const first =
-      u.name?.split(" ")?.[0] ||
-      u.email?.split("@")?.[0] ||
-      "User";
-    setFirstName(first);
-
-    if (typeof u.balance === "number") {
-      setBalance(u.balance / 100); // assuming balance is in kobo
+      if (walletRes.data.virtualAccount) {
+        const va = walletRes.data.virtualAccount;
+        setVirtualAccount({
+          number: va.accountNumber,
+          bank: va.bankName,
+          name: va.accountName,
+        });
+      } else {
+        setVirtualAccount(null);
+      }
     }
 
-    if (u.virtualAccount) {
-      setVirtualAccount({
-        number: u.virtualAccount.accountNumber,
-        bank: u.virtualAccount.bank,
-        name: u.virtualAccount.name,
-      });
-    } else {
-      setVirtualAccount(null);
+    // Fetch user info just for display name
+    const userRes = await api.get("/user/me");
+    if (userRes.data?.success) {
+      const u = userRes.data.user;
+      const first =
+        u.name?.split(" ")?.[0] ||
+        u.email?.split("@")?.[0] ||
+        "User";
+      setFirstName(first);
     }
   } catch (err) {
     console.error("Failed to fetch dashboard data:", err);
