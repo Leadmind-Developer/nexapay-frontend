@@ -100,43 +100,43 @@ export default function AddMoneyPage() {
 
       {/* ---------------- Virtual Account ---------------- */}
       {user?.virtualAccount ? (
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg relative">
-          <h3 className="font-semibold text-lg mb-4">Virtual Account</h3>
+  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg relative">
+    <h3 className="font-semibold text-lg mb-4">Virtual Account</h3>
 
-          <div
-            onClick={handleVACopy}
-            className="cursor-pointer p-5 bg-white bg-opacity-10 dark:bg-opacity-20 rounded-xl space-y-3 hover:bg-opacity-20 dark:hover:bg-opacity-30 transition"
-          >
-            <p className="text-sm opacity-80">Bank</p>
-            <p className="text-lg font-semibold">{user.virtualAccount.bankName}</p>
+    <div
+      onClick={handleVACopy}
+      className="cursor-pointer p-5 bg-white/20 dark:bg-white/10 rounded-xl space-y-3 hover:bg-white/30 dark:hover:bg-white/20 transition"
+    >
+      <p className="text-sm opacity-90">Bank</p>
+      <p className="text-lg font-semibold">{user.virtualAccount.bankName}</p>
 
-            <p className="text-sm opacity-80">Account Number</p>
-            <p className="text-lg font-semibold">{user.virtualAccount.accountNumber}</p>
+      <p className="text-sm opacity-90">Account Number</p>
+      <p className="text-lg font-semibold">{user.virtualAccount.accountNumber}</p>
 
-            <p className="text-sm opacity-80">Account Name</p>
-            <p className="text-lg font-semibold">{user.virtualAccount.accountName}</p>
+      <p className="text-sm opacity-90">Account Name</p>
+      <p className="text-lg font-semibold">{user.virtualAccount.accountName}</p>
 
-            <p className="text-xs text-gray-200 mt-2">Tap to copy details</p>
-          </div>
+      <p className="text-xs opacity-70 mt-2">Tap to copy details</p>
+    </div>
 
-          <button
-            onClick={handleConfirmTransfer}
-            className="w-full mt-4 bg-green-500 hover:bg-green-600 transition font-semibold py-3 rounded-xl shadow-md"
-          >
-            I have sent the money
-          </button>
-        </div>
-      ) : (
-        <div className="text-center space-y-4">
-          <p className="text-red-500">You don’t have a virtual account yet.</p>
-          <button
-            onClick={handleCreateVA}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md"
-          >
-            Create Virtual Account
-          </button>
-        </div>
-      )}
+    <button
+      onClick={handleConfirmTransfer}
+      className="w-full mt-4 bg-green-500 hover:bg-green-600 transition font-semibold py-3 rounded-xl shadow-md"
+    >
+      I have sent the money
+    </button>
+  </div>
+) : (
+  <div className="text-center space-y-4">
+    <p className="text-red-500">You don’t have a virtual account yet.</p>
+    <button
+      onClick={handleCreateVA}
+      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md"
+    >
+      Create Virtual Account
+    </button>
+  </div>
+)}
     </div>
   );
 }
