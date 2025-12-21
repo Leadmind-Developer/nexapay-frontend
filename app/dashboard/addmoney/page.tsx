@@ -17,19 +17,37 @@ export default function AddMoneyPage() {
   const [balance, setBalance] = useState(0); // NAIRA
   const [va, setVA] = useState<VirtualAccount | null>(null);
 
-  /* --------------------------- Load wallet data ---------------------------- */
+  /* --------------------------- Load wallet + VA ---------------------------- */
   const loadWallet = async () => {
     try {
       setLoading(true);
+
+      // Fetch wallet + VA
       const res = await api.get("/wallet/me");
+      console.log("Wallet response:", res.data);
 
       if (!res.data?.success) return;
 
-      setBalance(res.data.wallet.balance); // already NAIRA
-      setVA(res.data.virtualAccount || null);
+      setBalance(res.data.wallet.balance);
+
+      if (res.data.virtualAccount) {
+        // VA exists
+        setVA(res.data.virtualAccount);
+      } else {
+        // No VA → fetch user directly (like setup page)
+        const userRes = await api.get("/user/me");
+        if (userRes.data?.titanAccountNumber) {
+          setVA({
+            accountNumber: userRes.data.titanAccountNumber,
+            bankName: userRes.data.titanBankName,
+            accountName: `${userRes.data.firstName} ${userRes.data.lastName}`.trim(),
+          });
+        } else {
+          setVA(null); // truly no VA
+        }
+      }
     } catch (err) {
       console.error("Failed to load wallet:", err);
-      alert("Failed to load wallet info.");
     } finally {
       setLoading(false);
     }
@@ -46,19 +64,35 @@ export default function AddMoneyPage() {
     navigator.clipboard.writeText(
       `Bank: ${va.bankName}\nAccount Number: ${va.accountNumber}\nAccount Name: ${va.accountName}`
     );
-
-    alert(
-      "Virtual account details copied.\n\nMake a bank transfer to fund your wallet."
-    );
+    alert("Virtual account details copied.\n\nMake a bank transfer to fund your wallet.");
   };
 
   /* -------------------------- Confirm transfer -------------------------- */
   const handleConfirmTransfer = async () => {
     const sent = confirm("Have you sent the money to the virtual account?");
     if (sent) {
-      await loadWallet(); // refresh balance
+      await loadWallet(); // refresh balance + VA
       alert("Balance updated!");
-      router.push("/dashboard"); // redirect to dashboard
+      router.push("/dashboard");
+    }
+  };
+
+  /* -------------------------- Create VA -------------------------- */
+  const handleCreateVA = async () => {
+    try {
+      setLoading(true);
+      const res = await api.post("/wallet/provision"); // backend creates VA
+      if (res.data?.success) {
+        alert("Virtual account created successfully!");
+        await loadWallet(); // refresh VA + balance
+      } else {
+        alert(res.data?.message || "Failed to create virtual account");
+      }
+    } catch (err) {
+      console.error("VA creation error:", err);
+      alert("Failed to create virtual account");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,9 +145,15 @@ export default function AddMoneyPage() {
           </button>
         </div>
       ) : (
-        <p className="text-red-500 text-center">
-          You don’t have a virtual account yet. Please create one first.
-        </p>
+        <div className="text-center space-y-4">
+          <p className="text-red-500">You don’t have a virtual account yet.</p>
+          <button
+            onClick={handleCreateVA}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md"
+          >
+            Create Virtual Account
+          </button>
+        </div>
       )}
     </div>
   );
