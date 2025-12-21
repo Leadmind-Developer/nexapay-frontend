@@ -3,6 +3,7 @@ import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import api from "@/lib/api";
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -10,7 +11,6 @@ export default function NavBar() {
   const [userName, setUserName] = useState("");
 
   useEffect(() => {
-    // Example: Replace with your auth logic (cookie/localStorage/JWT)
     const token = localStorage.getItem("authToken");
     const user = localStorage.getItem("userName");
     if (token) {
@@ -32,10 +32,21 @@ export default function NavBar() {
     { name: "Funds", href: "/dashboard/funds" },
   ];
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userName");
-    window.location.href = "/login";
+  const handleLogout = async () => {
+    try {
+      // Call backend logout to clear cookies
+      await api.post("/auth/logout");
+
+      // Clear any frontend state
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("userName");
+
+      // Redirect to login page
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Logout failed:", err);
+      alert("Logout failed. Please try again.");
+    }
   };
 
   const navItems = isLoggedIn ? dashboardNav : publicNav;
