@@ -34,40 +34,34 @@ export default function DashboardPage() {
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
 
-  /* ----------------------------- Fetch user + wallet data ---------------------------- */
-const fetchUserData = useCallback(async () => {
+  /* ----------------------------- Fetch user data ---------------------------- */
+  const fetchUserData = useCallback(async () => {
   try {
     setLoading(true);
+    const res = await api.get("/user/me");
+    if (!res.data?.success) return;
 
-    // Fetch wallet info
-    const walletRes = await api.get("/wallet/me");
-    if (!walletRes.data?.success) return;
+    const u = res.data.user;
 
-    const wallet = walletRes.data.wallet;
-    const vaData = walletRes.data.virtualAccount; // fix destructuring
-
-    setBalance(wallet.balance);
-
-    setVirtualAccount(
-      vaData
-        ? {
-            number: vaData.accountNumber,
-            bank: vaData.bankName,
-            name: vaData.accountName,
-          }
-        : null
-    );
-
-    // Fetch user info for name display
-    const userRes = await api.get("/user/me");
-    if (!userRes.data?.success) return;
-
-    const u = userRes.data.user;
     const first =
       u.name?.split(" ")?.[0] ||
       u.email?.split("@")?.[0] ||
       "User";
     setFirstName(first);
+
+    if (typeof u.balance === "number") {
+      setBalance(u.balance / 100); // assuming balance is in kobo
+    }
+
+    if (u.virtualAccount) {
+      setVirtualAccount({
+        number: u.virtualAccount.accountNumber,
+        bank: u.virtualAccount.bank,
+        name: u.virtualAccount.name,
+      });
+    } else {
+      setVirtualAccount(null);
+    }
   } catch (err) {
     console.error("Failed to fetch dashboard data:", err);
   } finally {
