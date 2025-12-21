@@ -49,9 +49,9 @@ export default function DashboardPage() {
   }, [fetchUserData]);
 
   const quickActions = [
-    { title: "Add Money", screen: "/addmoney", icon: <IoAddCircleOutline size={26} /> },
-    { title: "Withdraw", screen: "/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
-    { title: "Send Money", screen: "/internaltransfer", icon: <IoPaperPlaneOutline size={26} /> },
+    { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26} /> },
+    { title: "Withdraw", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
+    { title: "Send Money", screen: "/dashboard/internaltransfer", icon: <IoPaperPlaneOutline size={26} /> },
   ];
 
   const services = [
