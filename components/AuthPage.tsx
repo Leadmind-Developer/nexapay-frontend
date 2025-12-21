@@ -15,39 +15,82 @@ export default function AuthPage({
   children,
 }: AuthPageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  const [isMobile, setIsMobile] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  /* -------------------------------------------------------------------------- */
+  /* 📱 Detect mobile + dynamic viewport height (keyboard safe)                  */
+  /* -------------------------------------------------------------------------- */
   useEffect(() => {
-    setIsMobile(window.innerWidth < 768);
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const updateViewport = () => {
+      setIsMobile(window.innerWidth < 768);
+
+      // Use visualViewport when available (iOS Safari keyboard fix)
+      const height =
+        window.visualViewport?.height || window.innerHeight;
+
+      setViewportHeight(height);
+    };
+
+    updateViewport();
+
+    window.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("resize", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+    };
   }, []);
 
+  /* -------------------------------------------------------------------------- */
+  /* 🎥 Safe video autoplay                                                      */
+  /* -------------------------------------------------------------------------- */
   useEffect(() => {
-    if (videoRef.current) {
+    if (videoRef.current && videoSrc) {
       const playPromise = videoRef.current.play();
       if (playPromise !== undefined) {
-        playPromise.catch((err) =>
-          console.warn("Video autoplay prevented:", err)
-        );
+        playPromise.catch(() => {});
       }
     }
+  }, [videoSrc]);
+
+  /* -------------------------------------------------------------------------- */
+  /* 📏 Auto-detect long forms → enable scroll                                    */
+  /* -------------------------------------------------------------------------- */
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver(() => {
+      const el = containerRef.current!;
+      setIsOverflowing(el.scrollHeight > el.clientHeight);
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
   }, []);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-gray-900">
-      {/* Desktop background image */}
+    <div
+      className="relative w-full overflow-hidden bg-gray-900"
+      style={{
+        height: viewportHeight ? `${viewportHeight}px` : "100vh",
+      }}
+    >
+      {/* ---------------------------------------------------------------------- */}
+      {/* Desktop background image                                                */}
+      {/* ---------------------------------------------------------------------- */}
       <div
-        className="hidden md:block absolute w-full h-full bg-center bg-cover"
-        style={{
-          backgroundImage: `url(${imageSrc})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
+        className="hidden md:block absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${imageSrc})` }}
       />
 
-      {/* Mobile video background */}
+      {/* ---------------------------------------------------------------------- */}
+      {/* Mobile video background                                                 */}
+      {/* ---------------------------------------------------------------------- */}
       <video
         ref={videoRef}
         src={videoSrc}
@@ -55,19 +98,39 @@ export default function AuthPage({
         loop
         autoPlay
         playsInline
-        className={`block md:hidden absolute w-full h-full object-cover ${
+        className={`block md:hidden absolute inset-0 object-cover ${
           isMobile ? "object-top" : "object-center"
         }`}
       />
 
-      {/* Form container */}
+      {/* ---------------------------------------------------------------------- */}
+      {/* Auth content                                                            */}
+      {/* ---------------------------------------------------------------------- */}
       <motion.div
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, ease: "easeOut", delay: 0.5 }}
-        className="relative z-10 flex flex-col items-center justify-start h-full pt-40 px-4 md:pt-24"
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="
+          relative z-10
+          flex flex-col items-center
+          px-4 pt-28 md:pt-24
+          w-full
+        "
+        style={{
+          height: viewportHeight ? `${viewportHeight}px` : "100vh",
+        }}
       >
-        <div className="w-full max-w-md bg-black/30 backdrop-blur-md p-8 rounded-2xl shadow-lg">
+        <div
+          ref={containerRef}
+          className={`
+            w-full max-w-md
+            bg-black/30 backdrop-blur-md
+            p-6 rounded-2xl shadow-lg
+
+            ${isOverflowing ? "overflow-y-auto overscroll-contain" : ""}
+            max-h-full
+          `}
+        >
           {children}
         </div>
       </motion.div>
