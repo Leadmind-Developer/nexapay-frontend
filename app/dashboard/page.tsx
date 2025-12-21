@@ -34,57 +34,71 @@ export default function DashboardPage() {
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
 
-  /* ----------------------------- Fetch user data ---------------------------- */
-  const fetchUserData = useCallback(async () => {
-  try {
-    setLoading(true);
-
-    // Fetch wallet info for balance & VA
-    const walletRes = await api.get("/wallet/me");
-    if (walletRes.data?.success) {
-      const wallet = walletRes.data.wallet;
-      setBalance(wallet.balance / 100); // Convert KOBO → NAIRA
-
-      if (walletRes.data.virtualAccount) {
-        const va = walletRes.data.virtualAccount;
-        setVirtualAccount({
-          number: va.accountNumber,
-          bank: va.bankName,
-          name: va.accountName,
-        });
-      } else {
-        setVirtualAccount(null);
+  /* ----------------------------- Fetch user info ---------------------------- */
+  const fetchUser = useCallback(async () => {
+    try {
+      const res = await api.get("/user/me");
+      if (res.data?.success) {
+        const u = res.data.user;
+        const first =
+          u.name?.split(" ")?.[0] ||
+          u.email?.split("@")?.[0] ||
+          "User";
+        setFirstName(first);
       }
+    } catch (err) {
+      console.error("Failed to fetch user info:", err);
     }
+  }, []);
 
-    // Fetch user info just for display name
-    const userRes = await api.get("/user/me");
-    if (userRes.data?.success) {
-      const u = userRes.data.user;
-      const first =
-        u.name?.split(" ")?.[0] ||
-        u.email?.split("@")?.[0] ||
-        "User";
-      setFirstName(first);
+  /* ----------------------------- Fetch wallet info ---------------------------- */
+  const fetchWallet = useCallback(async () => {
+    try {
+      const res = await api.get("/wallet/me");
+      if (res.data?.success) {
+        const wallet = res.data.wallet;
+
+        // Convert KOBO → NAIRA
+        if (typeof wallet.balance === "number") {
+          setBalance(wallet.balance / 100);
+        }
+
+        // Virtual account
+        if (res.data.virtualAccount) {
+          const va = res.data.virtualAccount;
+          setVirtualAccount({
+            number: va.accountNumber,
+            bank: va.bankName,
+            name: va.accountName,
+          });
+        } else {
+          setVirtualAccount(null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch wallet info:", err);
     }
-  } catch (err) {
-    console.error("Failed to fetch dashboard data:", err);
-  } finally {
-    setLoading(false);
-  }
-}, []);
+  }, []);
 
   /* ------------------------- Auto-refresh on focus ------------------------- */
   useEffect(() => {
-    fetchUserData();
+    setLoading(true);
+
+    const loadData = async () => {
+      await Promise.all([fetchUser(), fetchWallet()]);
+      setLoading(false);
+    };
+
+    loadData();
 
     const handleFocus = () => {
-      fetchUserData();
+      fetchUser();
+      fetchWallet();
     };
 
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [fetchUserData]);
+  }, [fetchUser, fetchWallet]);
 
   /* ----------------------------- UI Config ----------------------------- */
   const quickActions = [
