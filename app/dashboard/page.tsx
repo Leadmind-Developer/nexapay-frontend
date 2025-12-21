@@ -111,7 +111,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <a
-                href="/setupnairaaccount"
+                href="/dashboard/setupnairaaccount"
                 className="mt-4 inline-block bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg"
               >
                 Create Naira Account
