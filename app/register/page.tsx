@@ -4,10 +4,7 @@ import AuthForm from "@/components/AuthForm";
 
 export default function RegisterPage() {
   return (
-    <AuthPage
-      videoSrc="/videos/register-bg.mp4"
-      imageSrc="/images/register-bg.jpg" // desktop still image
-    >
+    <AuthPage videoSrc="" imageSrc="">
       <AuthForm mode="register" />
     </AuthPage>
   );
