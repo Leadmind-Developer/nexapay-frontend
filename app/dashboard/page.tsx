@@ -32,7 +32,6 @@ export default function DashboardPage() {
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
 
-  // ------------------------- Fetch Wallet -------------------------
   const fetchWallet = useCallback(async () => {
     try {
       if (!refreshing) setLoading(true);
@@ -41,21 +40,17 @@ export default function DashboardPage() {
       if (!userRes.data?.success) return;
 
       const u = userRes.data.user;
-      const first = u.name?.split(" ")[0] || u.email?.split("@")[0] || "User";
-      setFirstName(first);
+      setFirstName(u.name?.split(" ")[0] || u.email?.split("@")[0] || "User");
 
       const walletRes = await api.get("/wallet");
-      const walletBalance = walletRes.data?.balance ?? 0;
-      setBalance(walletBalance / 100);
+      setBalance((walletRes.data?.balance ?? 0) / 100);
 
       if (u.virtualAccount) {
         setVirtualAccount({
           number: u.virtualAccount.accountNumber,
           bank: u.virtualAccount.bank,
         });
-      } else {
-        setVirtualAccount(null);
-      }
+      } else setVirtualAccount(null);
     } catch (err) {
       console.error("Failed to fetch wallet data:", err);
     } finally {
@@ -64,12 +59,10 @@ export default function DashboardPage() {
     }
   }, [refreshing]);
 
-  // ------------------------- Auto-refresh & focus -------------------------
   useEffect(() => {
     fetchWallet();
     const handleFocus = () => fetchWallet();
     window.addEventListener("focus", handleFocus);
-
     const interval = setInterval(fetchWallet, 30000);
 
     return () => {
@@ -83,7 +76,6 @@ export default function DashboardPage() {
     fetchWallet();
   };
 
-  // ------------------------- UI Data -------------------------
   const quickActions = [
     { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26} /> },
     { title: "Withdraw", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
@@ -99,7 +91,6 @@ export default function DashboardPage() {
     { title: "More", screen: "/dashboard/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
   ];
 
-  // ------------------------- Loading -------------------------
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
@@ -108,9 +99,9 @@ export default function DashboardPage() {
     );
   }
 
-  // ------------------------- Render -------------------------
   return (
-    <div className="flex-1 overflow-auto max-h-screen p-6">
+    // Wrap in div with flex-1 and overflow-auto to make page scrollable
+    <div className="flex-1 overflow-auto p-6 max-h-screen">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Greeting & Balance */}
         <div className="bg-blue-600 p-6 rounded-2xl shadow-md text-white">
@@ -140,12 +131,13 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Virtual Account */}
           {virtualAccount ? (
             <div className="mt-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-4 rounded-lg flex justify-between items-center">
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-300">Virtual Account</p>
-                <p className="font-semibold">{virtualAccount.bank} • {virtualAccount.number}</p>
+                <p className="font-semibold">
+                  {virtualAccount.bank} • {virtualAccount.number}
+                </p>
               </div>
               <button
                 onClick={() => {
