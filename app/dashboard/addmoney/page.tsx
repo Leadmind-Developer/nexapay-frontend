@@ -17,7 +17,6 @@ export default function AddMoneyPage() {
   const [balance, setBalance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
-  /* ---------------- Fetch user + wallet ---------------- */
   const fetchUserAndWallet = async () => {
     try {
       if (!refreshing) setLoading(true);
@@ -27,17 +26,12 @@ export default function AddMoneyPage() {
       if (userRes.data.success) {
         const u = userRes.data.user;
 
-        // Normalize virtual account
         let va: VirtualAccount | null = null;
         if (u.virtualAccount || u.titanAccountNumber) {
           va = {
             accountNumber: u.virtualAccount?.accountNumber || u.titanAccountNumber,
-            bankName:
-              u.virtualAccount?.bank || u.virtualAccount?.bankName || u.titanBankName || "N/A",
-            accountName:
-              u.virtualAccount?.name ||
-              `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
-              "N/A",
+            bankName: u.virtualAccount?.bank || u.virtualAccount?.bankName || u.titanBankName || "N/A",
+            accountName: u.virtualAccount?.name || `${u.firstName || ""} ${u.lastName || ""}`.trim() || "N/A",
           };
         }
 
@@ -45,8 +39,9 @@ export default function AddMoneyPage() {
       }
 
       // Fetch wallet
-      const walletRes = await api.get("/wallet/me");
-      if (walletRes.data.success) setBalance(walletRes.data.wallet.balance ?? 0);
+      const walletRes = await api.get("/wallet"); // <- use /wallet, not /wallet/me
+      const walletData = walletRes.data?.wallet;
+      if (walletData) setBalance(walletData.balance ?? 0);
     } catch (err) {
       console.error("Failed to load user/wallet:", err);
       alert("Failed to load wallet or user data");
@@ -60,7 +55,6 @@ export default function AddMoneyPage() {
     fetchUserAndWallet();
   }, []);
 
-  /* ---------------- Create Virtual Account ---------------- */
   const handleCreateVA = async () => {
     try {
       setLoading(true);
@@ -79,7 +73,6 @@ export default function AddMoneyPage() {
     }
   };
 
-  /* ---------------- Copy VA details ---------------- */
   const handleVACopy = () => {
     if (!user?.virtualAccount) return;
     const va = user.virtualAccount;
@@ -89,7 +82,6 @@ export default function AddMoneyPage() {
     alert("Virtual account details copied.\n\nMake a bank transfer to fund your wallet.");
   };
 
-  /* ---------------- Confirm transfer ---------------- */
   const handleConfirmTransfer = async () => {
     const sent = confirm("Have you sent the money to the virtual account?");
     if (sent) {
@@ -100,7 +92,6 @@ export default function AddMoneyPage() {
     }
   };
 
-  /* ---------------- Loading ---------------- */
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -109,7 +100,6 @@ export default function AddMoneyPage() {
     );
   }
 
-  /* ---------------- Render ---------------- */
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6">
       {/* Wallet Balance */}
