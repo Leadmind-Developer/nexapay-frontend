@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import api from "@/lib/api";
-import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 
 /* ================= TYPES ================= */
@@ -141,7 +140,7 @@ export default function DataPurchasePage() {
     }
   };
 
-  /* ================= VERIFY (ONE-TIME) ================= */
+  /* ================= VERIFY PAYSTACK + TRIGGER VTpass ================= */
   useEffect(() => {
     const url = new URL(window.location.href);
     const ref = url.searchParams.get("ref");
@@ -150,139 +149,162 @@ export default function DataPurchasePage() {
     url.searchParams.delete("ref");
     window.history.replaceState({}, "", url.toString());
 
-    const verify = async () => {
+    const verifyAndPurchase = async () => {
       try {
         setStage("pending");
-        const res = await api.get(`/paystack/verify/${ref}`);
-        setStage(res.data.status === "success" ? "success" : "error");
+
+        // Verify Paystack payment
+        const paystackRes = await api.get(`/paystack/verify/${ref}`);
+        if (paystackRes.data.status !== "success") {
+          setStage("error");
+          return;
+        }
+
+        // Trigger VTpass purchase
+        if (!provider || !selectedVar) {
+          setStage("error");
+          return;
+        }
+
+        await api.post(
+          "/vtpass/data/purchase",
+          {
+            provider: provider.value,
+            billersCode: phone,
+            variation_code: selectedVar.variation_code,
+            amount: selectedVar.variation_amount,
+          },
+          { withCredentials: true } // include JWT if using cookies
+        );
+
+        setStage("success");
+        saveRecentPhone(phone);
       } catch {
         setStage("error");
       }
     };
 
-    verify();
+    verifyAndPurchase();
   }, []);
 
   return (
-    <ResponsiveLandingWrapper>
-      <BannersWrapper page="data">
-        <div className="max-w-md mx-auto px-4 text-gray-900 dark:text-gray-100">
+    <BannersWrapper page="data">
+      <div className="max-w-md mx-auto px-4 text-gray-900 dark:text-gray-100">
 
-          {/* ===== FORM ===== */}
-          {stage === "form" && (
-            <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
-              <h2 className="text-xl font-bold">Buy Data</h2>
+        {/* ===== FORM ===== */}
+        {stage === "form" && (
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
+            <h2 className="text-xl font-bold">Buy Data</h2>
 
-              <input
-                value={phone}
-                onChange={e => setPhone(normalizePhone(e.target.value))}
-                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-                placeholder="Phone Number"
-              />
+            <input
+              value={phone}
+              onChange={e => setPhone(normalizePhone(e.target.value))}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+              placeholder="Phone Number"
+            />
 
-              <input
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-                placeholder="Email"
-              />
+            <input
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+              placeholder="Email"
+            />
 
-              <div className="grid grid-cols-3 gap-3">
-                {PROVIDERS.map(p => (
-                  <button
-                    key={p.value}
-                    onClick={() => loadVariations(p)}
-                    className={`border rounded-lg p-3 flex flex-col items-center
-                      ${provider?.value === p.value ? "border-yellow-500 ring-2 ring-yellow-400" : "dark:border-gray-700"}`}
-                  >
-                    <Image src={p.icon} alt={p.label} width={36} height={36} />
-                    <span className="text-xs mt-1 font-semibold">{p.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {variations.length > 0 && (
-                <select
-                  className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-                  value={selectedVar?.variation_code || ""}
-                  onChange={e =>
-                    setSelectedVar(
-                      variations.find(v => v.variation_code === e.target.value) || null
-                    )
-                  }
+            <div className="grid grid-cols-3 gap-3">
+              {PROVIDERS.map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => loadVariations(p)}
+                  className={`border rounded-lg p-3 flex flex-col items-center
+                    ${provider?.value === p.value ? "border-yellow-500 ring-2 ring-yellow-400" : "dark:border-gray-700"}`}
                 >
-                  <option value="">Select Data Bundle</option>
-                  {variations.map(v => (
-                    <option key={v.variation_code} value={v.variation_code}>
-                      {v.name} — ₦{v.variation_amount}
-                    </option>
-                  ))}
-                </select>
-              )}
+                  <Image src={p.icon} alt={p.label} width={36} height={36} />
+                  <span className="text-xs mt-1 font-semibold">{p.label}</span>
+                </button>
+              ))}
+            </div>
 
-              <button
-                disabled={!provider || !phone || !email || !selectedVar}
-                onClick={() => setStage("review")}
-                className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
+            {variations.length > 0 && (
+              <select
+                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+                value={selectedVar?.variation_code || ""}
+                onChange={e =>
+                  setSelectedVar(
+                    variations.find(v => v.variation_code === e.target.value) || null
+                  )
+                }
               >
-                Review
+                <option value="">Select Data Bundle</option>
+                {variations.map(v => (
+                  <option key={v.variation_code} value={v.variation_code}>
+                    {v.name} — ₦{v.variation_amount}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <button
+              disabled={!provider || !phone || !email || !selectedVar}
+              onClick={() => setStage("review")}
+              className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
+            >
+              Review
+            </button>
+          </div>
+        )}
+
+        {/* ===== REVIEW ===== */}
+        {stage === "review" && (
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-3 shadow">
+            <p><b>Provider:</b> {provider?.label}</p>
+            <p><b>Phone:</b> {phone}</p>
+            <p><b>Plan:</b> {selectedVar?.name}</p>
+            <p><b>Amount:</b> ₦{selectedVar?.variation_amount}</p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStage("form")}
+                className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
+              >
+                Back
+              </button>
+              <button
+                onClick={initializePayment}
+                className="flex-1 bg-yellow-500 text-white py-3 rounded"
+              >
+                Pay
               </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ===== REVIEW ===== */}
-          {stage === "review" && (
-            <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-3 shadow">
-              <p><b>Provider:</b> {provider?.label}</p>
-              <p><b>Phone:</b> {phone}</p>
-              <p><b>Plan:</b> {selectedVar?.name}</p>
-              <p><b>Amount:</b> ₦{selectedVar?.variation_amount}</p>
+        {(stage === "paying" || stage === "pending") && (
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow">
+            {stage === "paying" ? "Redirecting to Paystack…" : "Processing…"}
+          </div>
+        )}
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setStage("form")}
-                  className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={initializePayment}
-                  className="flex-1 bg-yellow-500 text-white py-3 rounded"
-                >
-                  Pay
-                </button>
-              </div>
-            </div>
-          )}
+        {stage === "success" && (
+          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center">
+            <h2 className="text-xl font-bold">Data Purchase Successful 🎉</h2>
+          </div>
+        )}
 
-          {(stage === "paying" || stage === "pending") && (
-            <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow">
-              {stage === "paying" ? "Redirecting to Paystack…" : "Processing…"}
-            </div>
-          )}
+        {stage === "error" && (
+          <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
+            <h2 className="text-lg font-bold">Transaction Status Unclear</h2>
+            <p className="text-sm">Your payment may have gone through, but we couldn’t confirm it.</p>
+            <p className="text-sm font-semibold">❗ Please do NOT retry this transaction.</p>
+            <a
+              href="/support"
+              className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
+            >
+              Contact Support
+            </a>
+          </div>
+        )}
 
-          {stage === "success" && (
-            <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center">
-              <h2 className="text-xl font-bold">Data Purchase Successful 🎉</h2>
-            </div>
-          )}
-
-          {stage === "error" && (
-            <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
-              <h2 className="text-lg font-bold">Transaction Status Unclear</h2>
-              <p className="text-sm">Your payment may have gone through, but we couldn’t confirm it.</p>
-              <p className="text-sm font-semibold">❗ Please do NOT retry this transaction.</p>
-              <a
-                href="/support"
-                className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
-              >
-                Contact Support
-              </a>
-            </div>
-          )}
-
-        </div>
-      </BannersWrapper>
-    </ResponsiveLandingWrapper>
+      </div>
+    </BannersWrapper>
   );
 }
