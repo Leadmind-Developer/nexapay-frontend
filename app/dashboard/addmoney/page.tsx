@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-/* ------------------------------- Types ----------------------------------- */
 interface VirtualAccount {
   accountNumber: string;
   bankName: string;
@@ -16,11 +15,12 @@ export default function AddMoneyPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [balance, setBalance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
-  /* --------------------------- Fetch user + wallet ------------------------ */
+  /* ---------------- Fetch user + wallet ---------------- */
   const fetchUserAndWallet = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) setLoading(true);
 
       // Fetch user
       const userRes = await api.get("/user/me");
@@ -32,8 +32,12 @@ export default function AddMoneyPage() {
         if (u.virtualAccount || u.titanAccountNumber) {
           va = {
             accountNumber: u.virtualAccount?.accountNumber || u.titanAccountNumber,
-            bankName: u.virtualAccount?.bank || u.virtualAccount?.bankName || u.titanBankName || "N/A",
-            accountName: u.virtualAccount?.name || `${u.firstName || ""} ${u.lastName || ""}`.trim() || "N/A",
+            bankName:
+              u.virtualAccount?.bank || u.virtualAccount?.bankName || u.titanBankName || "N/A",
+            accountName:
+              u.virtualAccount?.name ||
+              `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+              "N/A",
           };
         }
 
@@ -42,12 +46,13 @@ export default function AddMoneyPage() {
 
       // Fetch wallet
       const walletRes = await api.get("/wallet/me");
-      if (walletRes.data.success) setBalance(walletRes.data.wallet.balance);
+      if (walletRes.data.success) setBalance(walletRes.data.wallet.balance ?? 0);
     } catch (err) {
       console.error("Failed to load user/wallet:", err);
       alert("Failed to load wallet or user data");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -55,7 +60,7 @@ export default function AddMoneyPage() {
     fetchUserAndWallet();
   }, []);
 
-  /* -------------------------- Create Virtual Account ---------------------- */
+  /* ---------------- Create Virtual Account ---------------- */
   const handleCreateVA = async () => {
     try {
       setLoading(true);
@@ -74,7 +79,7 @@ export default function AddMoneyPage() {
     }
   };
 
-  /* -------------------------- Copy VA details ----------------------------- */
+  /* ---------------- Copy VA details ---------------- */
   const handleVACopy = () => {
     if (!user?.virtualAccount) return;
     const va = user.virtualAccount;
@@ -84,17 +89,18 @@ export default function AddMoneyPage() {
     alert("Virtual account details copied.\n\nMake a bank transfer to fund your wallet.");
   };
 
-  /* -------------------------- Confirm transfer ---------------------------- */
+  /* ---------------- Confirm transfer ---------------- */
   const handleConfirmTransfer = async () => {
     const sent = confirm("Have you sent the money to the virtual account?");
     if (sent) {
+      setRefreshing(true);
       await fetchUserAndWallet();
       alert("Balance updated!");
       router.push("/dashboard");
     }
   };
 
-  /* -------------------------------- Loading -------------------------------- */
+  /* ---------------- Loading ---------------- */
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -103,10 +109,10 @@ export default function AddMoneyPage() {
     );
   }
 
-  /* -------------------------------- Render -------------------------------- */
+  /* ---------------- Render ---------------- */
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6">
-      {/* ---------------- Wallet Balance ---------------- */}
+      {/* Wallet Balance */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow text-center">
         <h2 className="text-xl font-bold text-gray-700 dark:text-gray-200">Wallet Balance</h2>
         <p className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -114,7 +120,7 @@ export default function AddMoneyPage() {
         </p>
       </div>
 
-      {/* ---------------- Virtual Account ---------------- */}
+      {/* Virtual Account */}
       {user?.virtualAccount ? (
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-2xl shadow-lg relative">
           <h3 className="font-semibold text-lg mb-4">Virtual Account</h3>
