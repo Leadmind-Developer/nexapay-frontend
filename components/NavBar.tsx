@@ -1,4 +1,5 @@
 "use client";
+
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { usePathname } from "next/navigation";
@@ -8,15 +9,25 @@ import api from "@/lib/api";
 export default function NavBar() {
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState("User");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    const user = localStorage.getItem("userName");
-    if (token) {
-      setIsLoggedIn(true);
-      setUserName(user || "User");
-    }
+    const checkAuth = async () => {
+      try {
+        const res = await api.get("/user/me");
+        if (res.data?.success) {
+          setIsLoggedIn(true);
+          setUserName(res.data.user.firstName || "User");
+        }
+      } catch {
+        setIsLoggedIn(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   const publicNav = [
@@ -34,14 +45,7 @@ export default function NavBar() {
 
   const handleLogout = async () => {
     try {
-      // Call backend logout to clear cookies
       await api.post("/auth/logout");
-
-      // Clear any frontend state
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("userName");
-
-      // Redirect to login page
       window.location.href = "/login";
     } catch (err) {
       console.error("Logout failed:", err);
@@ -49,22 +53,25 @@ export default function NavBar() {
     }
   };
 
+  if (loading) return null; // prevents flicker
+
   const navItems = isLoggedIn ? dashboardNav : publicNav;
 
   return (
     <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Left side */}
+        {/* Left */}
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <Link href="/" className="text-lg font-semibold">
             NexaApp
           </Link>
+
           <nav className="hidden md:flex items-center gap-4">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`text-sm transition ${
+                className={`text-sm ${
                   pathname === item.href
                     ? "text-blue-500 font-medium"
                     : "text-gray-600 dark:text-gray-300 hover:text-blue-500"
@@ -76,7 +83,7 @@ export default function NavBar() {
           </nav>
         </div>
 
-        {/* Right side */}
+        {/* Right */}
         <div className="flex items-center gap-3">
           {isLoggedIn ? (
             <>
