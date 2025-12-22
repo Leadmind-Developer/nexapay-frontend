@@ -21,7 +21,6 @@ import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 import api from "@/lib/api";
 
-/* ----------------------------- Types ----------------------------- */
 interface VirtualAccount {
   number: string;
   bank: string;
@@ -35,21 +34,23 @@ export default function DashboardPage() {
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
 
-  /* ------------------------- Fetch User Data ------------------------- */
-  const fetchUserData = useCallback(async () => {
+  // ------------------------- Fetch Wallet -------------------------
+  const fetchWallet = useCallback(async () => {
     try {
       if (!refreshing) setLoading(true);
-      const res = await api.get("/user/me");
-      if (!res.data?.success) return;
 
-      const u = res.data.user;
+      // Fetch user info
+      const userRes = await api.get("/user/me");
+      if (!userRes.data?.success) return;
 
-      // First name
+      const u = userRes.data.user;
       const first = u.name?.split(" ")[0] || u.email?.split("@")[0] || "User";
       setFirstName(first);
 
-      // Wallet balance
-      setBalance((u.balance ?? 0) / 100);
+      // Fetch wallet balance from /wallet
+      const walletRes = await api.get("/wallet");
+      const walletBalance = walletRes.data?.balance ?? 0;
+      setBalance(walletBalance / 100);
 
       // Virtual account
       if (u.virtualAccount) {
@@ -61,26 +62,34 @@ export default function DashboardPage() {
         setVirtualAccount(null);
       }
     } catch (err) {
-      console.error("Failed to fetch dashboard data:", err);
+      console.error("Failed to fetch wallet data:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [refreshing]);
 
+  // ------------------------- Auto-refresh & focus -------------------------
   useEffect(() => {
-    fetchUserData();
-    const handleFocus = () => fetchUserData();
+    fetchWallet();
+
+    const handleFocus = () => fetchWallet();
     window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [fetchUserData]);
+
+    const interval = setInterval(fetchWallet, 30000); // refresh every 30s
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(interval);
+    };
+  }, [fetchWallet]);
 
   const refreshBalance = () => {
     setRefreshing(true);
-    fetchUserData();
+    fetchWallet();
   };
 
-  /* ----------------------------- UI Config ----------------------------- */
+  // ------------------------- UI Data -------------------------
   const quickActions = [
     { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26} /> },
     { title: "Withdraw", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
@@ -96,22 +105,20 @@ export default function DashboardPage() {
     { title: "More", screen: "/dashboard/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
   ];
 
-  /* ------------------------------ Loading ------------------------------ */
+  // ------------------------- Loading -------------------------
   if (loading) {
     return (
       <ResponsiveLandingWrapper>
         <BannersWrapper page="dashboard">
           <div className="flex justify-center items-center h-[60vh]">
-            <p className="text-gray-400 dark:text-gray-300 animate-pulse">
-              Loading dashboard…
-            </p>
+            <p className="text-gray-400 dark:text-gray-300 animate-pulse">Loading dashboard…</p>
           </div>
         </BannersWrapper>
       </ResponsiveLandingWrapper>
     );
   }
 
-  /* ------------------------------ Render ------------------------------ */
+  // ------------------------- Render -------------------------
   return (
     <ResponsiveLandingWrapper>
       <BannersWrapper page="dashboard">
@@ -120,8 +127,11 @@ export default function DashboardPage() {
           <div className="bg-blue-600 p-6 rounded-2xl shadow-md text-white">
             <div className="flex justify-between items-center">
               <p className="text-sm opacity-90">Welcome back, {firstName}</p>
-              {/* Refresh Button */}
-              <button onClick={refreshBalance} disabled={refreshing} className="flex items-center gap-1 text-sm opacity-80 hover:opacity-100">
+              <button
+                onClick={refreshBalance}
+                disabled={refreshing}
+                className="flex items-center gap-1 text-sm opacity-80 hover:opacity-100"
+              >
                 <IoRefreshOutline size={20} className={refreshing ? "animate-spin" : ""} />
                 <span>Refresh</span>
               </button>
