@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   IoAddCircleOutline,
@@ -59,16 +59,9 @@ export default function DashboardPage() {
     }
   }, [refreshing]);
 
-  useEffect(() => {
+  // Initial fetch only once on mount
+  React.useEffect(() => {
     fetchWallet();
-    const handleFocus = () => fetchWallet();
-    window.addEventListener("focus", handleFocus);
-    const interval = setInterval(fetchWallet, 30000);
-
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      clearInterval(interval);
-    };
   }, [fetchWallet]);
 
   const refreshBalance = () => {
@@ -100,7 +93,6 @@ export default function DashboardPage() {
   }
 
   return (
-    // Wrap in div with flex-1 and overflow-auto to make page scrollable
     <div className="flex-1 overflow-auto p-6 max-h-screen">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Greeting & Balance */}
