@@ -91,6 +91,61 @@ export default function NavBar() {
 
   return (
     <>
+      {/* Desktop Header */}
+      <header className="hidden md:flex items-center justify-between bg-white dark:bg-gray-800 px-6 py-3 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+        <Link href="/" className="flex items-center gap-2">
+          <img src="/logo.png" alt="NexaApp" className="w-8 h-8 object-contain" />
+          <span className="font-bold text-lg text-gray-900 dark:text-gray-100">NexaApp</span>
+        </Link>
+        <nav className="flex items-center gap-2">
+          {dashboardLinks.map((link) =>
+            !link.children ? (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex items-center gap-1 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${pathname === link.href ? "bg-gray-100 dark:bg-gray-700 font-semibold" : ""}`}
+              >
+                {link.icon}
+                <span>{link.name}</span>
+              </Link>
+            ) : (
+              <div key={link.name} className="relative">
+                <button
+                  onClick={() => setMoreOpen(!moreOpen)}
+                  className="flex items-center gap-1 px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  {link.icon}
+                  <span>{link.name}</span>
+                  {moreOpen ? <IoChevronUpOutline /> : <IoChevronDownOutline />}
+                </button>
+                {moreOpen && (
+                  <div className="absolute right-0 mt-2 w-56 max-h-64 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md z-50">
+                    {link.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={`flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 ${pathname === child.href ? "font-semibold text-blue-500" : ""}`}
+                      >
+                        {child.icon && child.icon}
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          )}
+          <ThemeToggle />
+          {isLoggedIn && (
+            <div className="ml-4">
+              <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded-md text-sm">
+                Logout
+              </button>
+            </div>
+          )}
+        </nav>
+      </header>
+
       {/* Mobile Top Navbar */}
       <header className="md:hidden flex items-center justify-between bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="flex items-center gap-2">
@@ -105,7 +160,7 @@ export default function NavBar() {
         </div>
       </header>
 
-      {/* Sidebar */}
+      {/* Mobile Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <Link href="/" className="flex items-center gap-2">
@@ -117,7 +172,6 @@ export default function NavBar() {
           </button>
         </div>
 
-        {/* Scrollable sidebar nav */}
         <nav className="flex-1 overflow-y-auto mt-4 px-0">
           {dashboardLinks.map((link) => (
             <div key={link.name}>
@@ -129,8 +183,6 @@ export default function NavBar() {
                 <span className="flex-1">{link.name}</span>
                 {link.children && (moreOpen ? <IoChevronUpOutline /> : <IoChevronDownOutline />)}
               </button>
-
-              {/* Scrollable More dropdown */}
               {link.children && moreOpen && (
                 <div className="ml-6 max-h-64 overflow-y-auto flex flex-col border-l border-gray-200 dark:border-gray-700">
                   {link.children.map((child) => (
@@ -159,10 +211,7 @@ export default function NavBar() {
         )}
       </aside>
 
-      {/* Overlay for mobile sidebar */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-30 bg-black bg-opacity-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>
-      )}
+      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black bg-opacity-30 md:hidden" onClick={() => setSidebarOpen(false)} />}
     </>
   );
 }
