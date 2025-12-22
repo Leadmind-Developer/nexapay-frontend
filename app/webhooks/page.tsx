@@ -5,12 +5,12 @@ import api from "@/lib/api";
 const fetcher = (url: string) => api.get(url).then(r => r.data);
 
 export default function WebhooksPage() {
-  const { data, error, mutate } = useSWR("/webhook", fetcher, {
+  const { data, error, mutate } = useSWR("/hookreport", fetcher, {
     refreshInterval: 5000,
   });
 
   async function replay(id: number) {
-    await api.post(`/webhook/${id}/replay`);
+    await api.post(`/hookreport/${id}/replay`);
     mutate();
   }
 
