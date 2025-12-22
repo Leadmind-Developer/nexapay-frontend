@@ -18,7 +18,7 @@ type Provider = {
   icon: string;
 };
 
-type Stage = "form" | "review" | "paying" | "pending" | "success" | "error";
+type Stage = "form" | "review" | "processing" | "success" | "error";
 
 /* ================= PROVIDERS ================= */
 const PROVIDERS: Provider[] = [
@@ -56,19 +56,6 @@ export default function DataPurchasePage() {
 
   const [variations, setVariations] = useState<Variation[]>([]);
   const [selectedVar, setSelectedVar] = useState<Variation | null>(null);
-
-  const [recentPhones, setRecentPhones] = useState<string[]>([]);
-
-  /* ================= RECENTS ================= */
-  useEffect(() => {
-    setRecentPhones(JSON.parse(localStorage.getItem("recentDataPhones") || "[]"));
-  }, []);
-
-  const saveRecentPhone = (num: string) => {
-    const updated = [num, ...recentPhones.filter(p => p !== num)].slice(0, 5);
-    localStorage.setItem("recentDataPhones", JSON.stringify(updated));
-    setRecentPhones(updated);
-  };
 
   /* ================= AUTO PROVIDER (PHONE) ================= */
   useEffect(() => {
@@ -110,82 +97,40 @@ export default function DataPurchasePage() {
     }
   };
 
-  /* ================= PAYSTACK ================= */
-  const initializePayment = async () => {
+  /* ================= CHECKOUT (WALLET FIRST) ================= */
+  const checkout = async () => {
     if (!provider || !selectedVar) return;
 
     try {
-      setStage("paying");
-      saveRecentPhone(phone);
+      setStage("processing");
 
-      const reference = `DATA-${Date.now()}`;
-
-      const init = await api.post("/paystack/initialize", {
-        email,
-        amount: selectedVar.variation_amount * 100,
-        reference,
-        metadata: {
-          purpose: "data_purchase",
+      const res = await api.post(
+        "/data/checkout",
+        {
           provider: provider.value,
           billersCode: phone,
           variation_code: selectedVar.variation_code,
         },
-        callback_url: `${window.location.origin}/data?ref=${reference}`,
-      });
+        { withCredentials: true }
+      );
 
-      window.location.href = init.data.data.authorization_url;
+      // Wallet was sufficient → VTpass triggered server-side
+      if (res.data.status === "success") {
+        setStage("success");
+        return;
+      }
+
+      // Wallet insufficient → Paystack required
+      if (res.data.status === "paystack") {
+        window.location.href = res.data.authorization_url;
+        return;
+      }
+
+      setStage("error");
     } catch {
-      setStage("form");
-      alert("Payment failed to initialize");
+      setStage("error");
     }
   };
-
-  /* ================= VERIFY PAYSTACK + TRIGGER VTpass ================= */
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const ref = url.searchParams.get("ref");
-    if (!ref) return;
-
-    url.searchParams.delete("ref");
-    window.history.replaceState({}, "", url.toString());
-
-    const verifyAndPurchase = async () => {
-      try {
-        setStage("pending");
-
-        // Verify Paystack payment
-        const paystackRes = await api.get(`/paystack/verify/${ref}`);
-        if (paystackRes.data.status !== "success") {
-          setStage("error");
-          return;
-        }
-
-        // Trigger VTpass purchase
-        if (!provider || !selectedVar) {
-          setStage("error");
-          return;
-        }
-
-        await api.post(
-          "/vtpass/data/purchase",
-          {
-            provider: provider.value,
-            billersCode: phone,
-            variation_code: selectedVar.variation_code,
-            amount: selectedVar.variation_amount,
-          },
-          { withCredentials: true } // include JWT if using cookies
-        );
-
-        setStage("success");
-        saveRecentPhone(phone);
-      } catch {
-        setStage("error");
-      }
-    };
-
-    verifyAndPurchase();
-  }, []);
 
   return (
     <BannersWrapper page="data">
@@ -200,14 +145,14 @@ export default function DataPurchasePage() {
               value={phone}
               onChange={e => setPhone(normalizePhone(e.target.value))}
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-              placeholder="Phone Number"
+              placeholder="Phone Number or Smile Email"
             />
 
             <input
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-              placeholder="Email"
+              placeholder="Receipt Email"
             />
 
             <div className="grid grid-cols-3 gap-3">
@@ -216,7 +161,9 @@ export default function DataPurchasePage() {
                   key={p.value}
                   onClick={() => loadVariations(p)}
                   className={`border rounded-lg p-3 flex flex-col items-center
-                    ${provider?.value === p.value ? "border-yellow-500 ring-2 ring-yellow-400" : "dark:border-gray-700"}`}
+                    ${provider?.value === p.value
+                      ? "border-yellow-500 ring-2 ring-yellow-400"
+                      : "dark:border-gray-700"}`}
                 >
                   <Image src={p.icon} alt={p.label} width={36} height={36} />
                   <span className="text-xs mt-1 font-semibold">{p.label}</span>
@@ -257,7 +204,7 @@ export default function DataPurchasePage() {
         {stage === "review" && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-3 shadow">
             <p><b>Provider:</b> {provider?.label}</p>
-            <p><b>Phone:</b> {phone}</p>
+            <p><b>Recipient:</b> {phone}</p>
             <p><b>Plan:</b> {selectedVar?.name}</p>
             <p><b>Amount:</b> ₦{selectedVar?.variation_amount}</p>
 
@@ -269,7 +216,7 @@ export default function DataPurchasePage() {
                 Back
               </button>
               <button
-                onClick={initializePayment}
+                onClick={checkout}
                 className="flex-1 bg-yellow-500 text-white py-3 rounded"
               >
                 Pay
@@ -278,23 +225,27 @@ export default function DataPurchasePage() {
           </div>
         )}
 
-        {(stage === "paying" || stage === "pending") && (
+        {stage === "processing" && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow">
-            {stage === "paying" ? "Redirecting to Paystack…" : "Processing…"}
+            Processing your request…
           </div>
         )}
 
         {stage === "success" && (
           <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center">
             <h2 className="text-xl font-bold">Data Purchase Successful 🎉</h2>
+            <p className="text-sm mt-2">
+              Your data bundle is being delivered. You’ll receive confirmation shortly.
+            </p>
           </div>
         )}
 
         {stage === "error" && (
           <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
-            <h2 className="text-lg font-bold">Transaction Status Unclear</h2>
-            <p className="text-sm">Your payment may have gone through, but we couldn’t confirm it.</p>
-            <p className="text-sm font-semibold">❗ Please do NOT retry this transaction.</p>
+            <h2 className="text-lg font-bold">Something went wrong</h2>
+            <p className="text-sm">
+              Your wallet or payment may have been processed. Please check your transaction history.
+            </p>
             <a
               href="/support"
               className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
