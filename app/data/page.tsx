@@ -105,7 +105,7 @@ export default function DataPurchasePage() {
       setStage("processing");
 
       const res = await api.post(
-        "/data/checkout",
+        "/vtpass/data/checkout",
         {
           provider: provider.value,
           billersCode: phone,
