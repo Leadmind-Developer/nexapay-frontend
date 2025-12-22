@@ -29,7 +29,7 @@ interface NavLink {
 export default function NavBar() {
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState("User");
+  const [firstName, setFirstName] = useState("User");
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -40,7 +40,7 @@ export default function NavBar() {
         const res = await api.get("/user/me");
         if (res.data?.success) {
           setIsLoggedIn(true);
-          setUserName(res.data.user.firstName || "User");
+          setFirstName(res.data.user.name?.split(" ")[0] || "User");
         }
       } catch {
         setIsLoggedIn(false);
@@ -117,22 +117,22 @@ export default function NavBar() {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto mt-4">
+        {/* Scrollable sidebar nav */}
+        <nav className="flex-1 overflow-y-auto mt-4 px-0">
           {dashboardLinks.map((link) => (
             <div key={link.name}>
-              <Link
-                href={link.href !== "#" ? link.href : ""}
-                className={`flex items-center gap-3 px-6 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${pathname === link.href ? "bg-gray-100 dark:bg-gray-700 font-semibold" : ""}`}
+              <button
+                className={`flex items-center gap-3 w-full px-6 py-3 text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${pathname === link.href ? "bg-gray-100 dark:bg-gray-700 font-semibold" : ""}`}
                 onClick={() => link.children && setMoreOpen(!moreOpen)}
               >
                 {link.icon}
                 <span className="flex-1">{link.name}</span>
-                {link.children && (
-                  moreOpen ? <IoChevronUpOutline /> : <IoChevronDownOutline />
-                )}
-              </Link>
+                {link.children && (moreOpen ? <IoChevronUpOutline /> : <IoChevronDownOutline />)}
+              </button>
+
+              {/* Scrollable More dropdown */}
               {link.children && moreOpen && (
-                <div className="ml-6 flex flex-col">
+                <div className="ml-6 max-h-64 overflow-y-auto flex flex-col border-l border-gray-200 dark:border-gray-700">
                   {link.children.map((child) => (
                     <Link
                       key={child.href}
@@ -151,7 +151,7 @@ export default function NavBar() {
 
         {isLoggedIn && (
           <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <span className="block text-sm mb-2">Hi, {userName}</span>
+            <span className="block text-sm mb-2 font-medium">Welcome, {firstName}</span>
             <button onClick={handleLogout} className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm">
               Logout
             </button>
