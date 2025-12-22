@@ -17,7 +17,6 @@ import {
   IoCopyOutline,
   IoRefreshOutline,
 } from "react-icons/io5";
-import BannersWrapper from "@/components/BannersWrapper";
 import api from "@/lib/api";
 
 interface VirtualAccount {
@@ -26,14 +25,14 @@ interface VirtualAccount {
 }
 
 export default function DashboardPage() {
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState<number>(0);
   const [firstName, setFirstName] = useState("User");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
 
-  /* ------------------------- Fetch Wallet ------------------------- */
+  // ------------------------- Fetch Wallet -------------------------
   const fetchWallet = useCallback(async () => {
     try {
       if (!refreshing) setLoading(true);
@@ -42,14 +41,12 @@ export default function DashboardPage() {
       if (!userRes.data?.success) return;
 
       const u = userRes.data.user;
-      const first =
-        u.name?.split(" ")[0] ||
-        u.email?.split("@")[0] ||
-        "User";
+      const first = u.name?.split(" ")[0] || u.email?.split("@")[0] || "User";
       setFirstName(first);
 
       const walletRes = await api.get("/wallet");
-      setBalance((walletRes.data?.balance ?? 0) / 100);
+      const walletBalance = walletRes.data?.balance ?? 0;
+      setBalance(walletBalance / 100);
 
       if (u.virtualAccount) {
         setVirtualAccount({
@@ -60,23 +57,23 @@ export default function DashboardPage() {
         setVirtualAccount(null);
       }
     } catch (err) {
-      console.error("Failed to fetch wallet:", err);
+      console.error("Failed to fetch wallet data:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [refreshing]);
 
-  /* ------------------------- Auto refresh ------------------------- */
+  // ------------------------- Auto-refresh & focus -------------------------
   useEffect(() => {
     fetchWallet();
+    const handleFocus = () => fetchWallet();
+    window.addEventListener("focus", handleFocus);
 
-    const onFocus = () => fetchWallet();
-    window.addEventListener("focus", onFocus);
+    const interval = setInterval(fetchWallet, 30000);
 
-    const interval = setInterval(fetchWallet, 30_000);
     return () => {
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", handleFocus);
       clearInterval(interval);
     };
   }, [fetchWallet]);
@@ -86,62 +83,69 @@ export default function DashboardPage() {
     fetchWallet();
   };
 
-  /* ------------------------- Loading ------------------------- */
+  // ------------------------- UI Data -------------------------
+  const quickActions = [
+    { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26} /> },
+    { title: "Withdraw", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
+    { title: "Send Money", screen: "/dashboard/internaltransfer", icon: <IoPaperPlaneOutline size={26} /> },
+  ];
+
+  const services = [
+    { title: "Airtime", screen: "/airtime", color: "#4B7BE5", icon: <IoCallOutline size={22} /> },
+    { title: "Buy Data", screen: "/data", color: "#00A86B", icon: <IoWifiOutline size={22} /> },
+    { title: "Electricity", screen: "/electricity", color: "#FFB300", icon: <IoFlashOutline size={22} /> },
+    { title: "Pay TV", screen: "/cable", color: "#8A39E1", icon: <IoTvOutline size={22} /> },
+    { title: "Education", screen: "/education", color: "#1E90FF", icon: <IoBookOutline size={22} /> },
+    { title: "More", screen: "/dashboard/more", color: "#4B7BE5", icon: <IoGridOutline size={22} /> },
+  ];
+
+  // ------------------------- Loading -------------------------
   if (loading) {
     return (
-      <BannersWrapper page="dashboard">
-        <div className="flex justify-center items-center h-[60vh]">
-          <p className="animate-pulse text-gray-400">Loading dashboard…</p>
-        </div>
-      </BannersWrapper>
+      <div className="flex justify-center items-center h-[60vh]">
+        <p className="text-gray-400 dark:text-gray-300 animate-pulse">Loading dashboard…</p>
+      </div>
     );
   }
 
-  /* ------------------------- UI ------------------------- */
+  // ------------------------- Render -------------------------
   return (
-    <BannersWrapper page="dashboard">
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
-        {/* Balance Card */}
-        <div className="bg-blue-600 p-6 rounded-2xl text-white shadow">
+    <div className="flex-1 overflow-auto max-h-screen p-6">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* Greeting & Balance */}
+        <div className="bg-blue-600 p-6 rounded-2xl shadow-md text-white">
           <div className="flex justify-between items-center">
             <p className="text-sm opacity-90">Welcome back, {firstName}</p>
             <button
               onClick={refreshBalance}
               disabled={refreshing}
-              className="flex items-center gap-1 text-sm opacity-80"
+              className="flex items-center gap-1 text-sm opacity-80 hover:opacity-100"
             >
-              <IoRefreshOutline
-                size={18}
-                className={refreshing ? "animate-spin" : ""}
-              />
-              Refresh
+              <IoRefreshOutline size={20} className={refreshing ? "animate-spin" : ""} />
+              <span>Refresh</span>
             </button>
           </div>
 
-          <div className="flex justify-between items-center mt-3">
+          <div className="flex justify-between items-center mt-2">
             <div>
               <p className="text-xs opacity-80">Wallet Balance</p>
               <p className="text-3xl font-bold">
                 {hideBalance
                   ? "₦••••••"
-                  : `₦${balance.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                    })}`}
+                  : `₦${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
               </p>
             </div>
             <button onClick={() => setHideBalance(!hideBalance)}>
-              {hideBalance ? <IoEyeOffOutline size={24} /> : <IoEyeOutline size={24} />}
+              {hideBalance ? <IoEyeOffOutline size={26} /> : <IoEyeOutline size={26} />}
             </button>
           </div>
 
           {/* Virtual Account */}
           {virtualAccount ? (
-            <div className="mt-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-4 rounded-lg flex justify-between">
+            <div className="mt-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-4 rounded-lg flex justify-between items-center">
               <div>
-                <p className="text-xs text-gray-500">Virtual Account</p>
-                <p className="font-semibold">
-                  {virtualAccount.bank} • {virtualAccount.number}
-                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-300">Virtual Account</p>
+                <p className="font-semibold">{virtualAccount.bank} • {virtualAccount.number}</p>
               </div>
               <button
                 onClick={() => {
@@ -149,13 +153,13 @@ export default function DashboardPage() {
                   alert("Account number copied");
                 }}
               >
-                <IoCopyOutline size={18} />
+                <IoCopyOutline size={20} />
               </button>
             </div>
           ) : (
             <a
               href="/dashboard/setupnairaaccount"
-              className="inline-block mt-4 bg-white text-blue-600 font-semibold px-4 py-2 rounded-lg"
+              className="mt-4 inline-block bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 font-semibold py-2 px-4 rounded-lg"
             >
               Create Naira Account
             </a>
@@ -164,23 +168,44 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-3 gap-4">
-          {[
-            { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26} /> },
-            { title: "Withdraw", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
-            { title: "Send Money", screen: "/dashboard/internaltransfer", icon: <IoPaperPlaneOutline size={26} /> },
-          ].map((q, i) => (
+          {quickActions.map((q, i) => (
             <motion.a
               key={i}
               href={q.screen}
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
               className="bg-white dark:bg-gray-800 rounded-xl p-4 flex flex-col items-center shadow"
             >
               {q.icon}
-              <p className="mt-2 font-semibold text-sm">{q.title}</p>
+              <p className="text-sm font-semibold mt-2 text-gray-900 dark:text-gray-100">{q.title}</p>
             </motion.a>
           ))}
         </div>
+
+        {/* Services */}
+        <div>
+          <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">Services</h2>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+            {services.map((s, i) => (
+              <motion.a
+                key={i}
+                href={s.screen}
+                whileHover={{ scale: 1.05, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl shadow"
+              >
+                <div
+                  className="w-12 h-12 rounded-lg flex items-center justify-center mb-2"
+                  style={{ backgroundColor: s.color }}
+                >
+                  {s.icon}
+                </div>
+                <p className="text-xs font-semibold text-center text-gray-900 dark:text-gray-100">{s.title}</p>
+              </motion.a>
+            ))}
+          </div>
+        </div>
       </div>
-    </BannersWrapper>
+    </div>
   );
 }
