@@ -53,7 +53,7 @@ export default function NavBar() {
 
   const handleLogout = async () => {
     try {
-      await api.post("/auth/logout");
+      await api.post("/auth/web/logout");
       window.location.href = "/login";
     } catch (err) {
       console.error("Logout failed:", err);
