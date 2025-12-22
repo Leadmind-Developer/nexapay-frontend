@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useState } from "react";
 import {
   IoHomeOutline,
   IoPersonOutline,
@@ -14,7 +14,7 @@ import {
   IoChevronDownOutline,
   IoChevronUpOutline,
   IoMenuOutline,
-  IoCloseOutline,
+  IoCloseOutline
 } from "react-icons/io5";
 import ThemeToggle from "./ThemeToggle";
 import api from "@/lib/api";
@@ -26,11 +26,7 @@ interface NavLink {
   children?: NavLink[];
 }
 
-interface DashboardLayoutProps {
-  children: ReactNode;
-}
-
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function NavBar() {
   const pathname = usePathname();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState("User");
@@ -44,7 +40,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         const res = await api.get("/user/me");
         if (res.data?.success) {
           setIsLoggedIn(true);
-          setUserName(res.data.user.name || "User"); // Use full name
+          setUserName(res.data.user.firstName || "User");
         }
       } catch {
         setIsLoggedIn(false);
@@ -94,12 +90,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <>
+      {/* Mobile Top Navbar */}
+      <header className="md:hidden flex items-center justify-between bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="NexaApp" className="w-8 h-8 object-contain" />
+          <span className="font-bold text-lg text-gray-900 dark:text-gray-100">NexaApp</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button onClick={() => setSidebarOpen(true)} className="text-gray-700 dark:text-gray-200">
+            <IoMenuOutline size={26} />
+          </button>
+        </div>
+      </header>
+
       {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 md:translate-x-0 flex flex-col`}
-      >
-        {/* Sidebar Header */}
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <Link href="/" className="flex items-center gap-2">
             <img src="/logo.png" alt="NexaApp" className="w-8 h-8 object-contain" />
@@ -110,16 +117,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </button>
         </div>
 
-        {/* Welcome User */}
-        {isLoggedIn && (
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-700 dark:text-gray-200 font-medium">
-              Welcome, {userName.split(" ")[0]} {/* Only first name */}
-            </p>
-          </div>
-        )}
-
-        {/* Sidebar Navigation */}
         <nav className="flex-1 overflow-y-auto mt-4">
           {dashboardLinks.map((link) => (
             <div key={link.name}>
@@ -130,9 +127,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 {link.icon}
                 <span className="flex-1">{link.name}</span>
-                {link.children && (moreOpen ? <IoChevronUpOutline /> : <IoChevronDownOutline />)}
+                {link.children && (
+                  moreOpen ? <IoChevronUpOutline /> : <IoChevronDownOutline />
+                )}
               </Link>
-
               {link.children && moreOpen && (
                 <div className="ml-6 flex flex-col">
                   {link.children.map((child) => (
@@ -151,13 +149,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           ))}
         </nav>
 
-        {/* Logout */}
         {isLoggedIn && (
           <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <button
-              onClick={handleLogout}
-              className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm"
-            >
+            <span className="block text-sm mb-2">Hi, {userName}</span>
+            <button onClick={handleLogout} className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm">
               Logout
             </button>
           </div>
@@ -168,19 +163,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black bg-opacity-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>
       )}
-
-      {/* Main Content */}
-      <div
-        className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-0"} md:ml-64 overflow-hidden`}
-      >
-        {/* Top bar for desktop */}
-        <div className="hidden md:flex justify-end p-4 border-b border-gray-200 dark:border-gray-700">
-          <ThemeToggle />
-        </div>
-
-        {/* Scrollable Page Content */}
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
-      </div>
-    </div>
+    </>
   );
 }
