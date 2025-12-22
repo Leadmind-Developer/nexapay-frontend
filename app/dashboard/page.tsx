@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   IoAddCircleOutline,
@@ -24,6 +24,14 @@ interface VirtualAccount {
   bank: string;
 }
 
+interface Transaction {
+  id: number;
+  type: "credit" | "debit";
+  amount: number;
+  reference?: string | null;
+  createdAt: string;
+}
+
 export default function DashboardPage() {
   const [balance, setBalance] = useState<number>(0);
   const [firstName, setFirstName] = useState("User");
@@ -31,24 +39,34 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const fetchWallet = useCallback(async () => {
     try {
       if (!refreshing) setLoading(true);
 
+      // Fetch user info
       const userRes = await api.get("/user/me");
       if (!userRes.data?.success) return;
 
       const u = userRes.data.user;
       setFirstName(u.name?.split(" ")[0] || u.email?.split("@")[0] || "User");
 
+      // Fetch wallet info
       const walletRes = await api.get("/wallet");
-      setBalance((walletRes.data?.balance ?? 0) / 100);
+      const walletData = walletRes.data?.wallet;
 
-      if (u.virtualAccount) {
+      if (walletData) {
+        setBalance(walletData.balance); // already in Naira
+        setTransactions(walletData.transactions || []);
+      }
+
+      // Virtual account
+      const va = walletRes.data?.virtualAccount;
+      if (va) {
         setVirtualAccount({
-          number: u.virtualAccount.accountNumber,
-          bank: u.virtualAccount.bank,
+          number: va.accountNumber,
+          bank: va.bankName,
         });
       } else setVirtualAccount(null);
     } catch (err) {
@@ -59,8 +77,8 @@ export default function DashboardPage() {
     }
   }, [refreshing]);
 
-  // Initial fetch only once on mount
-  React.useEffect(() => {
+  // Initial fetch
+  useEffect(() => {
     fetchWallet();
   }, [fetchWallet]);
 
@@ -115,7 +133,10 @@ export default function DashboardPage() {
               <p className="text-3xl font-bold">
                 {hideBalance
                   ? "₦••••••"
-                  : `₦${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  : `₦${balance.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`}
               </p>
             </div>
             <button onClick={() => setHideBalance(!hideBalance)}>
@@ -188,6 +209,33 @@ export default function DashboardPage() {
               </motion.a>
             ))}
           </div>
+        </div>
+
+        {/* Transaction History */}
+        <div>
+          <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">Recent Transactions</h2>
+          {transactions.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400">No transactions yet</p>
+          ) : (
+            <div className="space-y-2">
+              {transactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className={`flex justify-between p-3 rounded-lg ${
+                    tx.type === "credit" ? "bg-green-50 dark:bg-green-800" : "bg-red-50 dark:bg-red-800"
+                  }`}
+                >
+                  <div>
+                    <p className="font-semibold">{tx.type === "credit" ? "Credit" : "Debit"}</p>
+                    {tx.reference && <p className="text-xs text-gray-500 dark:text-gray-400">{tx.reference}</p>}
+                  </div>
+                  <p className="font-semibold">
+                    {tx.type === "credit" ? "+" : "-"}₦{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
