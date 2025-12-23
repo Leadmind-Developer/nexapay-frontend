@@ -247,7 +247,7 @@ export default function DataPurchasePage() {
               Your wallet or payment may have been processed. Please check your transaction history.
             </p>
             <a
-              href="/support"
+              href="/contact"
               className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
             >
               Contact Support
