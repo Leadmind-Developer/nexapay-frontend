@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
-import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -60,7 +59,6 @@ export default function AirtimePage() {
 
       const data = res.data;
 
-      // 🔁 Backend decides payment path
       if (data.status === "paystack" && data.authorization_url) {
         window.location.href = data.authorization_url;
         return;
@@ -91,126 +89,118 @@ export default function AirtimePage() {
 
   /* ================= UI ================= */
   return (
-    <ResponsiveLandingWrapper>
-      <BannersWrapper page="airtime">
-        <div className="max-w-md mx-auto px-4">
-          <AnimatePresence mode="wait">
+    <BannersWrapper page="airtime">
+      <div className="max-w-md mx-auto px-4">
+        <AnimatePresence mode="wait">
 
-            {/* ================= FORM ================= */}
-            {stage === "form" && (
-              <motion.div
-                key="form"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
-              >
-                <h2 className="text-xl font-bold">Buy Airtime</h2>
+          {/* ================= FORM ================= */}
+          {stage === "form" && (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
+            >
+              <h2 className="text-xl font-bold">Buy Airtime</h2>
 
-                <div className="grid grid-cols-4 gap-3">
-                  {NETWORKS.map(n => (
-                    <button
-                      key={n.id}
-                      onClick={() => setServiceID(n.id)}
-                      className={`border rounded-lg p-3 flex flex-col items-center
-                        ${serviceID === n.id ? "border-yellow-500 ring-2 ring-yellow-400"
-                          : "border-gray-200 dark:border-gray-700"}`}
-                    >
-                      <Image src={n.icon} alt={n.label} width={32} height={32} />
-                      <span className="text-xs font-semibold mt-1">{n.label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <input
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="Phone number"
-                  className="w-full p-3 border rounded dark:bg-gray-800"
-                />
-
-                <button
-                  onClick={() => setStage("review")}
-                  disabled={!phone || !serviceID}
-                  className="w-full bg-yellow-500 text-white py-3 rounded"
-                >
-                  Review
-                </button>
-              </motion.div>
-            )}
-
-            {/* ================= REVIEW ================= */}
-            {stage === "review" && (
-              <motion.div
-                key="review"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
-              >
-                <h2 className="text-xl font-bold">Review</h2>
-
-                <p><b>Network:</b> {selectedNetwork?.label}</p>
-                <p><b>Phone:</b> {phone}</p>
-
-                <input
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  placeholder="Amount"
-                  className="w-full p-3 border rounded dark:bg-gray-800"
-                />
-
-                <div className="flex gap-3">
+              <div className="grid grid-cols-4 gap-3">
+                {NETWORKS.map(n => (
                   <button
-                    onClick={() => setStage("form")}
-                    className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
+                    key={n.id}
+                    onClick={() => setServiceID(n.id)}
+                    className={`border rounded-lg p-3 flex flex-col items-center
+                      ${serviceID === n.id ? "border-yellow-500 ring-2 ring-yellow-400"
+                        : "border-gray-200 dark:border-gray-700"}`}
                   >
-                    Back
+                    <Image src={n.icon} alt={n.label} width={32} height={32} />
+                    <span className="text-xs font-semibold mt-1">{n.label}</span>
                   </button>
-                  <button
-                    onClick={checkout}
-                    disabled={!amount || authLoading}
-                    className="flex-1 bg-yellow-500 text-white py-3 rounded"
-                  >
-                    Buy Airtime
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {stage === "paying" && (
-              <div className="bg-white dark:bg-gray-900 p-6 rounded text-center">
-                Processing…
+                ))}
               </div>
-            )}
 
-            {stage === "success" && (
-              <div className="bg-green-100 dark:bg-green-900 p-6 rounded text-center">
-                <h2 className="text-xl font-bold">Airtime Sent 🎉</h2>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
-                >
-                  Buy Again
-                </button>
-              </div>
-            )}
+              <input
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="Phone number"
+                className="w-full p-3 border rounded dark:bg-gray-800"
+              />
 
-            {stage === "error" && (
-              <div className="bg-red-100 dark:bg-red-900 p-6 rounded text-center">
-                {errorMsg}
+              <button
+                onClick={() => setStage("review")}
+                disabled={!phone || !serviceID}
+                className="w-full bg-yellow-500 text-white py-3 rounded"
+              >
+                Review
+              </button>
+            </motion.div>
+          )}
+
+          {/* ================= REVIEW ================= */}
+          {stage === "review" && (
+            <motion.div
+              key="review"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
+            >
+              <h2 className="text-xl font-bold">Review</h2>
+
+              <p><b>Network:</b> {selectedNetwork?.label}</p>
+              <p><b>Phone:</b> {phone}</p>
+
+              <input
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="Amount"
+                className="w-full p-3 border rounded dark:bg-gray-800"
+              />
+
+              <div className="flex gap-3">
                 <button
                   onClick={() => setStage("form")}
-                  className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
                 >
-                  Retry
+                  Back
+                </button>
+                <button
+                  onClick={checkout}
+                  disabled={!amount || authLoading}
+                  className="flex-1 bg-yellow-500 text-white py-3 rounded"
+                >
+                  Buy Airtime
                 </button>
               </div>
-            )}
+            </motion.div>
+          )}
 
-          </AnimatePresence>
-        </div>
-      </BannersWrapper>
-    </ResponsiveLandingWrapper>
+          {stage === "paying" && (
+            <div className="bg-white dark:bg-gray-900 p-6 rounded text-center">
+              Processing…
+            </div>
+          )}
+
+          {stage === "success" && (
+            <div className="bg-green-100 dark:bg-green-900 p-6 rounded text-center">
+              <h2 className="text-xl font-bold">Airtime Sent 🎉</h2>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
+              >
+                Buy Again
+              </button>
+            </div>
+          )}
+
+          {stage === "error" && (
+            <div className="bg-red-100 dark:bg-red-900 p-6 rounded text-center">
+              {errorMsg}
+            </div>
+          )}
+
+        </AnimatePresence>
+      </div>
+    </BannersWrapper>
   );
 }
