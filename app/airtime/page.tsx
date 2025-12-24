@@ -5,7 +5,6 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
-import ErrorMessage from "@/components/ErrorMessage";
 
 type Network = { id: string; label: string; icon: string };
 type Stage = "form" | "review" | "processing" | "success" | "error";
@@ -201,8 +200,13 @@ export default function AirtimePage() {
           )}
 
           {stage === "error" && (
-            <ErrorMessage message={errorMsg || undefined} />
-          )}
+  <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-2">
+    <h2 className="text-lg font-bold">Error</h2>
+    <p className="text-sm">
+      {errorMsg || "Something went wrong. Your wallet or payment may have been processed. Please check your transaction history."}
+    </p>
+  </div>
+)}
 
         </AnimatePresence>
       </div>
