@@ -252,19 +252,21 @@ export default function DataPurchasePage() {
         )}
 
         {stage === "error" && (
-          <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
-            <h2 className="text-lg font-bold">Error</h2>
-            <p className="text-sm">{errorMessage}</p>
-              Your wallet or payment may have been processed. Please check your transaction history.
-            </p>
-            <a
-              href="/contact"
-              className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
-            >
-              Contact Support
-            </a>
-          </div>
-        )}
+  <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
+    <h2 className="text-lg font-bold">Error</h2>
+    <p className="text-sm">
+      {errorMessage
+        ? errorMessage
+        : "Your wallet or payment may have been processed. Please check your transaction history."}
+    </p>
+    <a
+      href="/contact"
+      className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
+    >
+      Contact Support
+    </a>
+  </div>
+)}
 
       </div>
     </BannersWrapper>
