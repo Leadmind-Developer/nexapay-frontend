@@ -5,10 +5,10 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
-import { useAuth } from "@/hooks/useAuth";
+import ErrorMessage from "@/components/ErrorMessage";
 
 type Network = { id: string; label: string; icon: string };
-type Stage = "form" | "review" | "paying" | "success" | "error";
+type Stage = "form" | "review" | "processing" | "success" | "error";
 
 const NETWORKS: Network[] = [
   { id: "mtn", label: "MTN", icon: "/images/icons/MTN_logo.png" },
@@ -26,9 +26,7 @@ export default function AirtimePage() {
   const [amount, setAmount] = useState("");
   const [serviceID, setServiceID] = useState("");
   const [recentPhones, setRecentPhones] = useState<string[]>([]);
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   /* ================= INIT ================= */
   useEffect(() => {
@@ -48,14 +46,18 @@ export default function AirtimePage() {
     if (!phone || !amount || !serviceID) return;
 
     try {
-      setStage("paying");
-      setErrorMsg("");
+      setStage("processing");
+      setErrorMsg(null);
 
-      const res = await api.post("/vtpass/airtime/checkout", {
-        phone,
-        amount: Number(amount),
-        serviceID,
-      });
+      const res = await api.post(
+        "/vtpass/airtime/checkout",
+        {
+          phone,
+          amount: Number(amount),
+          serviceID,
+        },
+        { withCredentials: true }
+      );
 
       const data = res.data;
 
@@ -70,10 +72,15 @@ export default function AirtimePage() {
         return;
       }
 
-      throw new Error(data.message || "Transaction failed");
+      // fallback for unknown status
+      setErrorMsg(data.message || "Airtime purchase failed");
+      setStage("error");
     } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.response?.data?.message || "Airtime purchase failed");
+      console.error("❌ Airtime Checkout Error:", err);
+      setErrorMsg(
+        err.response?.data?.error ||
+        "Something went wrong. Your wallet or payment may have been processed."
+      );
       setStage("error");
     }
   };
@@ -93,7 +100,7 @@ export default function AirtimePage() {
       <div className="max-w-md mx-auto px-4">
         <AnimatePresence mode="wait">
 
-          {/* ================= FORM ================= */}
+          {/* ===== FORM ===== */}
           {stage === "form" && (
             <motion.div
               key="form"
@@ -136,7 +143,7 @@ export default function AirtimePage() {
             </motion.div>
           )}
 
-          {/* ================= REVIEW ================= */}
+          {/* ===== REVIEW ===== */}
           {stage === "review" && (
             <motion.div
               key="review"
@@ -166,7 +173,7 @@ export default function AirtimePage() {
                 </button>
                 <button
                   onClick={checkout}
-                  disabled={!amount || authLoading}
+                  disabled={!amount}
                   className="flex-1 bg-yellow-500 text-white py-3 rounded"
                 >
                   Buy Airtime
@@ -175,9 +182,9 @@ export default function AirtimePage() {
             </motion.div>
           )}
 
-          {stage === "paying" && (
+          {stage === "processing" && (
             <div className="bg-white dark:bg-gray-900 p-6 rounded text-center">
-              Processing…
+              Processing your request…
             </div>
           )}
 
@@ -194,9 +201,7 @@ export default function AirtimePage() {
           )}
 
           {stage === "error" && (
-            <div className="bg-red-100 dark:bg-red-900 p-6 rounded text-center">
-              {errorMsg}
-            </div>
+            <ErrorMessage message={errorMsg || undefined} />
           )}
 
         </AnimatePresence>
