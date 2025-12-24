@@ -49,6 +49,7 @@ const normalizePhone = (value: string) => {
 /* ================= PAGE ================= */
 export default function DataPurchasePage() {
   const [stage, setStage] = useState<Stage>("form");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const [provider, setProvider] = useState<Provider | null>(null);
   const [phone, setPhone] = useState("");
@@ -65,9 +66,7 @@ export default function DataPurchasePage() {
     for (const [key, list] of Object.entries(PREFIX_MAP)) {
       if (list.includes(prefix)) {
         const found = PROVIDERS.find(p => p.value === key);
-        if (found && found.value !== provider?.value) {
-          loadVariations(found);
-        }
+        if (found && found.value !== provider?.value) loadVariations(found);
       }
     }
   }, [phone]);
@@ -77,9 +76,7 @@ export default function DataPurchasePage() {
     if (!email) return;
     if (email.toLowerCase().includes("@smile")) {
       const smile = PROVIDERS.find(p => p.value === "smile");
-      if (smile && smile.value !== provider?.value) {
-        loadVariations(smile);
-      }
+      if (smile && smile.value !== provider?.value) loadVariations(smile);
     }
   }, [email]);
 
@@ -92,17 +89,20 @@ export default function DataPurchasePage() {
     try {
       const res = await api.get(`/vtpass/data/variations/${prov.value}`);
       setVariations(res.data.variations || []);
-    } catch {
-      alert("Failed to load data plans");
+    } catch (err) {
+      console.error("Failed to load variations:", err);
+      setErrorMessage("Unable to load data bundles. Please try again.");
+      setStage("error");
     }
   };
 
-  /* ================= CHECKOUT (WALLET FIRST) ================= */
+  /* ================= CHECKOUT ================= */
   const checkout = async () => {
     if (!provider || !selectedVar) return;
 
     try {
       setStage("processing");
+      setErrorMessage("");
 
       const res = await api.post(
         "/vtpass/data/checkout",
@@ -114,27 +114,32 @@ export default function DataPurchasePage() {
         { withCredentials: true }
       );
 
-      // Wallet was sufficient → VTpass triggered server-side
-      if (res.data.status === "success") {
+      // ✅ Backend confirms success
+      if (res.data.success) {
         setStage("success");
         return;
       }
 
-      // Wallet insufficient → Paystack required
-      if (res.data.status === "paystack") {
+      // 💳 Wallet insufficient → Paystack redirect
+      if (res.data.status === "paystack" && res.data.authorization_url) {
         window.location.href = res.data.authorization_url;
         return;
       }
 
+      // ⚠️ Any other backend error
+      setErrorMessage(res.data.message || "Unable to complete transaction. Please check your transaction history.");
       setStage("error");
-    } catch {
+    } catch (err: any) {
+      console.error("Checkout error:", err);
+      const msg = err?.response?.data?.message || "Something went wrong. Please check your transaction history.";
+      setErrorMessage(msg);
       setStage("error");
     }
   };
 
   return (
     <BannersWrapper page="data">
-      <div className="max-w-md mx-auto px-4 text-gray-900 dark:text-gray-100">
+      <div className="max-w-md mx-auto px-4 text-gray-900 dark:text-gray-100 space-y-4">
 
         {/* ===== FORM ===== */}
         {stage === "form" && (
@@ -144,15 +149,15 @@ export default function DataPurchasePage() {
             <input
               value={phone}
               onChange={e => setPhone(normalizePhone(e.target.value))}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
               placeholder="Phone Number or Smile Email"
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             />
 
             <input
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
               placeholder="Receipt Email"
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             />
 
             <div className="grid grid-cols-3 gap-3">
@@ -243,9 +248,7 @@ export default function DataPurchasePage() {
         {stage === "error" && (
           <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
             <h2 className="text-lg font-bold">Something went wrong</h2>
-            <p className="text-sm">
-              Your wallet or payment may have been processed. Please check your transaction history.
-            </p>
+            <p className="text-sm">{errorMessage}</p>
             <a
               href="/contact"
               className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
