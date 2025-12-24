@@ -87,8 +87,8 @@ export default function AirtimePage() {
         "/vtpass/airtime/local",
         {
           phone,
-          amount,
-          serviceID: SERVICE_ID_MAP[network.value],
+          amount: Number(amount),
+          serviceID: network.value
         },
         { withCredentials: true } // ✅ wallet sessions & preflight-safe
       );
