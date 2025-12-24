@@ -7,13 +7,9 @@ import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
 
 /* ================= TYPES ================= */
-type Network = { id: string; label: string; icon: string; };
-type Stage = "form" | "review" | "paying" | "success" | "error";
-type User = {
-  email: string;
-};
-
-const user: User | null = null;
+type Network = { id: string; label: string; icon: string };
+type Stage = "form" | "review" | "processing" | "success" | "error";
+type AirtimeReceipt = any;
 
 /* ================= DATA ================= */
 const NETWORKS: Network[] = [
@@ -39,12 +35,9 @@ export default function AirtimePage() {
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [serviceID, setServiceID] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [receipt, setReceipt] = useState<any>(null);
+  const [receipt, setReceipt] = useState<AirtimeReceipt | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
   const [recentPhones, setRecentPhones] = useState<string[]>([]);
-
-  // assume we have user info (null = guest)
-  const user = null; // replace with actual auth context if exists
 
   useEffect(() => {
     const lastNetwork = localStorage.getItem(LS_NETWORK_KEY);
@@ -70,219 +63,163 @@ export default function AirtimePage() {
     }
   }, [phone]);
 
-  // verify redirect (Paystack callback)
-  useEffect(() => {
-    const ref = new URL(window.location.href).searchParams.get("ref");
-    if (ref) {
-      user ? verifyAndPurchase(ref) : verifyGuestPayment(ref);
-    }
-  }, []);
-
-  /* ================= LOGGED-IN FLOW ================= */
-  const startPayment = async () => {
+  /* ================= CHECKOUT ================= */
+  const checkout = async () => {
     if (!phone || !amount || !serviceID) return;
+
     try {
-      setStage("paying");
-      setLoading(true);
+      setStage("processing");
+      setErrorMessage("");
 
-      const reference = `AIRTIME-${Date.now()}`;
-      const init = await api.post("/paystack/initialize", {
-        email: user?.email ?? "guest@nexa.com.ng",
-        amount: Number(amount) * 100,
-        reference,
-        metadata: { purpose: "airtime_purchase", phone, serviceID, amount },
-        callback_url: `${window.location.origin}/airtime?ref=${reference}`,
-      });
-
-      window.location.href = init.data.data.authorization_url;
-    } catch {
-      setStage("error");
-      setLoading(false);
-    }
-  };
-
-  const verifyAndPurchase = async (reference: string) => {
-    try {
-      const verify = await api.get(`/paystack/verify/${reference}`);
-      if (verify.data.status !== "success") throw new Error();
-
-      const buy = await api.post("/vtpass/airtime/local", { phone, amount, serviceID });
-      setReceipt({ phone, amount, serviceID, reference, vtpass: buy.data.result });
-      setStage("success");
-
-      const updated = [phone, ...recentPhones.filter(p => p !== phone)].slice(0, 5);
-      localStorage.setItem(LS_RECENT_PHONES, JSON.stringify(updated));
-      setRecentPhones(updated);
-    } catch {
-      setStage("error");
-    }
-  };
-
-  /* ================= GUEST FLOW ================= */
-  const startGuestPayment = async () => {
-    if (!phone || !amount || !serviceID) return;
-    try {
-      setStage("paying");
-      setLoading(true);
-
-      const init = await api.post("/guest/initialize", {
-        serviceType: "airtime",
+      const res = await api.post("/vtpass/airtime/local", {
+        phone,
         amount,
-        metadata: { phone, serviceID, amount },
+        serviceID,
       });
 
-      window.location.href = init.data.authorization_url;
-    } catch {
-      setStage("error");
-      setLoading(false);
-    }
-  };
+      if (res.data.success) {
+        setReceipt(res.data.result);
+        setStage("success");
 
-  const verifyGuestPayment = async (reference: string) => {
-    try {
-      const verify = await api.get(`/guest/verify?ref=${reference}`);
-      setReceipt({ ...verify.data.result, reference });
-      setStage("success");
-
-      const updated = [phone, ...recentPhones.filter(p => p !== phone)].slice(0, 5);
-      localStorage.setItem(LS_RECENT_PHONES, JSON.stringify(updated));
-      setRecentPhones(updated);
-    } catch {
+        // update recent phones
+        const updated = [phone, ...recentPhones.filter(p => p !== phone)].slice(0, 5);
+        setRecentPhones(updated);
+        localStorage.setItem(LS_RECENT_PHONES, JSON.stringify(updated));
+      } else {
+        setErrorMessage(res.data.message || "Transaction failed");
+        setStage("error");
+      }
+    } catch (err: any) {
+      console.error("Airtime purchase error:", err);
+      setErrorMessage(err?.response?.data?.message || "Something went wrong. Please try again.");
       setStage("error");
     }
   };
 
-  /* ================= WIZARD ================= */
-  const steps = ["Details", "Review", "Payment", "Complete"];
-  const stageIndex = ["form","review","paying","success","error"].indexOf(stage);
+  /* ================= RENDER ================= */
   const selectedNetwork = NETWORKS.find(n => n.id === serviceID);
 
-  return (   
-      <BannersWrapper page="airtime">
-        <div className="max-w-md mx-auto px-4">
+  return (
+    <BannersWrapper page="airtime">
+      <div className="max-w-md mx-auto px-4 space-y-6">
 
-          {/* ===== WIZARD HEADER ===== */}
-          <div className="flex items-center justify-between mb-8">
-            {steps.map((_, idx) => {
-              const active = idx <= stageIndex;
-              return (
-                <div key={idx} className="flex-1 flex items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2
-                    ${active ? "bg-yellow-500 border-yellow-500 text-white" :
-                    "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500"}`}>
-                    {idx + 1}
-                  </div>
-                  {idx < steps.length - 1 && (
-                    <div className={`flex-1 h-1 -ml-1 ${idx < stageIndex ? "bg-yellow-500" : "bg-gray-300 dark:bg-gray-700"}`} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        <AnimatePresence mode="wait">
+          {stage === "form" && (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
+            >
+              <h2 className="text-xl font-bold">Buy Airtime</h2>
 
-          {/* ================= FORM / REVIEW / PAYING / RESULT ================= */}
-          <AnimatePresence mode="wait">
-            {stage === "form" && (
-              <motion.div
-                key="form"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
-              >
-                <h2 className="text-xl font-bold">Buy Airtime</h2>
+              <div className="grid grid-cols-4 gap-3">
+                {NETWORKS.map(n => (
+                  <button
+                    key={n.id}
+                    onClick={() => setServiceID(n.id)}
+                    className={`border rounded-lg p-3 flex flex-col items-center
+                      ${serviceID === n.id ? "border-yellow-500 ring-2 ring-yellow-400" : "border-gray-200 dark:border-gray-700"}`}
+                  >
+                    <Image src={n.icon} alt={n.label} width={32} height={32} />
+                    <span className="text-xs font-semibold mt-1">{n.label}</span>
+                  </button>
+                ))}
+              </div>
 
-                <div className="grid grid-cols-4 gap-3">
-                  {NETWORKS.map(n => (
-                    <button
-                      key={n.id}
-                      onClick={() => setServiceID(n.id)}
-                      className={`border rounded-lg p-3 flex flex-col items-center
-                        ${serviceID === n.id ? "border-yellow-500 ring-2 ring-yellow-400" : "border-gray-200 dark:border-gray-700"}`}
-                    >
-                      <Image src={n.icon} alt={n.label} width={32} height={32} />
-                      <span className="text-xs font-semibold mt-1">{n.label}</span>
-                    </button>
+              <input
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="Phone number"
+                className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+              />
+
+              {recentPhones.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto">
+                  {recentPhones.map(p => (
+                    <button key={p} onClick={() => setPhone(p)} className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm">{p}</button>
                   ))}
                 </div>
+              )}
 
-                <input
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="Phone number"
-                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                />
+              <input
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="Amount"
+                className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+              />
 
-                {recentPhones.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto">
-                    {recentPhones.map(p => (
-                      <button key={p} onClick={() => setPhone(p)} className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-sm">{p}</button>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setStage("review")}
-                  disabled={!phone || !serviceID}
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold disabled:opacity-60"
-                >
-                  Review
-                </button>
-              </motion.div>
-            )}
-
-            {stage === "review" && (
-              <motion.div
-                key="review"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-white dark:bg-gray-900 rounded-lg shadow-md p-6 space-y-4"
+              <button
+                onClick={checkout}
+                disabled={!phone || !amount || !serviceID}
+                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded font-semibold disabled:opacity-60"
               >
-                <h2 className="text-xl font-bold">Review</h2>
-                <p><b>Network:</b> {selectedNetwork?.label}</p>
-                <p><b>Phone:</b> {phone}</p>
-                <input
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  placeholder="Amount"
-                  className="w-full p-3 border rounded focus:ring-2 focus:ring-yellow-400 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-                />
+                Buy Airtime
+              </button>
+            </motion.div>
+          )}
 
-                <div className="flex gap-3">
-                  <button onClick={() => setStage("form")} className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">Back</button>
-                  <button
-                    onClick={user ? startPayment : startGuestPayment}
-                    disabled={!amount}
-                    className="flex-1 bg-yellow-500 text-white py-3 rounded"
-                  >
-                    Pay
-                  </button>
-                </div>
-              </motion.div>
-            )}
+          {stage === "processing" && (
+            <motion.div
+              key="processing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="bg-white dark:bg-gray-900 p-6 rounded text-center"
+            >
+              Processing your airtime purchase…
+            </motion.div>
+          )}
 
-            {stage === "paying" && (
-              <div className="bg-white dark:bg-gray-900 p-6 rounded text-center">
-                Redirecting to Paystack…
-              </div>
-            )}
+          {stage === "success" && (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="bg-green-100 dark:bg-green-900 p-6 rounded text-center space-y-3"
+            >
+              <h2 className="text-xl font-bold">Airtime Purchased 🎉</h2>
+              <p>Phone: {receipt?.phone}</p>
+              <p>Amount: ₦{receipt?.amount}</p>
+              <p>Network: {selectedNetwork?.label}</p>
+              <button
+                onClick={() => {
+                  setStage("form");
+                  setPhone("");
+                  setAmount("");
+                  setServiceID("");
+                  setReceipt(null);
+                  setErrorMessage("");
+                }}
+                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
+              >
+                Buy Again
+              </button>
+            </motion.div>
+          )}
 
-            {stage === "success" && (
-              <div className="bg-green-100 dark:bg-green-900 p-6 rounded text-center">
-                <h2 className="text-xl font-bold">Airtime Purchased 🎉</h2>
-                <button onClick={() => window.location.reload()} className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">Buy Again</button>
-              </div>
-            )}
-
-            {stage === "error" && (
-              <div className="bg-red-100 dark:bg-red-900 p-6 rounded text-center">
-                Transaction failed
-                <button onClick={() => setStage("form")} className="mt-4 bg-yellow-500 text-white py-3 w-full rounded">Retry</button>
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
-      </BannersWrapper>   
+          {stage === "error" && (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="bg-red-100 dark:bg-red-900 p-6 rounded text-center space-y-3"
+            >
+              <h2 className="text-lg font-bold">Transaction Failed</h2>
+              <p>{errorMessage}</p>
+              <button
+                onClick={() => setStage("form")}
+                className="mt-4 bg-yellow-500 text-white py-3 w-full rounded"
+              >
+                Retry
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </BannersWrapper>
   );
 }
