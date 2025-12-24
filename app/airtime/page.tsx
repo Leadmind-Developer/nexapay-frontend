@@ -88,14 +88,15 @@ export default function AirtimePage() {
         {
           phone,
           amount: Number(amount),
-          serviceID: network.value
+          serviceID: network.value,
         },
-        { withCredentials: true } // ✅ wallet sessions & preflight-safe
+        { withCredentials: true }
       );
 
       // Wallet success
-      if (res.data.success || res.data.status === "success") {
-        setReceipt(res.data.result);
+      if (res.data.status === "success") {
+        const vtpassTx = res.data.vtpass.vtpassTransaction;
+        setReceipt(vtpassTx);
         setStage("success");
 
         // update recent phones
@@ -105,12 +106,13 @@ export default function AirtimePage() {
         return;
       }
 
-      // Paystack required
+      // Paystack fallback
       if (res.data.status === "paystack" && res.data.authorization_url) {
         window.location.href = res.data.authorization_url;
         return;
       }
 
+      // Generic error
       setErrorMessage(res.data.message || "Transaction failed");
       setStage("error");
     } catch (err: any) {
