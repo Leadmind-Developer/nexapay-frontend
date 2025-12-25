@@ -192,25 +192,31 @@ export default function InternalTransferPage() {
         >
           <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
             
-            {/* Step Indicator */}
-            <div className="flex justify-between items-center mb-6">
-              {[1, 2, 3].map((s) => (
-                <div key={s} className="flex-1 flex items-center">
-                  <div
-                    className={`w-8 h-8 flex items-center justify-center rounded-full border-2 ${
-                      step === s
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : s < step
-                        ? "border-green-500 bg-green-500 text-white"
-                        : "border-gray-600 text-gray-400"
-                    }`}
-                  >
-                    {s}
-                  </div>
-                  {s !== 3 && <div className={`flex-1 h-1 ${s < step ? "bg-green-500" : "bg-gray-600"}`}></div>}
-                </div>
-              ))}
-            </div>
+            {{/* Step Indicator with Animated Progress */}
+  <div className="mb-6 relative">
+    <div className="absolute top-4 left-0 w-full h-1 bg-gray-600 rounded-full z-0" />
+    <div
+      className="absolute top-4 left-0 h-1 bg-green-500 rounded-full transition-all duration-500 ease-in-out z-0"
+      style={{ width: `${((step - 1) / 2) * 100}%` }}
+    />
+    <div className="relative flex justify-between items-center">
+      {[1, 2, 3].map((s) => (
+        <div key={s} className="flex-1 flex justify-center items-center relative z-10">
+          <div
+            className={`w-8 h-8 flex items-center justify-center rounded-full border-2 text-white font-bold transition-colors duration-300 ${
+              step === s
+                ? "border-blue-600 bg-blue-600"
+                : s < step
+                ? "border-green-500 bg-green-500"
+                : "border-gray-600 bg-gray-800"
+            }`}
+          >
+            {s}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
 
             <Dialog.Title className="text-lg font-bold text-white mb-4">
               {step === 1 && "Step 1: Recipient"}
