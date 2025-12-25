@@ -34,7 +34,7 @@ export default function InternalTransferPage() {
   const [lookupError, setLookupError] = useState("");
 
   const [amount, setAmount] = useState("");
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [processing, setProcessing] = useState(false);
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -95,7 +95,6 @@ export default function InternalTransferPage() {
     return () => clearTimeout(timeout);
   }, [recipient, user]);
 
-  /* ---------------- Helpers ---------------- */
   const formatCurrency = (raw: string) => {
     const num = Number(raw.replace(/,/g, ""));
     if (isNaN(num)) return "";
@@ -115,7 +114,6 @@ export default function InternalTransferPage() {
     return true;
   })();
 
-  /* ---------------- Transfer ---------------- */
   const handleTransfer = async () => {
     if (!recipientInfo) return;
     const rawAmount = getRawAmount();
@@ -152,7 +150,6 @@ export default function InternalTransferPage() {
     );
   }
 
-  /* ---------------- Filtered dropdown ---------------- */
   const filteredRecipients = recentRecipients.filter((r) =>
     r.userID.toLowerCase().includes(recipient.toLowerCase())
   );
@@ -161,7 +158,6 @@ export default function InternalTransferPage() {
     <div className="min-h-screen bg-gray-900 text-white p-6 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Internal Transfer</h1>
 
-      {/* USER CARD */}
       {user?.virtualAccount && (
         <div className="bg-gray-800 p-4 rounded-xl shadow mb-6">
           <p className="text-gray-300">Your Account</p>
@@ -174,11 +170,23 @@ export default function InternalTransferPage() {
         </div>
       )}
 
-      {/* STEP 1: Recipient with autocomplete */}
+      {/* STEP INDICATOR */}
+      <div className="flex gap-2 mb-6">
+        {[1, 2, 3].map((n) => (
+          <div
+            key={n}
+            className={`h-2 flex-1 rounded transition-all ${
+              step >= n ? "bg-green-600" : "bg-gray-300 dark:bg-gray-700"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* STEP 1: Recipient */}
       {step === 1 && (
         <div className="mb-4 relative">
           <input
-            className="w-full p-3 rounded bg-gray-900 border border-gray-700"
+            className="w-full p-3 rounded bg-gray-100 dark:bg-gray-800 dark:text-white border border-gray-700"
             placeholder="Enter username"
             value={recipient}
             onChange={(e) => {
@@ -186,30 +194,38 @@ export default function InternalTransferPage() {
               setShowDropdown(true);
             }}
             onFocus={() => setShowDropdown(true)}
-            onBlur={() =>
-              setTimeout(() => setShowDropdown(false), 200) /* small delay for click */
-            }
+            onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
           />
+
           {showDropdown && filteredRecipients.length > 0 && (
-            <ul className="absolute z-50 bg-gray-800 border border-gray-700 w-full mt-1 rounded max-h-40 overflow-y-auto">
-              {filteredRecipients.map((r) => (
-                <li
-                  key={r.id}
-                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
-                  onClick={() => {
-                    setRecipient(r.userID);
-                    setShowDropdown(false);
-                  }}
+            <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center">
+              <div className="bg-gray-100 dark:bg-gray-900 w-full max-w-md rounded p-4 z-50">
+                {filteredRecipients.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      setRecipient(r.userID);
+                      setShowDropdown(false);
+                    }}
+                    className="w-full text-left p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-800 dark:text-white"
+                  >
+                    {r.fullName} (@{r.userID})
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowDropdown(false)}
+                  className="mt-3 w-full p-2 text-sm text-gray-500 dark:text-gray-300"
                 >
-                  {r.fullName} (@{r.userID})
-                </li>
-              ))}
-            </ul>
+                  Close
+                </button>
+              </div>
+            </div>
           )}
-          {lookupLoading && <p className="text-sm text-gray-400">Searching...</p>}
-          {lookupError && <p className="text-sm text-red-500">{lookupError}</p>}
+
+          {lookupLoading && <p className="text-sm text-gray-500 mt-1">Searching…</p>}
+          {lookupError && <p className="text-sm text-red-500 mt-1">{lookupError}</p>}
           {recipientInfo && (
-            <p className="text-sm text-green-500">
+            <p className="text-sm text-green-600 mt-1">
               {recipientInfo.fullName} (@{recipientInfo.userID})
             </p>
           )}
@@ -220,13 +236,13 @@ export default function InternalTransferPage() {
       {step === 2 && (
         <div className="mb-4">
           <input
-            className="w-full p-3 rounded bg-gray-900 border border-gray-700"
+            className="w-full p-3 rounded bg-gray-100 dark:bg-gray-800 dark:text-white border border-gray-700"
             placeholder="Enter amount"
             value={amount}
             onChange={(e) => setAmount(formatCurrency(e.target.value))}
           />
           {user && getRawAmount() * 100 > user.wallet.balance && (
-            <p className="text-sm text-red-500">Insufficient balance</p>
+            <p className="text-sm text-red-500 mt-1">Insufficient balance</p>
           )}
         </div>
       )}
@@ -258,7 +274,7 @@ export default function InternalTransferPage() {
             disabled={!canProceed}
             onClick={() => setStep(step + 1)}
             className={`px-4 py-2 rounded ${
-              !canProceed ? "bg-gray-600" : "bg-blue-600 hover:bg-blue-700"
+              !canProceed ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"
             }`}
           >
             Next
@@ -277,10 +293,10 @@ export default function InternalTransferPage() {
         )}
       </div>
 
-      {/* SUCCESS */}
+      {/* SUCCESS MODAL */}
       {transferSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-green-600 p-6 rounded-xl font-bold">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-green-600 text-white p-6 rounded-xl font-bold">
             Transfer Successful ✅
           </div>
         </div>
