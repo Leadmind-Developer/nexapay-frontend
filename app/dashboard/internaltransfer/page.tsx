@@ -192,7 +192,7 @@ export default function InternalTransferPage() {
         >
           <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
             
-            {{/* Step Indicator with Animated Progress */}
+            {/* Step Indicator with Animated Progress */}
   <div className="mb-6 relative">
     <div className="absolute top-4 left-0 w-full h-1 bg-gray-600 rounded-full z-0" />
     <div
