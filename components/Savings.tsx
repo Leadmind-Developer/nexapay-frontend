@@ -54,6 +54,21 @@ export default function Savings() {
           <div key={goal.id} className="p-4 bg-white rounded-xl shadow">
             <h3 className="font-semibold">{goal.title}</h3>
             <p>₦{goal.currentBalance} / ₦{goal.targetAmount}</p>
+            <div className="mt-2">
+  <div className="h-2 bg-gray-200 rounded">
+    <div
+      className="h-2 rounded bg-green-500"
+      style={{
+        width: `${(goal.currentBalance / goal.targetAmount) * 100}%`
+      }}
+    />
+  </div>
+
+  <p className="text-xs mt-1">
+    ₦{goal.currentBalance.toLocaleString()} / ₦{goal.targetAmount.toLocaleString()}
+  </p>
+</div>
+
 
             {tab === "ACTIVE" && (
               <button
