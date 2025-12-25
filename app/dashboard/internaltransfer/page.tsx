@@ -97,21 +97,23 @@ export default function InternalTransferPage() {
 
   /* ---------------- Helpers ---------------- */
   const formatCurrency = (raw: string) => {
-    const num = Number(raw.replace(/,/g, ""));
+    // Remove non-numeric except dot
+    const clean = raw.replace(/[^\d.]/g, "");
+    const num = Number(clean);
     if (isNaN(num)) return "";
-    return num.toLocaleString("en-NG");
+    return num.toLocaleString("en-NG", { maximumFractionDigits: 2 });
   };
 
-  const getRawAmount = () => Number(amount.replace(/,/g, "")) || 0;
+  const getRawAmount = () => {
+    const clean = amount.replace(/[^\d.]/g, "");
+    return Number(clean) || 0;
+  };
 
   const canProceed = (() => {
     const raw = getRawAmount();
-    if (!recipient) return false;
-    if (!recipientInfo) return false;
-    if (lookupLoading) return false;
-    if (lookupError) return false;
+    if (!recipient || !recipientInfo || lookupLoading || lookupError) return false;
     if (step === 2 && raw <= 0) return false;
-    if ((user?.wallet?.balance ?? 0) < raw * 100) return false;
+    if (user && raw * 100 > user.wallet.balance) return false;
     return true;
   })();
 
@@ -146,7 +148,7 @@ export default function InternalTransferPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-900 text-white">
+      <div className="flex justify-center items-center h-screen bg-white text-black">
         Loading…
       </div>
     );
@@ -158,13 +160,13 @@ export default function InternalTransferPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6 max-w-3xl mx-auto">
+    <div className="min-h-screen bg-white text-black p-6 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Internal Transfer</h1>
 
       {/* USER CARD */}
       {user?.virtualAccount && (
-        <div className="bg-gray-800 p-4 rounded-xl shadow mb-6">
-          <p className="text-gray-300">Your Account</p>
+        <div className="bg-gray-100 p-4 rounded-xl shadow mb-6">
+          <p className="text-gray-500">Your Account</p>
           <p className="text-xl font-bold">
             ₦{(user.wallet.balance / 100).toLocaleString("en-NG")}
           </p>
@@ -180,7 +182,7 @@ export default function InternalTransferPage() {
           <div
             key={n}
             className={`h-2 flex-1 rounded transition-all ${
-              step >= n ? "bg-green-600" : "bg-gray-300 dark:bg-gray-700"
+              step >= n ? "bg-green-600" : "bg-gray-300"
             }`}
           />
         ))}
@@ -190,7 +192,7 @@ export default function InternalTransferPage() {
       {step === 1 && (
         <div className="mb-4 relative">
           <input
-            className="w-full p-3 rounded bg-gray-100 dark:bg-gray-800 dark:text-white border border-gray-700"
+            className="w-full p-3 rounded bg-gray-100 border border-gray-300"
             placeholder="Enter username"
             value={recipient}
             onChange={(e) => {
@@ -203,7 +205,7 @@ export default function InternalTransferPage() {
 
           {showDropdown && filteredRecipients.length > 0 && (
             <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center">
-              <div className="bg-gray-100 dark:bg-gray-900 w-full max-w-md rounded p-4 z-50">
+              <div className="bg-white w-full max-w-md rounded p-4 z-50">
                 {filteredRecipients.map((r) => (
                   <button
                     key={r.id}
@@ -211,14 +213,14 @@ export default function InternalTransferPage() {
                       setRecipient(r.userID);
                       setShowDropdown(false);
                     }}
-                    className="w-full text-left p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-800 dark:text-white"
+                    className="w-full text-left p-2 rounded hover:bg-gray-100"
                   >
                     {r.fullName} (@{r.userID})
                   </button>
                 ))}
                 <button
                   onClick={() => setShowDropdown(false)}
-                  className="mt-3 w-full p-2 text-sm text-gray-500 dark:text-gray-300"
+                  className="mt-3 w-full p-2 text-sm text-gray-500"
                 >
                   Close
                 </button>
@@ -240,7 +242,7 @@ export default function InternalTransferPage() {
       {step === 2 && (
         <div className="mb-4">
           <input
-            className="w-full p-3 rounded bg-gray-100 dark:bg-gray-800 dark:text-white border border-gray-700"
+            className="w-full p-3 rounded bg-gray-100 border border-gray-300"
             placeholder="Enter amount"
             value={amount}
             onChange={(e) => setAmount(formatCurrency(e.target.value))}
@@ -270,7 +272,7 @@ export default function InternalTransferPage() {
             onClick={() =>
               setStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3)
             }
-            className="px-4 py-2 rounded bg-gray-700"
+            className="px-4 py-2 rounded bg-gray-300"
           >
             Back
           </button>
@@ -282,7 +284,7 @@ export default function InternalTransferPage() {
               setStep((prev) => Math.min(3, prev + 1) as 1 | 2 | 3)
             }
             className={`px-4 py-2 rounded ${
-              !canProceed ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"
+              !canProceed ? "bg-gray-200" : "bg-green-600 hover:bg-green-700 text-white"
             }`}
           >
             Next
@@ -293,7 +295,7 @@ export default function InternalTransferPage() {
             disabled={processing}
             onClick={handleTransfer}
             className={`px-4 py-2 rounded ${
-              processing ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"
+              processing ? "bg-gray-200" : "bg-green-600 hover:bg-green-700 text-white"
             }`}
           >
             {processing ? "Processing…" : "Confirm"}
