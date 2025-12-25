@@ -1,4 +1,3 @@
-// hooks/useCheckout.ts
 "use client";
 
 import { useState, useEffect } from "react";
@@ -22,25 +21,28 @@ export function useCheckout() {
   const [reference, setReference] = useState<string | null>(null);
   const [responseData, setResponseData] = useState<any>(null);
 
-  /* ------------------ auto redirect on success ------------------ */
+  /* ------------------ auto redirect ------------------ */
   useEffect(() => {
     if (stage !== "success") return;
 
     const t = setTimeout(() => {
       router.push("/transactions");
-    }, 3000);
+    }, 2500);
 
     return () => clearTimeout(t);
   }, [stage, router]);
 
   /* ------------------ helpers ------------------ */
-  const extractReference = (data: any) =>
-    data?.requestId ||
-    data?.reference ||
-    data?.vtpass?.requestId ||
-    data?.vtpass?.vtpassTransaction?.request_id ||
-    data?.vtpassTransaction?.request_id ||
-    null;
+  const extractReference = (data: any): string | null => {
+    return (
+      data?.requestId ||
+      data?.reference ||
+      data?.vtpassTransaction?.requestId ||
+      data?.vtpass?.vtpassTransaction?.requestId ||
+      data?.vtpass?.requestId ||
+      null
+    );
+  };
 
   /* ------------------ checkout ------------------ */
   const checkout = async ({
@@ -57,31 +59,37 @@ export function useCheckout() {
         withCredentials,
       });
 
-      // ✅ WALLET / VTpass SUCCESS
+      /* ✅ WALLET / DIRECT SUCCESS */
       if (res.data?.success === true) {
-        setReference(extractReference(res.data));
+        const ref = extractReference(res.data);
+        setReference(ref);
         setResponseData(res.data);
         setStage("success");
         return;
       }
 
-      // 💳 PAYSTACK FALLBACK
-      if (res.data?.status === "paystack" && res.data?.authorization_url) {
+      /* 💳 PAYSTACK REDIRECT */
+      if (
+        res.data?.status === "paystack" &&
+        res.data?.authorization_url
+      ) {
         window.location.href = res.data.authorization_url;
         return;
       }
 
-      // ❌ BACKEND ERROR
+      /* ❌ BACKEND ERROR */
       setErrorMessage(
+        res.data?.error ||
         res.data?.message ||
-        "Unable to complete this transaction. Please check your transaction history."
+        "Transaction failed. Please check your history."
       );
       setStage("error");
     } catch (err: any) {
       console.error("Checkout error:", err);
       setErrorMessage(
+        err?.response?.data?.error ||
         err?.response?.data?.message ||
-        "Something went wrong. Please check your transaction history."
+        "Unexpected error occurred."
       );
       setStage("error");
     }
@@ -93,7 +101,7 @@ export function useCheckout() {
     reference,
     responseData,
     checkout,
-    reset: () => {
+    reset() {
       setStage("idle");
       setErrorMessage("");
       setReference(null);
