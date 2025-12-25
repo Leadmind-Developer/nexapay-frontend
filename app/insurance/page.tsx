@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
-import { useCheckout } from "@/hooks/useCheckout";
 
 /* ================= TYPES ================= */
 interface Variation {
@@ -14,7 +13,9 @@ interface Variation {
   requiredFields?: string[];
 }
 
-/* Mapping for friendly field labels */
+type Stage = "form" | "processing" | "success" | "error";
+
+/* Friendly labels for dynamic fields */
 const FIELD_LABELS: Record<string, string> = {
   insuredName: "Insured Name",
   engineCapacity: "Engine Capacity",
@@ -51,7 +52,9 @@ export default function InsurancePage() {
   const [state, setState] = useState("");
   const [lga, setLGA] = useState("");
 
-  const { checkout, stage, errorMessage, reference, reset } = useCheckout();
+  const [stage, setStage] = useState<Stage>("form");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [reference, setReference] = useState<string | null>(null);
 
   /* ================= FETCH VARIATIONS ================= */
   useEffect(() => {
@@ -66,7 +69,6 @@ export default function InsurancePage() {
     () => variations.find(v => v.variation_code === variationCode),
     [variations, variationCode]
   );
-
   const amount = selectedVariation?.amount || 0;
 
   /* ================= VALIDATION ================= */
@@ -103,32 +105,52 @@ export default function InsurancePage() {
   async function handleCheckout() {
     const validationError = validate();
     if (validationError) {
-      alert(validationError);
+      setErrorMessage(validationError);
+      setStage("error");
       return;
     }
 
-    await checkout({
-      endpoint: "/vtpass/insurance/checkout",
-      payload: {
-        serviceID,
-        variation_code: variationCode,
-        billersCode,
-        amount,
-        phone,
-        email,
-        insuredName,
-        engineCapacity,
-        chasisNumber,
-        plateNumber,
-        vehicleMake,
-        vehicleModel,
-        vehicleColor,
-        yearOfMake,
-        state,
-        lga,
-      },
-      redirectTo: "/transactions",
-    });
+    try {
+      setStage("processing");
+      setErrorMessage("");
+
+      const res = await api.post(
+        "/vtpass/insurance/checkout",
+        {
+          serviceID,
+          variation_code: variationCode,
+          billersCode,
+          amount,
+          phone,
+          email,
+          insuredName,
+          engineCapacity,
+          chasisNumber,
+          plateNumber,
+          vehicleMake,
+          vehicleModel,
+          vehicleColor,
+          yearOfMake,
+          state,
+          lga,
+        },
+        { withCredentials: true }
+      );
+
+      if (res.data?.success) {
+        setReference(res.data?.requestId || res.data?.reference || null);
+        setStage("success");
+      } else if (res.data?.status === "paystack" && res.data?.authorization_url) {
+        window.location.href = res.data.authorization_url;
+      } else {
+        setErrorMessage(res.data?.error || res.data?.message || "Transaction failed");
+        setStage("error");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMessage(err?.response?.data?.error || "Unexpected error occurred");
+      setStage("error");
+    }
   }
 
   /* ================= UI ================= */
@@ -138,7 +160,7 @@ export default function InsurancePage() {
         <div className="max-w-lg mx-auto px-4">
 
           {/* FORM */}
-          {stage === "idle" && (
+          {stage === "form" && (
             <div className="bg-white dark:bg-gray-900 p-6 rounded-lg space-y-4 shadow">
               <h2 className="text-xl font-bold">Insurance</h2>
 
@@ -233,11 +255,9 @@ export default function InsurancePage() {
           {/* ERROR */}
           {stage === "error" && (
             <div className="bg-red-100 p-6 rounded text-center">
-              <p className="text-red-700">
-                {errorMessage || "Something went wrong"}
-              </p>
+              <p className="text-red-700">{errorMessage}</p>
               <button
-                onClick={reset}
+                onClick={() => setStage("form")}
                 className="mt-4 w-full bg-gray-800 text-white py-2 rounded"
               >
                 Back
