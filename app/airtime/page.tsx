@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
 
@@ -34,8 +35,21 @@ const normalizePhone = (value: string) => {
   return v;
 };
 
+const extractReference = (data: any) => {
+  return (
+    data?.requestId ||
+    data?.reference ||
+    data?.vtpass?.requestId ||
+    data?.vtpass?.vtpassTransaction?.request_id ||
+    data?.vtpassTransaction?.request_id ||
+    null
+  );
+};
+
 /* ================= PAGE ================= */
 export default function AirtimePage() {
+  const router = useRouter();
+
   const [stage, setStage] = useState<Stage>("form");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -43,6 +57,7 @@ export default function AirtimePage() {
   const [amount, setAmount] = useState("");
   const [network, setNetwork] = useState<Network | null>(null);
   const [receipt, setReceipt] = useState<AirtimeReceipt | null>(null);
+  const [reference, setReference] = useState<string | null>(null);
 
   /* ========== AUTO-DETECT NETWORK ========== */
   useEffect(() => {
@@ -56,6 +71,17 @@ export default function AirtimePage() {
       }
     }
   }, [phone]);
+
+  /* ========== AUTO-REDIRECT AFTER SUCCESS ========== */
+  useEffect(() => {
+    if (stage !== "success") return;
+
+    const t = setTimeout(() => {
+      router.push("/transactions");
+    }, 3000);
+
+    return () => clearTimeout(t);
+  }, [stage, router]);
 
   /* ================= CHECKOUT ================= */
   const checkout = async () => {
@@ -83,6 +109,7 @@ export default function AirtimePage() {
           res.data.data;
 
         setReceipt(tx);
+        setReference(extractReference(res.data));
         setStage("success");
         return;
       }
@@ -189,11 +216,18 @@ export default function AirtimePage() {
         )}
 
         {stage === "success" && (
-          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center">
+          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-2">
             <h2 className="text-xl font-bold">Airtime Purchase Successful 🎉</h2>
-            <p className="text-sm mt-2">
-              Your airtime is being delivered. Please check your line shortly.
+            <p className="text-sm">
+              Your airtime is being delivered. You’ll be redirected shortly.
             </p>
+
+            {reference && (
+              <p className="text-xs mt-2 break-all">
+                <b>Transaction Reference:</b><br />
+                {reference}
+              </p>
+            )}
           </div>
         )}
 
