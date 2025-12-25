@@ -1,10 +1,39 @@
 "use client";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
-export default function SavingsProgressChart({ transactions, target }) {
-  const data = transactions.map((t, i) => ({
+import React from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+/* ================= TYPES ================= */
+interface Transaction {
+  amount: number;
+  [key: string]: any; // optional extra fields
+}
+
+interface SavingsProgressChartProps {
+  transactions: Transaction[];
+  target: number;
+}
+
+interface ChartDataPoint {
+  day: number;
+  amount: number;
+}
+
+/* ================= COMPONENT ================= */
+export default function SavingsProgressChart({
+  transactions,
+  target,
+}: SavingsProgressChartProps) {
+  const data: ChartDataPoint[] = transactions.map((t, i) => ({
     day: i + 1,
-    amount: t.amount
+    amount: t.amount,
   }));
 
   return (
@@ -14,7 +43,7 @@ export default function SavingsProgressChart({ transactions, target }) {
           <XAxis dataKey="day" />
           <YAxis />
           <Tooltip />
-          <Line dataKey="amount" strokeWidth={2} />
+          <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
 
