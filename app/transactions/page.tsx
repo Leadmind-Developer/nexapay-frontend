@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import api from "@/lib/api";
 import { useTransactionsSSE } from "@/hooks/useTransactionsSSE";
+import { Dialog } from "@headlessui/react";
 
 interface Transaction {
   requestId: string;
@@ -15,6 +15,8 @@ interface Transaction {
     token?: string;
   };
   createdAt: string;
+  phone?: string;
+  billersCode?: string;
 }
 
 export default function TransactionsPage() {
@@ -22,6 +24,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const processingTxs = useTransactionsSSE();
 
   // Initial fetch
@@ -61,6 +64,11 @@ export default function TransactionsPage() {
     });
   }, [transactions, search, statusFilter]);
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Copied to clipboard");
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-5 space-y-4">
       <h1 className="text-2xl font-bold mb-4">Transactions</h1>
@@ -94,7 +102,8 @@ export default function TransactionsPage() {
         filteredTransactions.map((tx) => (
           <div
             key={tx.requestId}
-            className="p-4 border rounded flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+            className="p-4 border rounded flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
+            onClick={() => setSelectedTx(tx)}
           >
             <div>
               <p className="font-semibold capitalize">{tx.serviceId.replace("_", " ")}</p>
@@ -103,7 +112,6 @@ export default function TransactionsPage() {
             </div>
 
             <div className="flex gap-2 items-center">
-              {/* Status badge */}
               <span
                 className={`px-3 py-1 rounded text-xs font-semibold
                   ${tx.status === "SUCCESS" ? "bg-green-100 text-green-700" : ""}
@@ -114,39 +122,84 @@ export default function TransactionsPage() {
                 {tx.status}
               </span>
 
-              {/* Copy reference */}
               <button
                 className="bg-gray-200 px-2 py-1 rounded text-sm"
-                onClick={() => navigator.clipboard.writeText(tx.requestId)}
+                onClick={(e) => { e.stopPropagation(); copyToClipboard(tx.requestId); }}
               >
                 Copy Ref
               </button>
 
-              {/* Copy PIN/Token for electricity & education */}
               {["education", "electricity"].includes(tx.serviceId.toLowerCase()) &&
                 (tx.apiResponse?.pin || tx.apiResponse?.token) && (
                   <button
                     className="bg-gray-200 px-2 py-1 rounded text-sm"
-                    onClick={() =>
-                      navigator.clipboard.writeText(tx.apiResponse?.pin || tx.apiResponse?.token || "")
-                    }
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      copyToClipboard(tx.apiResponse?.pin || tx.apiResponse?.token || "");
+                    }}
                   >
                     Copy PIN / Token
                   </button>
                 )}
 
-              {/* Download receipt */}
               <button
                 className="bg-gray-200 px-2 py-1 rounded text-sm"
-                onClick={() =>
-                  window.open(`/transactions/${tx.requestId}/receipt.pdf`, "_blank")
-                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`/transactions/${tx.requestId}/receipt.pdf`, "_blank");
+                }}
               >
                 Download Receipt
               </button>
             </div>
           </div>
         ))
+      )}
+
+      {/* Transaction Detail Modal */}
+      {selectedTx && (
+        <Dialog open={!!selectedTx} onClose={() => setSelectedTx(null)} className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
+            <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-md w-full p-6 space-y-4 z-50">
+              <Dialog.Title className="text-xl font-bold">Transaction Details</Dialog.Title>
+
+              <div className="space-y-2">
+                <p><strong>Service:</strong> {selectedTx.serviceId}</p>
+                <p><strong>Reference:</strong> {selectedTx.requestId}</p>
+                <p><strong>Amount:</strong> ₦{selectedTx.amount}</p>
+                <p><strong>Status:</strong> {selectedTx.status}</p>
+                {selectedTx.phone && <p><strong>Phone:</strong> {selectedTx.phone}</p>}
+                {selectedTx.billersCode && <p><strong>Customer No:</strong> {selectedTx.billersCode}</p>}
+                {selectedTx.apiResponse?.pin && (
+                  <p className="text-lg font-bold">
+                    Token/PIN: {selectedTx.apiResponse.pin}
+                  </p>
+                )}
+                {selectedTx.apiResponse?.token && (
+                  <p className="text-lg font-bold">
+                    Token/PIN: {selectedTx.apiResponse.token}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  className="flex-1 bg-blue-600 text-white py-2 rounded"
+                  onClick={() => window.open(`/transactions/${selectedTx.requestId}/receipt.pdf`, "_blank")}
+                >
+                  Download Receipt
+                </button>
+                <button
+                  className="flex-1 bg-gray-200 py-2 rounded"
+                  onClick={() => setSelectedTx(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </Dialog>
       )}
     </div>
   );
