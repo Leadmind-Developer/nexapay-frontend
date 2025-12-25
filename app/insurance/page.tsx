@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 
+/* ================= TYPES ================= */
 interface Variation {
   name: string;
   variation_code: string;
@@ -14,20 +15,7 @@ interface Variation {
 
 type Stage = "form" | "processing" | "success" | "error";
 
-const FIELD_LABELS: Record<string, string> = {
-  insuredName: "Insured Name",
-  engineCapacity: "Engine Capacity",
-  chasisNumber: "Chasis Number",
-  plateNumber: "Plate Number",
-  vehicleMake: "Vehicle Make",
-  vehicleModel: "Vehicle Model",
-  vehicleColor: "Vehicle Color",
-  yearOfMake: "Year Of Make",
-  state: "State",
-  lga: "LGA",
-  email: "Email",
-};
-
+/* ================= PAGE ================= */
 export default function InsurancePage() {
   const serviceID = "ui-insure";
 
@@ -52,6 +40,7 @@ export default function InsurancePage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [reference, setReference] = useState<string | null>(null);
 
+  /* ================= FETCH VARIATIONS ================= */
   useEffect(() => {
     api
       .get(`/vtpass/insurance/variations?serviceID=${serviceID}`)
@@ -59,13 +48,14 @@ export default function InsurancePage() {
       .catch(() => {});
   }, []);
 
+  /* ================= DERIVED ================= */
   const selectedVariation = useMemo(
     () => variations.find(v => v.variation_code === variationCode),
     [variations, variationCode]
   );
-
   const amount = selectedVariation?.amount || 0;
 
+  /* ================= VALIDATION ================= */
   function validate(): string | null {
     if (!variationCode) return "Please select an insurance plan";
     if (!billersCode) return "Customer number is required";
@@ -86,13 +76,15 @@ export default function InsurancePage() {
     };
 
     for (const field of required) {
-      if (!map[field]) return `${FIELD_LABELS[field] || field} is required`;
+      if (!map[field]) return `${field.replace(/_/g, " ")} is required`;
     }
 
     if (amount <= 0) return "Invalid amount";
+
     return null;
   }
 
+  /* ================= CHECKOUT ================= */
   async function handleCheckout() {
     const validationError = validate();
     if (validationError) {
@@ -101,10 +93,10 @@ export default function InsurancePage() {
       return;
     }
 
-    try {
-      setStage("processing");
-      setErrorMessage("");
+    setStage("processing");
+    setErrorMessage("");
 
+    try {
       const res = await api.post(
         "/vtpass/insurance/checkout",
         {
@@ -129,26 +121,65 @@ export default function InsurancePage() {
       );
 
       if (res.data?.success) {
-        setReference(res.data?.requestId || res.data?.reference || null);
+        setReference(res.data.requestId || res.data.reference || null);
         setStage("success");
-      } else if (res.data?.status === "paystack" && res.data?.authorization_url) {
-        window.location.href = res.data.authorization_url;
-      } else {
-        setErrorMessage(res.data?.error || res.data?.message || "Transaction failed");
-        setStage("error");
+        setTimeout(() => {
+          window.location.href = "/transactions";
+        }, 2500);
+        return;
       }
+
+      if (res.data?.status === "paystack" && res.data.authorization_url) {
+        window.location.href = res.data.authorization_url;
+        return;
+      }
+
+      setErrorMessage(res.data?.error || res.data?.message || "Transaction failed");
+      setStage("error");
     } catch (err: any) {
-      console.error(err);
-      setErrorMessage(err?.response?.data?.error || "Unexpected error occurred");
+      console.error("Checkout error:", err);
+      setErrorMessage(err?.response?.data?.error || err?.response?.data?.message || "Unexpected error");
       setStage("error");
     }
   }
 
+  /* ================= DYNAMIC FIELD RENDER ================= */
+  const renderField = (field: string) => {
+    const valueMap: Record<string, [string, React.Dispatch<React.SetStateAction<string>>]> = {
+      insuredName: [insuredName, setInsuredName],
+      engineCapacity: [engineCapacity, setEngineCapacity],
+      chasisNumber: [chasisNumber, setChasisNumber],
+      plateNumber: [plateNumber, setPlateNumber],
+      vehicleMake: [vehicleMake, setVehicleMake],
+      vehicleModel: [vehicleModel, setVehicleModel],
+      vehicleColor: [vehicleColor, setVehicleColor],
+      yearOfMake: [yearOfMake, setYearOfMake],
+      state: [state, setState],
+      lga: [lga, setLGA],
+      email: [email, setEmail],
+    };
+
+    const [value, setter] = valueMap[field] || ["", () => {}];
+    return (
+      <input
+        key={field}
+        value={value}
+        onChange={e => setter(e.target.value)}
+        placeholder={field.replace(/_/g, " ")}
+        className="w-full p-3 border rounded"
+      />
+    );
+  };
+
+  const requiredFields = selectedVariation?.requiredFields || [];
+
+  const isProcessing = stage === "processing";
+
+  /* ================= UI ================= */
   return (
     <ResponsiveLandingWrapper>
       <BannersWrapper page="insurance">
         <div className="max-w-lg mx-auto px-4">
-
           {stage === "form" && (
             <div className="bg-white dark:bg-gray-900 p-6 rounded-lg space-y-4 shadow">
               <h2 className="text-xl font-bold">Insurance</h2>
@@ -173,49 +204,13 @@ export default function InsurancePage() {
                 className="w-full p-3 border rounded"
               />
 
-              {selectedVariation?.requiredFields?.map(field => {
-                const valueMap: Record<string, string> = {
-                  insuredName,
-                  engineCapacity,
-                  chasisNumber,
-                  plateNumber,
-                  vehicleMake,
-                  vehicleModel,
-                  vehicleColor,
-                  yearOfMake,
-                  state,
-                  lga,
-                  email,
-                };
-                const setterMap: Record<string, (val: string) => void> = {
-                  insuredName: setInsuredName,
-                  engineCapacity: setEngineCapacity,
-                  chasisNumber: setChasisNumber,
-                  plateNumber: setPlateNumber,
-                  vehicleMake: setVehicleMake,
-                  vehicleModel: setVehicleModel,
-                  vehicleColor: setVehicleColor,
-                  yearOfMake: setYearOfMake,
-                  state: setState,
-                  lga: setLGA,
-                  email: setEmail,
-                };
-                return (
-                  <input
-                    key={field}
-                    value={valueMap[field]}
-                    onChange={e => setterMap[field](e.target.value)}
-                    placeholder={FIELD_LABELS[field] || field}
-                    className="w-full p-3 border rounded"
-                  />
-                );
-              })}
+              {requiredFields.map(f => renderField(f))}
 
               <p className="text-sm">Amount: ₦{amount}</p>
 
               <button
                 onClick={handleCheckout}
-                disabled={stage === "processing"}
+                disabled={isProcessing}
                 className="w-full bg-blue-600 text-white py-3 rounded disabled:opacity-60"
               >
                 Continue
@@ -232,13 +227,15 @@ export default function InsurancePage() {
           {stage === "success" && (
             <div className="bg-green-100 p-6 rounded text-center">
               <h2 className="font-bold">Insurance Purchased 🎉</h2>
-              <p className="text-sm mt-2">Reference: <b>{reference}</b></p>
+              <p className="text-sm mt-2">
+                Reference: <b>{reference}</b>
+              </p>
             </div>
           )}
 
           {stage === "error" && (
             <div className="bg-red-100 p-6 rounded text-center">
-              <p className="text-red-700">{errorMessage}</p>
+              <p className="text-red-700">{errorMessage || "Something went wrong"}</p>
               <button
                 onClick={() => setStage("form")}
                 className="mt-4 w-full bg-gray-800 text-white py-2 rounded"
@@ -247,7 +244,6 @@ export default function InsurancePage() {
               </button>
             </div>
           )}
-
         </div>
       </BannersWrapper>
     </ResponsiveLandingWrapper>
