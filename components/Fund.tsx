@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
-import { Dialog } from "@headlessui/react";
 
 interface Campaign {
   id: string;
@@ -39,24 +38,25 @@ export default function FundsPage() {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
 
-  // Fetch current user info
+  // -----------------------
+  // Load user from storage
+  // -----------------------
   useEffect(() => {
     const u = localStorage.getItem("user");
-    if (!u) return;
-    setUser(JSON.parse(u));
+    if (u) setUser(JSON.parse(u));
   }, []);
 
-  // Fetch campaigns & wallet live every 10s
+  // -----------------------
+  // Fetch campaigns + wallet
+  // -----------------------
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
       try {
-        // Campaigns
         const res = await api.get("/funds");
         setCampaigns(res.data.data || []);
 
-        // Wallet
         const walletRes = await api.get("/wallet/me");
         if (walletRes.data.success) {
           setWalletBalance(walletRes.data.wallet.balance);
@@ -67,7 +67,7 @@ export default function FundsPage() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 10000); // 10 seconds
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -76,14 +76,20 @@ export default function FundsPage() {
     return campaigns.filter(c => c.creatorID === user.userID);
   }, [campaigns, user]);
 
+  // -----------------------
+  // Create campaign
+  // -----------------------
   async function createCampaign(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return setMessage("Login required");
 
-    if (!accountNumber || !bankName) return setMessage("Destination account required");
+    if (!accountNumber || !bankName) {
+      return setMessage("Destination account required");
+    }
+
     try {
-      const res = await api.post("/wallet/provision", { accountNumber, bankName });
-      if (!res.data.success) return setMessage("Invalid account");
+      const verify = await api.post("/wallet/provision", { accountNumber, bankName });
+      if (!verify.data.success) return setMessage("Invalid account");
     } catch (err: any) {
       return setMessage(err.response?.data?.message || err.message);
     }
@@ -99,23 +105,43 @@ export default function FundsPage() {
         accountNumber,
         bankName,
       });
+
       if (res.data.success) {
         setMessage("Campaign created successfully");
         setCampaigns(prev => [res.data.data, ...prev]);
-        setTitle(""); setDesc(""); setGoal(""); setDuration(""); setCategory(""); setAccountNumber(""); setBankName("");
-      } else setMessage(res.data.error || "Failed");
+        setTitle("");
+        setDesc("");
+        setGoal("");
+        setDuration("");
+        setCategory("");
+        setAccountNumber("");
+        setBankName("");
+      } else {
+        setMessage(res.data.error || "Failed");
+      }
     } catch (err: any) {
       setMessage(err.response?.data?.error || err.message);
     }
   }
 
+  // -----------------------
+  // Donate
+  // -----------------------
   async function donate(campaignID: string) {
     if (!user) return setMessage("Login required");
+
     const amt = prompt("Enter donation amount (NGN)");
     if (!amt) return;
+
     try {
-      const res = await api.post("/funds/donate", { campaignID, donorID: user.userID, amount: Number(amt) });
-      if (res.data.data?.data?.authorization_url) window.location.href = res.data.data.data.authorization_url;
+      const res = await api.post("/funds/donate", {
+        campaignID,
+        donorID: user.userID,
+        amount: Number(amt),
+      });
+
+      const url = res.data?.data?.data?.authorization_url;
+      if (url) window.location.href = url;
       else setMessage("Unable to start payment");
     } catch (err: any) {
       setMessage(err.response?.data?.error || err.message);
@@ -123,20 +149,26 @@ export default function FundsPage() {
   }
 
   const sortedCampaigns = useMemo(() => {
-    return campaigns.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return [...campaigns].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }, [campaigns]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
 
-      {/* USER CAMPAIGN DASHBOARD CARD */}
+      {/* USER DASHBOARD */}
       {user && myCampaigns.length > 0 && (
         <div className="border p-4 rounded bg-gray-50 dark:bg-gray-800">
-          <h3 className="font-semibold">Hi {user.firstName}, you have {myCampaigns.length} active campaign{myCampaigns.length > 1 ? "s" : ""}</h3>
+          <h3 className="font-semibold">
+            Hi {user.firstName}, you have {myCampaigns.length} active campaign{myCampaigns.length > 1 ? "s" : ""}
+          </h3>
+
           {walletBalance !== null && (
             <p className="text-sm mt-1">Wallet Balance: ₦{walletBalance}</p>
           )}
-          <div className="mt-2 space-y-2">
+
+          <div className="mt-3 space-y-2">
             {myCampaigns.map(c => {
               const progress = Math.min((c.raisedAmount / c.goalAmount) * 100, 100);
               return (
@@ -146,7 +178,10 @@ export default function FundsPage() {
                     <span>₦{c.raisedAmount} / ₦{c.goalAmount}</span>
                   </div>
                   <div className="w-full bg-gray-300 dark:bg-gray-700 h-2 rounded mt-1">
-                    <div className="bg-green-500 h-2 rounded transition-all duration-500" style={{ width: `${progress}%` }} />
+                    <div
+                      className="bg-green-500 h-2 rounded transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -155,22 +190,27 @@ export default function FundsPage() {
         </div>
       )}
 
-      {/* CREATE CAMPAIGN FORM */}
-      <h2 className="text-xl font-semibold mb-4">Create Campaign</h2>
+      {/* CREATE CAMPAIGN */}
+      <h2 className="text-xl font-semibold">Create Campaign</h2>
       <form onSubmit={createCampaign} className="space-y-3">
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" className="w-full p-2 border rounded" />
-        <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Description" className="w-full p-2 border rounded" />
-        <input value={goal} onChange={e => setGoal(e.target.value)} placeholder="Goal amount" className="w-full p-2 border rounded" />
-        <input value={duration} onChange={e => setDuration(e.target.value)} placeholder="Duration (days)" className="w-full p-2 border rounded" />
-        <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Category" className="w-full p-2 border rounded" />
-        <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Destination Account Number" className="w-full p-2 border rounded" />
-        <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Bank Name" className="w-full p-2 border rounded" />
-        <button className="btn bg-blue-600 text-white px-4 py-2 rounded" type="submit" disabled={myCampaigns.length > 0}>
-          {myCampaigns.length > 0 ? "Campaign Created (cannot edit)" : "Create Campaign"}
+        <input className="w-full p-2 border rounded" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} />
+        <textarea className="w-full p-2 border rounded" placeholder="Description" value={desc} onChange={e => setDesc(e.target.value)} />
+        <input className="w-full p-2 border rounded" placeholder="Goal amount" value={goal} onChange={e => setGoal(e.target.value)} />
+        <input className="w-full p-2 border rounded" placeholder="Duration (days)" value={duration} onChange={e => setDuration(e.target.value)} />
+        <input className="w-full p-2 border rounded" placeholder="Category" value={category} onChange={e => setCategory(e.target.value)} />
+        <input className="w-full p-2 border rounded" placeholder="Destination Account Number" value={accountNumber} onChange={e => setAccountNumber(e.target.value)} />
+        <input className="w-full p-2 border rounded" placeholder="Bank Name" value={bankName} onChange={e => setBankName(e.target.value)} />
+
+        <button
+          type="submit"
+          disabled={myCampaigns.length > 0}
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          {myCampaigns.length > 0 ? "Campaign Created" : "Create Campaign"}
         </button>
       </form>
 
-      {/* ACTIVE CAMPAIGNS LIST */}
+      {/* CAMPAIGNS LIST */}
       <h3 className="text-lg font-medium">Active Campaigns</h3>
       <div className="grid gap-3">
         {sortedCampaigns.map(c => {
@@ -183,50 +223,74 @@ export default function FundsPage() {
             >
               <h4 className="font-semibold">{c.title}</h4>
               <p className="text-sm text-gray-600">{c.description}</p>
-              <div className="mt-2 flex gap-2 items-center">
-                <div className="text-sm">Raised: ₦{c.raisedAmount} / ₦{c.goalAmount}</div>
-                <div className="w-24 h-2 bg-gray-300 dark:bg-gray-700 rounded overflow-hidden">
-                  <div className="bg-green-500 h-2 rounded transition-all duration-500" style={{ width: `${progress}%` }} />
+
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-sm">₦{c.raisedAmount} / ₦{c.goalAmount}</span>
+                <div className="flex-1 h-2 bg-gray-300 dark:bg-gray-700 rounded">
+                  <div
+                    className="bg-green-500 h-2 rounded transition-all duration-500"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
-                <button className="btn ml-auto bg-green-600 text-white px-3 py-1 rounded" onClick={() => donate(c.id)}>Donate</button>
+                <button
+                  className="bg-green-600 text-white px-3 py-1 rounded"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    donate(c.id);
+                  }}
+                >
+                  Donate
+                </button>
               </div>
             </div>
           );
         })}
       </div>
 
-      {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
+      {message && <p className="text-sm text-green-600">{message}</p>}
 
-      {/* CAMPAIGN DETAIL MODAL */}
+      {/* SIMPLE MODAL */}
       {selectedCampaign && (
-        <Dialog open={!!selectedCampaign} onClose={() => setSelectedCampaign(null)} className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4">
-            <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-            <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-3xl w-full p-6 space-y-4 z-50">
-              <Dialog.Title className="text-xl font-bold">{selectedCampaign.title}</Dialog.Title>
-              <div className="space-y-2">
-                <p><strong>Description:</strong> {selectedCampaign.description}</p>
-                <p><strong>Category:</strong> {selectedCampaign.category || "N/A"}</p>
-                <p><strong>Goal:</strong> ₦{selectedCampaign.goalAmount}</p>
-                <p><strong>Raised:</strong> ₦{selectedCampaign.raisedAmount}</p>
-                <p><strong>Duration:</strong> {selectedCampaign.durationDays || "N/A"} days</p>
-                <p><strong>Destination Account:</strong> {selectedCampaign.bankName || "N/A"} - {selectedCampaign.accountNumber || "N/A"}</p>
-                {walletBalance !== null && <p className="text-sm">Wallet Balance: ₦{walletBalance}</p>}
-                <div className="w-full bg-gray-300 dark:bg-gray-700 h-2 rounded mt-1">
-                  <div
-                    className="bg-green-500 h-2 rounded transition-all duration-500"
-                    style={{ width: `${Math.min((selectedCampaign.raisedAmount / selectedCampaign.goalAmount) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button className="flex-1 bg-green-600 text-white py-2 rounded" onClick={() => donate(selectedCampaign.id)}>Donate</button>
-                <button className="flex-1 bg-gray-200 py-2 rounded" onClick={() => setSelectedCampaign(null)}>Close</button>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white dark:bg-gray-900 max-w-lg w-full rounded-xl p-6 space-y-3">
+            <h3 className="text-xl font-bold">{selectedCampaign.title}</h3>
+
+            <p>{selectedCampaign.description}</p>
+            <p><strong>Category:</strong> {selectedCampaign.category || "N/A"}</p>
+            <p><strong>Goal:</strong> ₦{selectedCampaign.goalAmount}</p>
+            <p><strong>Raised:</strong> ₦{selectedCampaign.raisedAmount}</p>
+            <p><strong>Account:</strong> {selectedCampaign.bankName} - {selectedCampaign.accountNumber}</p>
+
+            <div className="w-full bg-gray-300 dark:bg-gray-700 h-2 rounded">
+              <div
+                className="bg-green-500 h-2 rounded transition-all duration-500"
+                style={{
+                  width: `${Math.min(
+                    (selectedCampaign.raisedAmount / selectedCampaign.goalAmount) * 100,
+                    100
+                  )}%`
+                }}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-3">
+              <button
+                className="flex-1 bg-green-600 text-white py-2 rounded"
+                onClick={() => donate(selectedCampaign.id)}
+              >
+                Donate
+              </button>
+              <button
+                className="flex-1 bg-gray-200 py-2 rounded"
+                onClick={() => setSelectedCampaign(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
-        </Dialog>
+        </div>
       )}
+
     </div>
   );
 }
