@@ -1,29 +1,53 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 
+interface User {
+  id: string;
+  fullName: string;
+  username: string;
+  wallet: {
+    balance: number;
+    userId: string;
+  };
+  virtualAccount?: {
+    bankName: string;
+    accountNumber: string;
+  };
+}
+
+interface Recipient {
+  id: string;
+  fullName: string;
+  userID: string;
+}
+
 export default function InternalTransferPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const [recipient, setRecipient] = useState("");
-  const [recentRecipients, setRecentRecipients] = useState<string[]>([]);
-  const [recipientInfo, setRecipientInfo] = useState<any>(null);
+  const [recipientInfo, setRecipientInfo] = useState<Recipient | null>(null);
+  const [recentRecipients, setRecentRecipients] = useState<Recipient[]>([]);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState("");
-  const [amount, setAmount] = useState("");
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [transferSuccess, setTransferSuccess] = useState(false);
-  const [step, setStep] = useState(1);
 
-  /* ---------------- Fetch User ---------------- */
+  const [amount, setAmount] = useState("");
+  const [step, setStep] = useState(1);
+  const [processing, setProcessing] = useState(false);
+  const [transferSuccess, setTransferSuccess] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  /* ---------------- Fetch user + recent recipients ---------------- */
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const res = await api.get("/wallet/me");
         if (res.data.success) setUser(res.data);
-        setRecentRecipients(["alice", "bob", "charlie"]);
+
+        const recents = await api.get("/wallet/recent-recipients");
+        if (recents.data.success) setRecentRecipients(recents.data.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -33,7 +57,7 @@ export default function InternalTransferPage() {
     fetchUser();
   }, []);
 
-  /* ---------------- Lookup Recipient ---------------- */
+  /* ---------------- Lookup recipient ---------------- */
   useEffect(() => {
     if (!recipient || recipient.length < 3) {
       setRecipientInfo(null);
@@ -44,9 +68,12 @@ export default function InternalTransferPage() {
     const timeout = setTimeout(async () => {
       try {
         setLookupLoading(true);
-        const res = await api.get(`/wallet/user/lookup?username=${recipient}`);
+        const res = await api.get("/wallet/user/lookup", {
+          params: { username: recipient },
+        });
+
         if (res.data.success && res.data.user) {
-          if (res.data.user.id === user?.wallet?.userId) {
+          if (res.data.user.id === user?.wallet.userId) {
             setLookupError("You cannot transfer to yourself");
             setRecipientInfo(null);
           } else {
@@ -54,12 +81,12 @@ export default function InternalTransferPage() {
             setLookupError("");
           }
         } else {
-          setLookupError("User not found");
+          setLookupError(res.data.message || "User not found");
           setRecipientInfo(null);
         }
       } catch {
-        setLookupError("User not found");
         setRecipientInfo(null);
+        setLookupError("User not found");
       } finally {
         setLookupLoading(false);
       }
@@ -68,6 +95,7 @@ export default function InternalTransferPage() {
     return () => clearTimeout(timeout);
   }, [recipient, user]);
 
+  /* ---------------- Helpers ---------------- */
   const formatCurrency = (raw: string) => {
     const num = Number(raw.replace(/,/g, ""));
     if (isNaN(num)) return "";
@@ -75,6 +103,17 @@ export default function InternalTransferPage() {
   };
 
   const getRawAmount = () => Number(amount.replace(/,/g, "")) || 0;
+
+  const canProceed = (() => {
+    const raw = getRawAmount();
+    if (!recipient) return false;
+    if (!recipientInfo) return false;
+    if (lookupLoading) return false;
+    if (lookupError) return false;
+    if (step === 2 && raw <= 0) return false;
+    if ((user?.wallet?.balance ?? 0) < raw * 100) return false;
+    return true;
+  })();
 
   /* ---------------- Transfer ---------------- */
   const handleTransfer = async () => {
@@ -84,12 +123,16 @@ export default function InternalTransferPage() {
 
     setProcessing(true);
     try {
-      const payload = { toUserId: recipientInfo.id, amount: rawAmount * 100 };
-      const res = await api.post("/wallet/transfer", payload);
+      const res = await api.post("/wallet/transfer", {
+        toUserId: recipientInfo.id,
+        amount: rawAmount * 100,
+      });
       if (res.data.success) {
         setTransferSuccess(true);
-        setShowModal(false);
         setStep(1);
+        setRecipient("");
+        setRecipientInfo(null);
+        setAmount("");
         setTimeout(() => setTransferSuccess(false), 2000);
       } else {
         alert(res.data.message || "Transfer failed");
@@ -101,18 +144,6 @@ export default function InternalTransferPage() {
     }
   };
 
-  const { disabled, tooltip } = (() => {
-    const rawAmount = getRawAmount();
-    if (!recipient) return { disabled: true, tooltip: "Enter username" };
-    if (lookupLoading) return { disabled: true, tooltip: "Searching..." };
-    if (lookupError) return { disabled: true, tooltip: lookupError };
-    if (!recipientInfo) return { disabled: true, tooltip: "Invalid user" };
-    if (!rawAmount) return { disabled: true, tooltip: "Enter amount" };
-    if ((user?.wallet?.balance ?? 0) < rawAmount * 100)
-      return { disabled: true, tooltip: "Insufficient balance" };
-    return { disabled: false, tooltip: "" };
-  })();
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-900 text-white">
@@ -120,6 +151,11 @@ export default function InternalTransferPage() {
       </div>
     );
   }
+
+  /* ---------------- Filtered dropdown ---------------- */
+  const filteredRecipients = recentRecipients.filter((r) =>
+    r.userID.toLowerCase().includes(recipient.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6 max-w-3xl mx-auto">
@@ -133,131 +169,113 @@ export default function InternalTransferPage() {
             ₦{(user.wallet.balance / 100).toLocaleString("en-NG")}
           </p>
           <p className="text-gray-400 text-sm">
-            {user.virtualAccount.bankName} •{" "}
-            {user.virtualAccount.accountNumber}
+            {user.virtualAccount.bankName} • {user.virtualAccount.accountNumber}
           </p>
         </div>
       )}
 
-      {/* RECENT RECIPIENTS */}
-      {recentRecipients.length > 0 && (
+      {/* STEP 1: Recipient with autocomplete */}
+      {step === 1 && (
+        <div className="mb-4 relative">
+          <input
+            className="w-full p-3 rounded bg-gray-900 border border-gray-700"
+            placeholder="Enter username"
+            value={recipient}
+            onChange={(e) => {
+              setRecipient(e.target.value.trim().toLowerCase());
+              setShowDropdown(true);
+            }}
+            onFocus={() => setShowDropdown(true)}
+            onBlur={() =>
+              setTimeout(() => setShowDropdown(false), 200) /* small delay for click */
+            }
+          />
+          {showDropdown && filteredRecipients.length > 0 && (
+            <ul className="absolute z-50 bg-gray-800 border border-gray-700 w-full mt-1 rounded max-h-40 overflow-y-auto">
+              {filteredRecipients.map((r) => (
+                <li
+                  key={r.id}
+                  className="px-3 py-2 hover:bg-gray-700 cursor-pointer"
+                  onClick={() => {
+                    setRecipient(r.userID);
+                    setShowDropdown(false);
+                  }}
+                >
+                  {r.fullName} (@{r.userID})
+                </li>
+              ))}
+            </ul>
+          )}
+          {lookupLoading && <p className="text-sm text-gray-400">Searching...</p>}
+          {lookupError && <p className="text-sm text-red-500">{lookupError}</p>}
+          {recipientInfo && (
+            <p className="text-sm text-green-500">
+              {recipientInfo.fullName} (@{recipientInfo.userID})
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* STEP 2: Amount */}
+      {step === 2 && (
         <div className="mb-4">
-          <p className="font-semibold mb-2">Recent Recipients</p>
-          <div className="flex gap-2">
-            {recentRecipients.map((r) => (
-              <button
-                key={r}
-                onClick={() => setRecipient(r)}
-                className="px-3 py-1 bg-gray-700 rounded-full hover:bg-gray-600"
-              >
-                @{r}
-              </button>
-            ))}
-          </div>
+          <input
+            className="w-full p-3 rounded bg-gray-900 border border-gray-700"
+            placeholder="Enter amount"
+            value={amount}
+            onChange={(e) => setAmount(formatCurrency(e.target.value))}
+          />
+          {user && getRawAmount() * 100 > user.wallet.balance && (
+            <p className="text-sm text-red-500">Insufficient balance</p>
+          )}
         </div>
       )}
 
-      <button
-        disabled={disabled || processing}
-        onClick={() => setShowModal(true)}
-        className={`w-full p-3 rounded-lg font-bold ${
-          disabled || processing
-            ? "bg-gray-600"
-            : "bg-blue-600 hover:bg-blue-700"
-        }`}
-      >
-        Proceed
-      </button>
-
-      {/* ---------------- MODAL ---------------- */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-gray-800 w-full max-w-md rounded-2xl p-6 shadow-xl">
-
-            {/* STEP INDICATOR */}
-            <div className="mb-6 relative">
-              <div className="absolute top-4 left-0 w-full h-1 bg-gray-600 rounded" />
-              <div
-                className="absolute top-4 left-0 h-1 bg-green-500 rounded transition-all duration-500"
-                style={{ width: `${((step - 1) / 2) * 100}%` }}
-              />
-              <div className="relative flex justify-between">
-                {[1, 2, 3].map((s) => (
-                  <div
-                    key={s}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold ${
-                      s < step
-                        ? "bg-green-500 border-green-500"
-                        : s === step
-                        ? "bg-blue-600 border-blue-600"
-                        : "border-gray-600"
-                    }`}
-                  >
-                    {s}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* STEP CONTENT */}
-            {step === 1 && (
-              <input
-                className="w-full p-3 rounded bg-gray-900 border border-gray-700"
-                placeholder="Enter username"
-                value={recipient}
-                onChange={(e) =>
-                  setRecipient(e.target.value.trim().toLowerCase())
-                }
-              />
-            )}
-
-            {step === 2 && (
-              <input
-                className="w-full p-3 rounded bg-gray-900 border border-gray-700"
-                placeholder="Enter amount"
-                value={amount}
-                onChange={(e) => setAmount(formatCurrency(e.target.value))}
-              />
-            )}
-
-            {step === 3 && (
-              <div className="space-y-2">
-                <p>
-                  <strong>To:</strong> {recipientInfo?.fullName}
-                </p>
-                <p>
-                  <strong>Amount:</strong> ₦
-                  {getRawAmount().toLocaleString("en-NG")}
-                </p>
-              </div>
-            )}
-
-            {/* NAVIGATION */}
-            <div className="flex justify-between mt-6">
-              {step > 1 ? (
-                <button onClick={() => setStep(step - 1)}>Back</button>
-              ) : (
-                <div />
-              )}
-              {step < 3 ? (
-                <button
-                  onClick={() => setStep(step + 1)}
-                  className="bg-blue-600 px-4 py-2 rounded"
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  onClick={handleTransfer}
-                  className="bg-green-600 px-4 py-2 rounded"
-                >
-                  Confirm
-                </button>
-              )}
-            </div>
-          </div>
+      {/* STEP 3: Confirm */}
+      {step === 3 && (
+        <div className="mb-4 space-y-2">
+          <p>
+            <strong>Recipient:</strong> {recipientInfo?.fullName} (@{recipientInfo?.userID})
+          </p>
+          <p>
+            <strong>Amount:</strong> ₦{getRawAmount().toLocaleString("en-NG")}
+          </p>
         </div>
       )}
+
+      {/* NAVIGATION */}
+      <div className="flex justify-between mt-4">
+        {step > 1 && (
+          <button
+            onClick={() => setStep(step - 1)}
+            className="px-4 py-2 rounded bg-gray-700"
+          >
+            Back
+          </button>
+        )}
+        {step < 3 && (
+          <button
+            disabled={!canProceed}
+            onClick={() => setStep(step + 1)}
+            className={`px-4 py-2 rounded ${
+              !canProceed ? "bg-gray-600" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            Next
+          </button>
+        )}
+        {step === 3 && (
+          <button
+            disabled={processing}
+            onClick={handleTransfer}
+            className={`px-4 py-2 rounded ${
+              processing ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            {processing ? "Processing…" : "Confirm"}
+          </button>
+        )}
+      </div>
 
       {/* SUCCESS */}
       {transferSuccess && (
