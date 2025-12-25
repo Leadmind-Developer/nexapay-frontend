@@ -14,8 +14,6 @@ interface Variation {
   requiredFields?: string[];
 }
 
-type Stage = "form" | "review" | "processing" | "success" | "error";
-
 /* ================= PAGE ================= */
 export default function InsurancePage() {
   const serviceID = "ui-insure";
@@ -38,17 +36,7 @@ export default function InsurancePage() {
   const [state, setState] = useState("");
   const [lga, setLGA] = useState("");
 
-  const {
-    checkout,
-    stage,
-    errorMessage,
-    reference,
-    reset,
-  } = useCheckout();
-    service: "insurance",
-    endpoint: "/vtpass/insurance/checkout",
-    redirectOnSuccess: "/transactions",
-  });
+  const { checkout, stage, errorMessage, reference, reset } = useCheckout();
 
   /* ================= FETCH VARIATIONS ================= */
   useEffect(() => {
@@ -88,9 +76,7 @@ export default function InsurancePage() {
     };
 
     for (const field of required) {
-      if (!map[field]) {
-        return `${field.replace(/_/g, " ")} is required`;
-      }
+      if (!map[field]) return `${field.replace(/_/g, " ")} is required`;
     }
 
     if (amount <= 0) return "Invalid amount";
@@ -124,7 +110,7 @@ export default function InsurancePage() {
         yearOfMake,
         state,
         lga,
-        },
+      },
       redirectTo: "/transactions",
     });
   }
@@ -135,6 +121,7 @@ export default function InsurancePage() {
       <BannersWrapper page="insurance">
         <div className="max-w-lg mx-auto px-4">
 
+          {/* FORM */}
           {stage === "idle" && (
             <div className="bg-white dark:bg-gray-900 p-6 rounded-lg space-y-4 shadow">
               <h2 className="text-xl font-bold">Insurance</h2>
@@ -152,8 +139,18 @@ export default function InsurancePage() {
                 ))}
               </select>
 
-              <input value={billersCode} onChange={e => setBillersCode(e.target.value)} placeholder="Customer number" className="w-full p-3 border rounded" />
-              <input value={insuredName} onChange={e => setInsuredName(e.target.value)} placeholder="Insured name" className="w-full p-3 border rounded" />
+              <input
+                value={billersCode}
+                onChange={e => setBillersCode(e.target.value)}
+                placeholder="Customer number"
+                className="w-full p-3 border rounded"
+              />
+              <input
+                value={insuredName}
+                onChange={e => setInsuredName(e.target.value)}
+                placeholder="Insured name"
+                className="w-full p-3 border rounded"
+              />
 
               <p className="text-sm">Amount: ₦{amount}</p>
 
@@ -167,26 +164,31 @@ export default function InsurancePage() {
             </div>
           )}
 
+          {/* PROCESSING */}
           {stage === "processing" && (
             <div className="bg-white p-6 rounded text-center">
               Processing transaction…
             </div>
           )}
 
+          {/* SUCCESS */}
           {stage === "success" && (
             <div className="bg-green-100 p-6 rounded text-center">
               <h2 className="font-bold">Insurance Purchased 🎉</h2>
-              <p className="text-sm mt-2">Reference: <b>{reference}</b></p>
+              <p className="text-sm mt-2">
+                Reference: <b>{reference}</b>
+              </p>
             </div>
           )}
 
+          {/* ERROR */}
           {stage === "error" && (
             <div className="bg-red-100 p-6 rounded text-center">
               <p className="text-red-700">
                 {errorMessage || "Something went wrong"}
               </p>
               <button
-                onClick={() => reset()}
+                onClick={reset}
                 className="mt-4 w-full bg-gray-800 text-white py-2 rounded"
               >
                 Back
