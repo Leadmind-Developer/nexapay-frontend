@@ -25,6 +25,8 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfZoom, setPdfZoom] = useState(1);
   const processingTxs = useTransactionsSSE();
 
   // Initial fetch
@@ -69,6 +71,12 @@ export default function TransactionsPage() {
     alert("Copied to clipboard");
   };
 
+  const openModal = (tx: Transaction) => {
+    setSelectedTx(tx);
+    setPdfUrl(`/transactions/${tx.requestId}/receipt.pdf`);
+    setPdfZoom(1);
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-5 space-y-4">
       <h1 className="text-2xl font-bold mb-4">Transactions</h1>
@@ -103,7 +111,7 @@ export default function TransactionsPage() {
           <div
             key={tx.requestId}
             className="p-4 border rounded flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer"
-            onClick={() => setSelectedTx(tx)}
+            onClick={() => openModal(tx)}
           >
             <div>
               <p className="font-semibold capitalize">{tx.serviceId.replace("_", " ")}</p>
@@ -156,37 +164,68 @@ export default function TransactionsPage() {
         ))
       )}
 
-      {/* Transaction Detail Modal */}
+      {/* Transaction Detail Modal with PDF preview */}
       {selectedTx && (
         <Dialog open={!!selectedTx} onClose={() => setSelectedTx(null)} className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4">
             <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50" />
-            <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-md w-full p-6 space-y-4 z-50">
+            <div className="relative bg-white dark:bg-gray-900 rounded-lg max-w-3xl w-full p-6 space-y-4 z-50">
               <Dialog.Title className="text-xl font-bold">Transaction Details</Dialog.Title>
 
-              <div className="space-y-2">
-                <p><strong>Service:</strong> {selectedTx.serviceId}</p>
-                <p><strong>Reference:</strong> {selectedTx.requestId}</p>
-                <p><strong>Amount:</strong> ₦{selectedTx.amount}</p>
-                <p><strong>Status:</strong> {selectedTx.status}</p>
-                {selectedTx.phone && <p><strong>Phone:</strong> {selectedTx.phone}</p>}
-                {selectedTx.billersCode && <p><strong>Customer No:</strong> {selectedTx.billersCode}</p>}
-                {selectedTx.apiResponse?.pin && (
-                  <p className="text-lg font-bold">
-                    Token/PIN: {selectedTx.apiResponse.pin}
-                  </p>
-                )}
-                {selectedTx.apiResponse?.token && (
-                  <p className="text-lg font-bold">
-                    Token/PIN: {selectedTx.apiResponse.token}
-                  </p>
-                )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p><strong>Service:</strong> {selectedTx.serviceId}</p>
+                  <p><strong>Reference:</strong> {selectedTx.requestId}</p>
+                  <p><strong>Amount:</strong> ₦{selectedTx.amount}</p>
+                  <p><strong>Status:</strong> {selectedTx.status}</p>
+                  {selectedTx.phone && <p><strong>Phone:</strong> {selectedTx.phone}</p>}
+                  {selectedTx.billersCode && <p><strong>Customer No:</strong> {selectedTx.billersCode}</p>}
+                  {selectedTx.apiResponse?.pin && (
+                    <p className="text-lg font-bold text-indigo-700">
+                      Token/PIN: {selectedTx.apiResponse.pin}
+                    </p>
+                  )}
+                  {selectedTx.apiResponse?.token && (
+                    <p className="text-lg font-bold text-indigo-700">
+                      Token/PIN: {selectedTx.apiResponse.token}
+                    </p>
+                  )}
+                </div>
+
+                {/* PDF Preview with Zoom & Scroll */}
+                <div className="border rounded overflow-auto h-80 relative">
+                  <div className="flex justify-end p-2 gap-2 sticky top-0 bg-white dark:bg-gray-900 z-10">
+                    <button
+                      className="px-2 py-1 bg-gray-200 rounded text-sm"
+                      onClick={() => setPdfZoom((z) => Math.min(z + 0.2, 3))}
+                    >
+                      +
+                    </button>
+                    <button
+                      className="px-2 py-1 bg-gray-200 rounded text-sm"
+                      onClick={() => setPdfZoom((z) => Math.max(z - 0.2, 0.5))}
+                    >
+                      -
+                    </button>
+                    <span className="text-sm px-2 py-1">Zoom: {(pdfZoom * 100).toFixed(0)}%</span>
+                  </div>
+                  {pdfUrl ? (
+                    <iframe
+                      src={pdfUrl}
+                      className="w-full h-full transform"
+                      style={{ transform: `scale(${pdfZoom})`, transformOrigin: "top left" }}
+                      title="Receipt Preview"
+                    />
+                  ) : (
+                    <p className="p-4 text-gray-500">Loading PDF preview…</p>
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-2 mt-4">
                 <button
                   className="flex-1 bg-blue-600 text-white py-2 rounded"
-                  onClick={() => window.open(`/transactions/${selectedTx.requestId}/receipt.pdf`, "_blank")}
+                  onClick={() => window.open(pdfUrl || "#", "_blank")}
                 >
                   Download Receipt
                 </button>
