@@ -37,30 +37,31 @@ export default function Savings() {
   const [withdrawGoal, setWithdrawGoal] = useState<SavingsGoal | null>(null);
 
   useEffect(() => {
-    async function load() {
+    const load = async () => {
       try {
         setLoading(true);
+
         const [analyticsRes, goalsRes, aiRes] = await Promise.all([
           api.get("/savings/analytics"),
           api.get("/savings/goals"),
-          api.get("/savings/ai/recommendations")
+          api.get("/savings/ai/recommendations"),
         ]);
 
-        setSummary(analyticsRes.data.data || null);
-        setGoals(goalsRes.data.data || []);
-        setTips(aiRes.data.tips || []);
+        setSummary(analyticsRes.data?.data ?? null);
+        setGoals(goalsRes.data?.data ?? []);
+        setTips(aiRes.data?.tips ?? []);
       } catch (err) {
         console.error("Savings load error:", err);
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     load();
   }, []);
 
   const filteredGoals = useMemo(
-    () => goals.filter(g => g.status === tab),
+    () => goals.filter((g) => g.status === tab),
     [goals, tab]
   );
 
@@ -77,12 +78,14 @@ export default function Savings() {
               {formatMoney(summary?.totalSaved)}
             </p>
           </div>
+
           <div>
             <p className="text-sm text-gray-500">Interest Earned</p>
             <p className="text-xl font-bold text-green-600">
               {formatMoney(summary?.totalInterest)}
             </p>
           </div>
+
           <span className="self-start rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
             Up to 23% p.a
           </span>
@@ -94,14 +97,14 @@ export default function Savings() {
 
       {/* TABS */}
       <div className="flex gap-6 border-b">
-        {(["ACTIVE", "MATURED", "BROKEN"] as GoalStatus[]).map(status => (
+        {(["ACTIVE", "MATURED", "BROKEN"] as GoalStatus[]).map((status) => (
           <button
             key={status}
             onClick={() => setTab(status)}
-            className={`pb-2 ${
+            className={`pb-2 transition-colors ${
               tab === status
                 ? "border-b-2 border-black font-semibold"
-                : "text-gray-400"
+                : "text-gray-400 hover:text-gray-600"
             }`}
           >
             {status.toLowerCase()}
@@ -118,14 +121,20 @@ export default function Savings() {
         </p>
       ) : (
         <div className="grid gap-4">
-          {filteredGoals.map(goal => {
+          {filteredGoals.map((goal) => {
             const progress =
               goal.targetAmount > 0
-                ? Math.min((goal.currentBalance / goal.targetAmount) * 100, 100)
+                ? Math.min(
+                    (goal.currentBalance / goal.targetAmount) * 100,
+                    100
+                  )
                 : 0;
 
             return (
-              <div key={goal.id} className="p-4 bg-white rounded-xl shadow space-y-2">
+              <div
+                key={goal.id}
+                className="p-4 bg-white rounded-xl shadow space-y-3"
+              >
                 <div className="flex justify-between">
                   <h3 className="font-semibold">{goal.title}</h3>
                   <span className="text-xs text-gray-400">
@@ -134,14 +143,15 @@ export default function Savings() {
                 </div>
 
                 <p className="text-sm">
-                  {formatMoney(goal.currentBalance)} / {formatMoney(goal.targetAmount)}
+                  {formatMoney(goal.currentBalance)} /{" "}
+                  {formatMoney(goal.targetAmount)}
                 </p>
 
-                {/* PROGRESS BAR */}
+                {/* ANIMATED PROGRESS BAR */}
                 <div>
-                  <div className="h-2 bg-gray-200 rounded">
+                  <div className="h-2 bg-gray-200 rounded overflow-hidden">
                     <div
-                      className="h-2 rounded bg-green-500"
+                      className="h-2 bg-green-500 rounded transition-all duration-700 ease-out"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -153,7 +163,7 @@ export default function Savings() {
                 {tab === "ACTIVE" && (
                   <button
                     onClick={() => setWithdrawGoal(goal)}
-                    className="text-red-500 text-sm"
+                    className="text-red-500 text-sm hover:underline"
                   >
                     Request Withdrawal
                   </button>
@@ -167,14 +177,21 @@ export default function Savings() {
       {/* FLOATING CTA */}
       <button
         onClick={() => setCreateOpen(true)}
-        className="fixed bottom-6 right-6 bg-black text-white px-5 py-3 rounded-full shadow-lg"
+        className="fixed bottom-6 right-6 bg-black text-white px-5 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
       >
         Create New Goal
       </button>
 
-      {createOpen && <SavingsCreateModal onClose={() => setCreateOpen(false)} />}
+      {/* MODALS (Headless-UI-free) */}
+      {createOpen && (
+        <SavingsCreateModal onClose={() => setCreateOpen(false)} />
+      )}
+
       {withdrawGoal && (
-        <WithdrawalModal goal={withdrawGoal} onClose={() => setWithdrawGoal(null)} />
+        <WithdrawalModal
+          goal={withdrawGoal}
+          onClose={() => setWithdrawGoal(null)}
+        />
       )}
     </div>
   );
