@@ -14,6 +14,21 @@ interface Variation {
   requiredFields?: string[];
 }
 
+/* Mapping for friendly field labels */
+const FIELD_LABELS: Record<string, string> = {
+  insuredName: "Insured Name",
+  engineCapacity: "Engine Capacity",
+  chasisNumber: "Chasis Number",
+  plateNumber: "Plate Number",
+  vehicleMake: "Vehicle Make",
+  vehicleModel: "Vehicle Model",
+  vehicleColor: "Vehicle Color",
+  yearOfMake: "Year of Make",
+  state: "State",
+  lga: "LGA",
+  email: "Email",
+};
+
 /* ================= PAGE ================= */
 export default function InsurancePage() {
   const serviceID = "ui-insure";
@@ -76,7 +91,7 @@ export default function InsurancePage() {
     };
 
     for (const field of required) {
-      if (!map[field]) return `${field.replace(/_/g, " ")} is required`;
+      if (!map[field]) return `${FIELD_LABELS[field] || field} is required`;
     }
 
     if (amount <= 0) return "Invalid amount";
@@ -88,6 +103,7 @@ export default function InsurancePage() {
   async function handleCheckout() {
     const validationError = validate();
     if (validationError) {
+      alert(validationError);
       return;
     }
 
@@ -145,12 +161,45 @@ export default function InsurancePage() {
                 placeholder="Customer number"
                 className="w-full p-3 border rounded"
               />
-              <input
-                value={insuredName}
-                onChange={e => setInsuredName(e.target.value)}
-                placeholder="Insured name"
-                className="w-full p-3 border rounded"
-              />
+
+              {/* Dynamically render required fields */}
+              {selectedVariation?.requiredFields?.map(field => {
+                const valueMap: Record<string, string> = {
+                  insuredName,
+                  engineCapacity,
+                  chasisNumber,
+                  plateNumber,
+                  vehicleMake,
+                  vehicleModel,
+                  vehicleColor,
+                  yearOfMake,
+                  state,
+                  lga,
+                  email,
+                };
+                const setterMap: Record<string, (val: string) => void> = {
+                  insuredName: setInsuredName,
+                  engineCapacity: setEngineCapacity,
+                  chasisNumber: setChasisNumber,
+                  plateNumber: setPlateNumber,
+                  vehicleMake: setVehicleMake,
+                  vehicleModel: setVehicleModel,
+                  vehicleColor: setVehicleColor,
+                  yearOfMake: setYearOfMake,
+                  state: setState,
+                  lga: setLGA,
+                  email: setEmail,
+                };
+                return (
+                  <input
+                    key={field}
+                    value={valueMap[field]}
+                    onChange={e => setterMap[field](e.target.value)}
+                    placeholder={FIELD_LABELS[field] || field}
+                    className="w-full p-3 border rounded"
+                  />
+                );
+              })}
 
               <p className="text-sm">Amount: ₦{amount}</p>
 
