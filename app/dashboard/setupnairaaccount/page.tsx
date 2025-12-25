@@ -6,26 +6,38 @@ import { useRouter } from "next/navigation";
 
 interface VirtualAccount {
   accountNumber: string;
-  bank?: string;
+  bankName?: string;
   accountName?: string;
+}
+
+interface User {
+  firstName?: string;
+  lastName?: string;
+  userID?: string;
+  virtualAccount?: VirtualAccount | null;
 }
 
 export default function SetupNairaAccountPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // -----------------------
-  // Fetch user
-  // -----------------------
+  /* ---------------- FETCH USER ---------------- */
   const fetchUser = async () => {
     try {
       setLoading(true);
+      setError(null);
+
       const res = await api.get("/user/me");
-      if (res.data.success) setUser(res.data.user);
+      if (res.data?.success) {
+        setUser(res.data.user);
+      } else {
+        throw new Error("Failed to load user");
+      }
     } catch (err) {
-      console.error("Failed to fetch user:", err);
-      alert("Failed to load user data");
+      console.error("Fetch user error:", err);
+      setError("Failed to load account information");
     } finally {
       setLoading(false);
     }
@@ -35,106 +47,128 @@ export default function SetupNairaAccountPage() {
     fetchUser();
   }, []);
 
-  // -----------------------
-  // Create Virtual Account
-  // -----------------------
+  /* ---------------- CREATE VIRTUAL ACCOUNT ---------------- */
   const createVirtualAccount = async () => {
     try {
       setLoading(true);
+      setError(null);
+
       const res = await api.post("/wallet/provision");
-      if (res.data.success) {
-        alert("Virtual Naira account created successfully!");
-        // Refresh user data
-        await fetchUser();
-        // Auto redirect to dashboard
-        router.push("/dashboard");
-      } else {
-        alert(res.data?.message || "Failed to create virtual account");
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Provision failed");
       }
+
+      await fetchUser();
+      router.push("/dashboard");
     } catch (err: any) {
       console.error("VA creation error:", err);
-      alert(err.response?.data?.message || "Failed to create virtual account");
+      setError(err.response?.data?.message || "Failed to create virtual account");
     } finally {
       setLoading(false);
     }
   };
 
-  // -----------------------
-  // Copy VA details
-  // -----------------------
+  /* ---------------- COPY DETAILS ---------------- */
   const copyVA = () => {
     if (!user?.virtualAccount) return;
-    const va: VirtualAccount = user.virtualAccount;
+
+    const va = user.virtualAccount;
+    const accountName =
+      va.accountName ||
+      `${user.firstName || ""} ${user.lastName || ""}`.trim();
+
     navigator.clipboard.writeText(
-      `Bank: ${va.bank || "N/A"}\nAccount Number: ${va.accountNumber}\nAccount Name: ${va.accountName || "N/A"}`
+      `Bank: ${va.bankName}\nAccount Number: ${va.accountNumber}\nAccount Name: ${accountName}`
     );
-    alert("Virtual account details copied to clipboard.");
+
+    alert("Account details copied");
   };
 
-  // -----------------------
-  // Loading
-  // -----------------------
+  /* ---------------- LOADING ---------------- */
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="loader border-t-4 border-blue-500 w-12 h-12 rounded-full animate-spin"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
   }
 
-  // -----------------------
-  // Render
-  // -----------------------
+  const hasVA = Boolean(user?.virtualAccount?.accountNumber);
+
+  const resolvedAccountName =
+    user?.virtualAccount?.accountName ||
+    `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
+
+  /* ---------------- RENDER ---------------- */
   return (
     <div className="max-w-md mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold mb-2 text-gray-800 dark:text-gray-100">Setup Your Naira Account</h1>
-      <p className="text-gray-600 dark:text-gray-300 mb-6">
-        To start using your Nexa wallet, you need a virtual Naira account.
-      </p>
+      {/* HEADER */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          {hasVA ? "Your Naira Account" : "Set Up Your Naira Account"}
+        </h1>
 
-      {user?.virtualAccount ? (
+        <p className="text-gray-600 dark:text-gray-300 mt-1">
+          {hasVA
+            ? "Use the details below to fund your Nexa wallet."
+            : "Create a virtual Naira account to start using your Nexa wallet."}
+        </p>
+      </div>
+
+      {/* ERROR */}
+      {error && (
+        <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 p-3 rounded">
+          {error}
+        </div>
+      )}
+
+      {/* VIRTUAL ACCOUNT EXISTS */}
+      {hasVA && user?.virtualAccount ? (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow space-y-4">
           <div>
-            <span className="text-gray-500 text-sm">Account Name:</span>
-            <p className="font-semibold text-gray-800 dark:text-gray-100">
-              {user.virtualAccount.accountName || "N/A"}
+            <p className="text-sm text-gray-500">Account Name</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100">
+              {resolvedAccountName}
             </p>
           </div>
+
           <div>
-            <span className="text-gray-500 text-sm">Account Number:</span>
-            <p className="font-semibold text-gray-800 dark:text-gray-100">
+            <p className="text-sm text-gray-500">Account Number</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100">
               {user.virtualAccount.accountNumber}
             </p>
           </div>
-          {user.virtualAccount.bank && (
+
+          {user.virtualAccount.bankName && (
             <div>
-              <span className="text-gray-500 text-sm">Bank:</span>
-              <p className="font-semibold text-gray-800 dark:text-gray-100">
-                {user.virtualAccount.bank}
+              <p className="text-sm text-gray-500">Bank</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-100">
+                {user.virtualAccount.bankName}
               </p>
             </div>
           )}
 
           <button
-            className="w-full mt-2 bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 font-semibold py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition"
             onClick={copyVA}
+            className="w-full mt-3 bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 font-semibold py-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition"
           >
             Copy Account Details
           </button>
 
           {!user.userID && (
             <button
-              className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded"
               onClick={() => router.push("/dashboard/setusername")}
+              className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded"
             >
               Set Username
             </button>
           )}
         </div>
       ) : (
+        /* NO VIRTUAL ACCOUNT */
         <button
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition"
           onClick={createVirtualAccount}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition"
         >
           Create Virtual Account
         </button>
