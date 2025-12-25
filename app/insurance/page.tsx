@@ -44,7 +44,7 @@ export default function InsurancePage() {
     errorMessage,
     reference,
     reset,
-  } = useCheckout({
+  } = useCheckout();
     service: "insurance",
     endpoint: "/vtpass/insurance/checkout",
     redirectOnSuccess: "/transactions",
@@ -106,22 +106,26 @@ export default function InsurancePage() {
     }
 
     await checkout({
-      serviceID,
-      variation_code: variationCode,
-      billersCode,
-      amount,
-      phone,
-      email,
-      insuredName,
-      engineCapacity,
-      chasisNumber,
-      plateNumber,
-      vehicleMake,
-      vehicleModel,
-      vehicleColor,
-      yearOfMake,
-      state,
-      lga,
+      endpoint: "/vtpass/insurance/checkout",
+      payload: {
+        serviceID,
+        variation_code: variationCode,
+        billersCode,
+        amount,
+        phone,
+        email,
+        insuredName,
+        engineCapacity,
+        chasisNumber,
+        plateNumber,
+        vehicleMake,
+        vehicleModel,
+        vehicleColor,
+        yearOfMake,
+        state,
+        lga,
+        },
+      redirectTo: "/transactions",
     });
   }
 
@@ -131,7 +135,7 @@ export default function InsurancePage() {
       <BannersWrapper page="insurance">
         <div className="max-w-lg mx-auto px-4">
 
-          {stage === "form" && (
+          {stage === "idle" && (
             <div className="bg-white dark:bg-gray-900 p-6 rounded-lg space-y-4 shadow">
               <h2 className="text-xl font-bold">Insurance</h2>
 
