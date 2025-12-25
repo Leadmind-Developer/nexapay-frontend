@@ -95,6 +95,7 @@ export default function InternalTransferPage() {
     return () => clearTimeout(timeout);
   }, [recipient, user]);
 
+  /* ---------------- Helpers ---------------- */
   const formatCurrency = (raw: string) => {
     const num = Number(raw.replace(/,/g, ""));
     if (isNaN(num)) return "";
@@ -114,6 +115,7 @@ export default function InternalTransferPage() {
     return true;
   })();
 
+  /* ---------------- Transfer ---------------- */
   const handleTransfer = async () => {
     if (!recipientInfo) return;
     const rawAmount = getRawAmount();
@@ -150,6 +152,7 @@ export default function InternalTransferPage() {
     );
   }
 
+  /* ---------------- Filtered dropdown ---------------- */
   const filteredRecipients = recentRecipients.filter((r) =>
     r.userID.toLowerCase().includes(recipient.toLowerCase())
   );
@@ -158,6 +161,7 @@ export default function InternalTransferPage() {
     <div className="min-h-screen bg-gray-900 text-white p-6 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Internal Transfer</h1>
 
+      {/* USER CARD */}
       {user?.virtualAccount && (
         <div className="bg-gray-800 p-4 rounded-xl shadow mb-6">
           <p className="text-gray-300">Your Account</p>
@@ -263,7 +267,9 @@ export default function InternalTransferPage() {
       <div className="flex justify-between mt-4">
         {step > 1 && (
           <button
-            onClick={() => setStep(step - 1)}
+            onClick={() =>
+              setStep((prev) => Math.max(1, prev - 1) as 1 | 2 | 3)
+            }
             className="px-4 py-2 rounded bg-gray-700"
           >
             Back
@@ -272,7 +278,9 @@ export default function InternalTransferPage() {
         {step < 3 && (
           <button
             disabled={!canProceed}
-            onClick={() => setStep(step + 1)}
+            onClick={() =>
+              setStep((prev) => Math.min(3, prev + 1) as 1 | 2 | 3)
+            }
             className={`px-4 py-2 rounded ${
               !canProceed ? "bg-gray-600" : "bg-green-600 hover:bg-green-700"
             }`}
