@@ -68,7 +68,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
   }, [draft]);
 
   /* ---------------- Fetch banks ---------------- */
@@ -160,10 +160,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
 
   /* ---------------- Step wrapper ---------------- */
   const Step = ({ children }: { children: React.ReactNode }) => (
-    <div
-      key={step}
-      className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-6"
-    >
+    <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-6">
       {children}
     </div>
   );
@@ -185,7 +182,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
             <input
               type="number"
               placeholder="Target amount"
-              className="input"
+              className="input w-full"
               value={draft.targetAmount}
               onChange={e =>
                 setDraft(d => ({ ...d, targetAmount: e.target.value }))
@@ -209,7 +206,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
             <input
               type="number"
               placeholder="Custom duration (days)"
-              className="input"
+              className="input w-full"
               value={draft.durationDays}
               onChange={e =>
                 setDraft(d => ({ ...d, durationDays: e.target.value }))
@@ -250,7 +247,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
             {draft.purpose === "Other" && (
               <input
                 placeholder="Specify purpose"
-                className="input"
+                className="input w-full"
                 value={draft.customPurpose}
                 onChange={e =>
                   setDraft(d => ({ ...d, customPurpose: e.target.value }))
@@ -297,9 +294,10 @@ export default function SavingsCreateModal({ onClose }: Props) {
               ))}
             </div>
 
+            <label className="text-sm text-gray-500">Start Date</label>
             <input
               type="date"
-              className="input"
+              className="input w-full"
               value={draft.startDate}
               onChange={e =>
                 setDraft(d => ({ ...d, startDate: e.target.value }))
@@ -347,7 +345,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
             {draft.primarySource === "BANK" && (
               <>
                 <select
-                  className="input"
+                  className="input w-full"
                   value={draft.bankCode}
                   onChange={e =>
                     setDraft(d => ({ ...d, bankCode: e.target.value }))
@@ -364,7 +362,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
                 <input
                   placeholder="Account number"
                   maxLength={10}
-                  className="input"
+                  className="input w-full"
                   value={draft.accountNumber}
                   onChange={e =>
                     setDraft(d => ({ ...d, accountNumber: e.target.value }))
