@@ -23,6 +23,19 @@ const DURATION_PRESETS = [
   { days: 730, rate: 27, color: "bg-lime-700" }
 ];
 
+type SavingsDraft = {
+  targetAmount: string;
+  durationDays: string | number;
+  purpose: string;
+  customPurpose: string;
+  frequency: "daily" | "weekly" | "monthly" | "";
+  startDate: string;
+  primarySource: "WALLET" | "BANK" | "";
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+};
+
 type Props = { onClose: () => void };
 
 export default function SavingsCreateModal({ onClose }: Props) {
@@ -31,7 +44,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
   const [verifying, setVerifying] = useState(false);
   const [isValidAccount, setIsValidAccount] = useState(false);
 
-  const [draft, setDraft] = useState<any>({
+  const [draft, setDraft] = useState<SavingsDraft>({
     targetAmount: "",
     durationDays: "",
     purpose: "",
