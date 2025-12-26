@@ -38,6 +38,8 @@ type SavingsDraft = {
 
 const FREQUENCIES = ["daily", "weekly", "monthly"] as const;
 
+type Frequency = SavingsDraft["frequency"];
+
 type Props = { onClose: () => void };
 
 export default function SavingsCreateModal({ onClose }: Props) {
@@ -280,7 +282,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
             <h2 className="text-lg font-semibold">Savings frequency</h2>
 
             <div className="flex gap-3">
-              {FREQUENCIES.map(f => (
+              {FREQUENCIES.map((f: Frequency) => (
                 <button
                   key={f}
                   onClick={() => setDraft(d => ({ ...d, frequency: f }))}
