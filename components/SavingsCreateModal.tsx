@@ -110,7 +110,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
 
   /* ---------------- Derived values ---------------- */
   const interestRate =
-    draft.durationDays <= 90
+    Number(draft.durationDays) <= 90
       ? 10
       : draft.durationDays <= 180
       ? 20
