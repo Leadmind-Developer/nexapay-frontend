@@ -63,12 +63,15 @@ export default function SavingsCreateModal({ onClose }: Props) {
 
   /* ---------------- Draft persistence ---------------- */
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = sessionStorage.getItem(STORAGE_KEY);
     if (saved) setDraft(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  }, 300);
+  
+  return () => clearTimeout(t);
   }, [draft]);
 
   /* ---------------- Fetch banks ---------------- */
@@ -154,7 +157,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
           : null
     });
 
-    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
     onClose();
   }
 
@@ -193,12 +196,14 @@ export default function SavingsCreateModal({ onClose }: Props) {
               {DURATION_PRESETS.map(p => (
                 <button
                   key={p.days}
+                  type="button"
                   onClick={() =>
-                    setDraft(d => ({ ...d, durationDays: p.days }))
+                   setDraft(d => ({ ...d, durationDays: String(p.days) }))
                   }
                   className={`p-3 rounded text-white ${p.color}`}
                 >
-                  {p.days} days · {p.rate}% p.a
+                    <div className="font-semibold">{p.days} days</div>
+                    <div className="text-xs opacity-90">{p.rate}% p.a</div>
                 </button>
               ))}
             </div>
