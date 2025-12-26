@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import SavingsCreateModal from "./SavingsCreateModal";
 import WithdrawalModal from "./WithdrawalModal";
 import SavingsAI from "./SavingsAI";
+import SavingsDailyCreateModal from "./SavingsDailyCreateModal";
 
 type GoalStatus = "ACTIVE" | "MATURED" | "BROKEN";
 
@@ -35,6 +36,7 @@ export default function Savings() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [withdrawGoal, setWithdrawGoal] = useState<SavingsGoal | null>(null);
+  const [dailyCreateOpen, setDailyCreateOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -175,18 +177,32 @@ export default function Savings() {
       )}
 
       {/* FLOATING CTA */}
-      <button
-        onClick={() => setCreateOpen(true)}
-        className="fixed bottom-6 right-6 bg-black text-white px-5 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
-      >
-        Create New Goal
-      </button>
+      <div className="fixed bottom-6 right-6 flex flex-col gap-2">
+  <button
+    onClick={() => setCreateOpen(false)}
+    className="bg-black text-white px-5 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
+  >
+    Create Savings Goal
+  </button>
+
+  <button
+    onClick={() => setDailyCreateOpen(true)}
+    className="bg-white text-black border px-5 py-3 rounded-full shadow hover:bg-gray-100 transition"
+  >
+    Strict Daily Savings
+  </button>
+</div>
 
       {/* MODALS (Headless-UI-free) */}
       {createOpen && (
         <SavingsCreateModal onClose={() => setCreateOpen(false)} />
       )}
 
+      {dailyCreateOpen && (
+  <SavingsDailyCreateModal
+    onClose={() => setDailyCreateOpen(false)}
+  />
+)}
       {withdrawGoal && (
         <WithdrawalModal
           goal={withdrawGoal}
