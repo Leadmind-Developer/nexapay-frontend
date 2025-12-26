@@ -294,12 +294,11 @@ export default function SavingsCreateModal({ onClose }: Props) {
               ))}
             </div>
 
-            <div className="mt-3">
-              <label className="text-sm text-gray-500">Start Date</label>
+             <label className="text-sm font-medium">Start date</label>
             <input
               type="date"
               className="input w-full"
-              value={draft.startDate || new Date().toISOString().split("T")[0]}
+              value={draft.startDate}
               onChange={e =>
                 setDraft(d => ({ ...d, startDate: e.target.value }))
               }
