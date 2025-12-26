@@ -179,8 +179,8 @@ export default function Savings() {
       {/* FLOATING CTA */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-2">
   <button
-    onClick={() => setCreateOpen(false)}
-    className="bg-black text-white px-5 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
+    onClick={() => setCreateOpen(true)}
+    className="bg-green text-white px-5 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
   >
     Create Savings Goal
   </button>
