@@ -6,7 +6,7 @@ import api from "@/lib/api";
 type Props = { onClose: () => void };
 
 type DailyDraft = {
-  targetAmount: string;
+  targetAmount: string; // NAIRA
   startDate: string;
   primarySource: "MANUAL" | "";
   vaAccount?: string;
@@ -16,7 +16,7 @@ type DailyDraft = {
 type DailyScheduleItem = {
   day: number;
   date: string;
-  amount: number;
+  amount: number; // KOBO
   type: "PLATFORM" | "USER";
 };
 
@@ -24,6 +24,7 @@ const STORAGE_KEY = "savings-daily-draft";
 
 export default function SavingsDailyCreateModal({ onClose }: Props) {
   const [step, setStep] = useState(1);
+
   const [draft, setDraft] = useState<DailyDraft>({
     targetAmount: "",
     startDate: new Date().toISOString().split("T")[0],
@@ -31,11 +32,13 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
     vaAccount: undefined,
     vaBank: undefined,
   });
+
   const [vaLoading, setVaLoading] = useState(false);
   const [vaExists, setVaExists] = useState(false);
   const [schedule, setSchedule] = useState<DailyScheduleItem[]>([]);
 
-  const depositAmount = Number(draft.targetAmount) / 30; // Strict daily contributions
+  const totalTarget = Number(draft.targetAmount) || 0;
+  const dailyAmount = totalTarget / 30;
 
   /* ---------------- Draft persistence ---------------- */
   useEffect(() => {
@@ -47,7 +50,12 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
   }, [draft]);
 
-  /* ---------------- Check or create VA ---------------- */
+  /* ---------------- Clear schedule when leaving review ---------------- */
+  useEffect(() => {
+    if (step !== 3) setSchedule([]);
+  }, [step]);
+
+  /* ---------------- Virtual account check ---------------- */
   useEffect(() => {
     if (draft.primarySource !== "MANUAL") return;
 
@@ -65,7 +73,7 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
         } else {
           setVaExists(false);
         }
-      } catch (err) {
+      } catch {
         setVaExists(false);
       } finally {
         setVaLoading(false);
@@ -75,35 +83,44 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
     fetchVA();
   }, [draft.primarySource]);
 
-  /* ---------------- Fetch schedule preview ---------------- */
+  /* ---------------- Schedule preview (NAIRA → KOBO safe) ---------------- */
   useEffect(() => {
-    if (step !== 3 || !draft.targetAmount) return;
+    if (step !== 3) return;
+    if (!totalTarget || totalTarget <= 0 || !draft.startDate) {
+      setSchedule([]);
+      return;
+    }
 
     const fetchSchedule = async () => {
       try {
         const res = await api.get("/savings/strict-daily/schedule-preview", {
           params: {
-            targetAmount: Number(draft.targetAmount),
+            targetAmount: totalTarget, // NAIRA
             startDate: draft.startDate,
           },
         });
-        if (res.data?.data) setSchedule(res.data.data);
-      } catch (err) {
+
+        if (res.data?.success) {
+          setSchedule(res.data.data);
+        } else {
+          setSchedule([]);
+        }
+      } catch {
         setSchedule([]);
       }
     };
 
     fetchSchedule();
-  }, [step, draft.targetAmount, draft.startDate]);
+  }, [step, totalTarget, draft.startDate]);
 
   /* ---------------- Submit ---------------- */
   const submit = async () => {
-    if (!draft.primarySource || !draft.targetAmount) return;
+    if (!draft.primarySource || !totalTarget) return;
 
     await api.post("/savings/strict-daily", {
-      targetAmount: Number(draft.targetAmount),
+      targetAmount: totalTarget, // NAIRA
       startDate: draft.startDate,
-      primarySource: draft.primarySource,
+      primarySource: "MANUAL",
       vaAccount: draft.vaAccount,
       vaBank: draft.vaBank,
       durationDays: 30,
@@ -125,15 +142,17 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-xl p-6">
 
-        {/* STEP 1: Amount & start date */}
+        {/* STEP 1 */}
         {step === 1 && (
           <Step>
             <h2 className="text-lg font-semibold">Strict Daily Contributions</h2>
-            <p className="text-sm text-gray-500">Set your total savings for 30 days.</p>
+            <p className="text-sm text-gray-500">
+              Save daily for 30 days. No interest. Manual transfer only.
+            </p>
 
             <input
               type="number"
-              placeholder="Total amount"
+              placeholder="Total amount (₦)"
               className="input w-full"
               value={draft.targetAmount}
               onChange={e =>
@@ -141,7 +160,7 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
               }
             />
 
-            <label className="text-sm text-gray-500 mt-2">Start Date</label>
+            <label className="text-sm text-gray-500">Start Date</label>
             <input
               type="date"
               className="input w-full"
@@ -151,16 +170,18 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
               }
             />
 
-            {depositAmount > 0 && (
-              <p className="text-sm text-gray-500 mt-1">
-                ₦{depositAmount.toLocaleString()} will be contributed daily.
+            {dailyAmount > 0 && (
+              <p className="text-sm text-gray-500">
+                ₦{dailyAmount.toLocaleString()} will be paid daily.
               </p>
             )}
 
-            <div className="flex gap-3 mt-4">
-              <button onClick={onClose} className="btn-secondary w-full">Cancel</button>
+            <div className="flex gap-3">
+              <button onClick={onClose} className="btn-secondary w-full">
+                Cancel
+              </button>
               <button
-                disabled={!draft.targetAmount}
+                disabled={!totalTarget}
                 onClick={() => setStep(2)}
                 className="btn-primary w-full"
               >
@@ -170,17 +191,22 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
           </Step>
         )}
 
-        {/* STEP 2: Funding source */}
+        {/* STEP 2 */}
         {step === 2 && (
           <Step>
             <h2 className="text-lg font-semibold">Funding Source</h2>
-            <p className="text-sm text-gray-500">All contributions are manual transfers.</p>
+            <p className="text-sm text-gray-500">
+              Contributions are made via manual bank transfer.
+            </p>
 
             <select
               className="input w-full"
               value={draft.primarySource}
               onChange={e =>
-                setDraft(d => ({ ...d, primarySource: e.target.value as DailyDraft["primarySource"] }))
+                setDraft(d => ({
+                  ...d,
+                  primarySource: e.target.value as DailyDraft["primarySource"],
+                }))
               }
             >
               <option value="">Select source</option>
@@ -188,8 +214,12 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
             </select>
 
             {draft.primarySource === "MANUAL" && (
-              <div className="mt-3 space-y-2">
-                {vaLoading && <p className="text-sm text-gray-500">Checking virtual account…</p>}
+              <div className="space-y-1">
+                {vaLoading && (
+                  <p className="text-sm text-gray-500">
+                    Checking virtual account…
+                  </p>
+                )}
                 {!vaLoading && vaExists && (
                   <p className="text-sm text-green-600">
                     Virtual Account: {draft.vaAccount} ({draft.vaBank})
@@ -197,14 +227,16 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
                 )}
                 {!vaLoading && !vaExists && (
                   <p className="text-sm text-red-500">
-                    You don&apos;t have a virtual account yet. One will be created on confirmation.
+                    A virtual account will be created after confirmation.
                   </p>
                 )}
               </div>
             )}
 
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => setStep(1)} className="btn-secondary w-full">Back</button>
+            <div className="flex gap-3">
+              <button onClick={() => setStep(1)} className="btn-secondary w-full">
+                Back
+              </button>
               <button
                 disabled={!draft.primarySource}
                 onClick={() => setStep(3)}
@@ -216,27 +248,26 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
           </Step>
         )}
 
-        {/* STEP 3: Review & Schedule */}
+        {/* STEP 3 */}
         {step === 3 && (
           <Step>
-            <h2 className="text-lg font-semibold">Review & Confirm</h2>
+            <h2 className="text-lg font-semibold">Review & Schedule</h2>
 
-            <div className="text-sm space-y-2 mb-4">
-              <p><b>Total Target:</b> ₦{Number(draft.targetAmount).toLocaleString()}</p>
+            <div className="text-sm space-y-1">
+              <p><b>Total:</b> ₦{totalTarget.toLocaleString()}</p>
               <p><b>Duration:</b> 30 days</p>
-              <p><b>Daily Contribution:</b> ₦{depositAmount.toLocaleString()}</p>
-              <p><b>Start Date:</b> {draft.startDate}</p>
+              <p><b>Daily:</b> ₦{dailyAmount.toLocaleString()}</p>
+              <p><b>Start:</b> {draft.startDate}</p>
               <p><b>Source:</b> Manual Transfer</p>
-              {draft.vaAccount && (
-                <p><b>Virtual Account:</b> {draft.vaAccount} ({draft.vaBank})</p>
-              )}
             </div>
 
             {schedule.length > 0 && (
-              <div className="overflow-x-auto max-h-64 border rounded p-2 mb-4">
-                <table className="table-auto w-full text-sm">
+              <div className="max-h-64 overflow-x-auto rounded border
+                              border-gray-200 dark:border-zinc-700
+                              bg-gray-50 dark:bg-zinc-800 p-2">
+                <table className="w-full text-sm text-gray-700 dark:text-gray-200">
                   <thead>
-                    <tr className="text-left">
+                    <tr className="border-b border-gray-200 dark:border-zinc-700">
                       <th>Day</th>
                       <th>Date</th>
                       <th>Amount (₦)</th>
@@ -245,11 +276,17 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
                   </thead>
                   <tbody>
                     {schedule.map(item => (
-                      <tr key={item.day}>
+                      <tr key={item.day} className="border-b last:border-0">
                         <td>{item.day}</td>
                         <td>{item.date}</td>
                         <td>{(item.amount / 100).toLocaleString()}</td>
-                        <td className={item.type === "PLATFORM" ? "text-red-600" : "text-green-600"}>
+                        <td
+                          className={
+                            item.type === "PLATFORM"
+                              ? "text-red-600 dark:text-red-400 font-medium"
+                              : "text-green-600 dark:text-green-400 font-medium"
+                          }
+                        >
                           {item.type}
                         </td>
                       </tr>
@@ -259,8 +296,10 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
               </div>
             )}
 
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => setStep(2)} className="btn-secondary w-full">Back</button>
+            <div className="flex gap-3">
+              <button onClick={() => setStep(2)} className="btn-secondary w-full">
+                Back
+              </button>
               <button onClick={submit} className="btn-primary w-full">
                 Confirm & Save
               </button>
