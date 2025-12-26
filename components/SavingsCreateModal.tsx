@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
-const STORAGE_KEY = "savings-create-draft";
-
 const PURPOSES = [
   "Car",
   "Rent",
@@ -59,22 +57,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
     bankCode: "",
     accountNumber: "",
     accountName: "",
-  });
-
-  /* ---------------- Restore draft ---------------- */
-  useEffect(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved) setDraft(JSON.parse(saved));
-  }, []);
-
-  /* ---------------- Debounced persistence (FIXES FOCUS BUG) ---------------- */
-  useEffect(() => {
-    const t = setTimeout(() => {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-    }, 300);
-
-    return () => clearTimeout(t);
-  }, [draft]);
+  });  
 
   /* ---------------- Fetch banks ---------------- */
   useEffect(() => {
@@ -154,10 +137,6 @@ export default function SavingsCreateModal({ onClose }: Props) {
           : null,
     });
 
-    sessionStorage.removeItem(STORAGE_KEY);
-    onClose();
-  }
-
   /* ---------------- Step wrapper ---------------- */
   const Step = ({ children }: { children: React.ReactNode }) => (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-6">
@@ -175,15 +154,19 @@ export default function SavingsCreateModal({ onClose }: Props) {
             <h2 className="text-lg font-semibold">Set your savings target</h2>
 
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               placeholder="Target amount"
               className="input w-full"
               value={draft.targetAmount}
               onChange={e =>
-                setDraft(d => ({ ...d, targetAmount: e.target.value }))
+                setDraft(d => ({
+                  ...d,
+                  targetAmount: e.target.value.replace(/\D/g, "")
+                }))
               }
             />
-
+            
             <div className="grid grid-cols-2 gap-3">
               {DURATION_PRESETS.map(p => (
                 <button
@@ -209,6 +192,16 @@ export default function SavingsCreateModal({ onClose }: Props) {
                 setDraft(d => ({ ...d, durationDays: e.target.value }))
               }
             />
+
+            {/* Target input helper */}
+            {duration > 0 && (
+            <p className="text-xs text-gray-500">
+              Interest rate applied:{" "}
+              <span className="font-semibold text-green-600">
+                {interestRate}% p.a
+              </span>
+            </p>
+          )}
 
             <button
               type="button"
