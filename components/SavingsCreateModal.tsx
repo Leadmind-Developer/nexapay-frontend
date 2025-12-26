@@ -299,11 +299,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
             <input
               type="date"
               className="input w-full"
-              value={
-                draft.startDate
-                ? draft.startDate
-                : new Date().toISOString().split("T")[0] // default to today
-              }
+              value={draft.startDate || new Date().toISOString().split("T")[0]}
               onChange={e =>
                 setDraft(d => ({ ...d, startDate: e.target.value }))
               }
