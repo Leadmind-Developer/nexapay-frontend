@@ -336,7 +336,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
               className="input"
               value={draft.primarySource}
               onChange={e =>
-                setDraft(d => ({ ...d, primarySource: e.target.value }))
+                setDraft(d => ({ ...d, primarySource: e.target.value as SavingsDraft["primarySource"] }))
               }
             >
               <option value="">Select source</option>
