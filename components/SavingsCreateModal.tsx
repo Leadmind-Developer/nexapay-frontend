@@ -13,32 +13,32 @@ const PURPOSES = [
   "Business",
   "Vacation",
   "Flight Costs",
-  "Other"
+  "Other",
 ];
 
 const DURATION_PRESETS = [
   { days: 90, rate: 10, color: "bg-amber-500" },
   { days: 180, rate: 20, color: "bg-green-600" },
   { days: 365, rate: 24, color: "bg-emerald-600" },
-  { days: 730, rate: 27, color: "bg-lime-700" }
+  { days: 730, rate: 27, color: "bg-lime-700" },
 ];
+
+const FREQUENCIES = ["daily", "weekly", "monthly"] as const;
+
+type Frequency = (typeof FREQUENCIES)[number];
 
 type SavingsDraft = {
   targetAmount: string;
-  durationDays: string | number;
+  durationDays: string;
   purpose: string;
   customPurpose: string;
-  frequency: "daily" | "weekly" | "monthly" | "";
+  frequency: Frequency | "";
   startDate: string;
   primarySource: "WALLET" | "BANK" | "";
   bankCode: string;
   accountNumber: string;
   accountName: string;
 };
-
-const FREQUENCIES = ["daily", "weekly", "monthly"] as const;
-
-type Frequency = SavingsDraft["frequency"];
 
 type Props = { onClose: () => void };
 
@@ -58,26 +58,29 @@ export default function SavingsCreateModal({ onClose }: Props) {
     primarySource: "",
     bankCode: "",
     accountNumber: "",
-    accountName: ""
+    accountName: "",
   });
 
-  /* ---------------- Draft persistence ---------------- */
+  /* ---------------- Restore draft ---------------- */
   useEffect(() => {
     const saved = sessionStorage.getItem(STORAGE_KEY);
     if (saved) setDraft(JSON.parse(saved));
   }, []);
 
+  /* ---------------- Debounced persistence (FIXES FOCUS BUG) ---------------- */
   useEffect(() => {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  }, 300);
-  
-  return () => clearTimeout(t);
+    const t = setTimeout(() => {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    }, 300);
+
+    return () => clearTimeout(t);
   }, [draft]);
 
   /* ---------------- Fetch banks ---------------- */
   useEffect(() => {
-    api.get("/paystack/banks")
-      .then(res => setBanks(res.data.data || []))
+    api
+      .get("/paystack/banks")
+      .then(res => setBanks(res.data?.data || []))
       .catch(() => {});
   }, []);
 
@@ -89,7 +92,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
       return;
     }
 
-    const timer = setTimeout(async () => {
+    const t = setTimeout(async () => {
       try {
         setVerifying(true);
         const res = await api.get(
@@ -99,7 +102,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
         if (res.data?.success) {
           setDraft(d => ({
             ...d,
-            accountName: res.data.data.account_name
+            accountName: res.data.data.account_name,
           }));
           setIsValidAccount(true);
         } else {
@@ -112,21 +115,15 @@ export default function SavingsCreateModal({ onClose }: Props) {
       }
     }, 600);
 
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
   }, [draft.accountNumber, draft.bankCode]);
 
+  /* ---------------- Derived values ---------------- */
   const duration = Number(draft.durationDays) || 0;
   const target = Number(draft.targetAmount) || 0;
 
-  /* ---------------- Derived values ---------------- */
   const interestRate =
-    duration <= 90
-      ? 10
-      : duration <= 180
-      ? 20
-      : duration <= 365
-      ? 24
-      : 27;
+    duration <= 90 ? 10 : duration <= 180 ? 20 : duration <= 365 ? 24 : 27;
 
   const depositAmount =
     target && duration && draft.frequency
@@ -152,9 +149,9 @@ export default function SavingsCreateModal({ onClose }: Props) {
           ? {
               bankCode: draft.bankCode,
               accountNumber: draft.accountNumber,
-              accountName: draft.accountName
+              accountName: draft.accountName,
             }
-          : null
+          : null,
     });
 
     sessionStorage.removeItem(STORAGE_KEY);
@@ -175,12 +172,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
         {/* STEP 1 */}
         {step === 1 && (
           <Step>
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold">Set your savings target</h2>
-              <p className="text-sm text-gray-500">
-                How much do you want to save?
-              </p>
-            </div>
+            <h2 className="text-lg font-semibold">Set your savings target</h2>
 
             <input
               type="number"
@@ -198,12 +190,12 @@ export default function SavingsCreateModal({ onClose }: Props) {
                   key={p.days}
                   type="button"
                   onClick={() =>
-                   setDraft(d => ({ ...d, durationDays: String(p.days) }))
+                    setDraft(d => ({ ...d, durationDays: String(p.days) }))
                   }
                   className={`p-3 rounded text-white ${p.color}`}
                 >
-                    <div className="font-semibold">{p.days} days</div>
-                    <div className="text-xs opacity-90">{p.rate}% p.a</div>
+                  <div className="font-semibold">{p.days} days</div>
+                  <div className="text-xs opacity-90">{p.rate}% p.a</div>
                 </button>
               ))}
             </div>
@@ -219,6 +211,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
             />
 
             <button
+              type="button"
               disabled={!draft.targetAmount || !draft.durationDays}
               onClick={() => setStep(2)}
               className="btn-primary w-full"
@@ -237,6 +230,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
               {PURPOSES.map(p => (
                 <button
                   key={p}
+                  type="button"
                   onClick={() => setDraft(d => ({ ...d, purpose: p }))}
                   className={`p-3 rounded ${
                     draft.purpose === p
@@ -261,10 +255,11 @@ export default function SavingsCreateModal({ onClose }: Props) {
             )}
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="btn-secondary w-full">
+              <button type="button" onClick={() => setStep(1)} className="btn-secondary w-full">
                 Back
               </button>
               <button
+                type="button"
                 disabled={
                   !draft.purpose ||
                   (draft.purpose === "Other" && !draft.customPurpose)
@@ -284,9 +279,10 @@ export default function SavingsCreateModal({ onClose }: Props) {
             <h2 className="text-lg font-semibold">Savings frequency</h2>
 
             <div className="flex gap-3">
-              {FREQUENCIES.map((f: Frequency) => (
+              {FREQUENCIES.map(f => (
                 <button
                   key={f}
+                  type="button"
                   onClick={() => setDraft(d => ({ ...d, frequency: f }))}
                   className={`px-4 py-2 rounded ${
                     draft.frequency === f
@@ -299,7 +295,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
               ))}
             </div>
 
-             <label className="text-sm font-medium">Start date</label>
+            <label className="text-sm font-medium">Start date</label>
             <input
               type="date"
               className="input w-full"
@@ -316,10 +312,11 @@ export default function SavingsCreateModal({ onClose }: Props) {
             )}
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(2)} className="btn-secondary w-full">
+              <button type="button" onClick={() => setStep(2)} className="btn-secondary w-full">
                 Back
               </button>
               <button
+                type="button"
                 disabled={!draft.frequency || !draft.startDate}
                 onClick={() => setStep(4)}
                 className="btn-primary w-full"
@@ -336,10 +333,13 @@ export default function SavingsCreateModal({ onClose }: Props) {
             <h2 className="text-lg font-semibold">Funding source</h2>
 
             <select
-              className="input"
+              className="input w-full"
               value={draft.primarySource}
               onChange={e =>
-                setDraft(d => ({ ...d, primarySource: e.target.value as SavingsDraft["primarySource"] }))
+                setDraft(d => ({
+                  ...d,
+                  primarySource: e.target.value as SavingsDraft["primarySource"],
+                }))
               }
             >
               <option value="">Select source</option>
@@ -387,10 +387,11 @@ export default function SavingsCreateModal({ onClose }: Props) {
             )}
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(3)} className="btn-secondary w-full">
+              <button type="button" onClick={() => setStep(3)} className="btn-secondary w-full">
                 Back
               </button>
               <button
+                type="button"
                 disabled={
                   !draft.primarySource ||
                   (draft.primarySource === "BANK" && !isValidAccount)
@@ -410,8 +411,8 @@ export default function SavingsCreateModal({ onClose }: Props) {
             <h2 className="text-lg font-semibold">Review & confirm</h2>
 
             <div className="text-sm space-y-2">
-              <p><b>Target:</b> ₦{Number(draft.targetAmount).toLocaleString()}</p>
-              <p><b>Duration:</b> {draft.durationDays} days ({interestRate}% p.a)</p>
+              <p><b>Target:</b> ₦{target.toLocaleString()}</p>
+              <p><b>Duration:</b> {duration} days ({interestRate}% p.a)</p>
               <p><b>Purpose:</b> {draft.purpose === "Other" ? draft.customPurpose : draft.purpose}</p>
               <p><b>Frequency:</b> {draft.frequency}</p>
               <p><b>Deposit:</b> ₦{depositAmount.toLocaleString()}</p>
@@ -420,10 +421,10 @@ export default function SavingsCreateModal({ onClose }: Props) {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(4)} className="btn-secondary w-full">
+              <button type="button" onClick={() => setStep(4)} className="btn-secondary w-full">
                 Back
               </button>
-              <button onClick={submit} className="btn-primary w-full">
+              <button type="button" onClick={submit} className="btn-primary w-full">
                 Confirm & Save
               </button>
             </div>
