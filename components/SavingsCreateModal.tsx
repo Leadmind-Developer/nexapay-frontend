@@ -137,6 +137,9 @@ export default function SavingsCreateModal({ onClose }: Props) {
           : null,
     });
 
+    onClose();
+  }
+
   /* ---------------- Step wrapper ---------------- */
   const Step = ({ children }: { children: React.ReactNode }) => (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-6">
