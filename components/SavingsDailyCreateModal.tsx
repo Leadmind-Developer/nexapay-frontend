@@ -13,6 +13,13 @@ type DailyDraft = {
   vaBank?: string;
 };
 
+type DailyScheduleItem = {
+  day: number;
+  date: string;
+  amount: number;
+  type: "PLATFORM" | "USER";
+};
+
 const STORAGE_KEY = "savings-daily-draft";
 
 export default function SavingsDailyCreateModal({ onClose }: Props) {
@@ -26,6 +33,7 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
   });
   const [vaLoading, setVaLoading] = useState(false);
   const [vaExists, setVaExists] = useState(false);
+  const [schedule, setSchedule] = useState<DailyScheduleItem[]>([]);
 
   const depositAmount = Number(draft.targetAmount) / 30; // Strict daily contributions
 
@@ -66,6 +74,27 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
 
     fetchVA();
   }, [draft.primarySource]);
+
+  /* ---------------- Fetch schedule preview ---------------- */
+  useEffect(() => {
+    if (step !== 3 || !draft.targetAmount) return;
+
+    const fetchSchedule = async () => {
+      try {
+        const res = await api.get("/savings/strict-daily/schedule-preview", {
+          params: {
+            targetAmount: Number(draft.targetAmount),
+            startDate: draft.startDate,
+          },
+        });
+        if (res.data?.data) setSchedule(res.data.data);
+      } catch (err) {
+        setSchedule([]);
+      }
+    };
+
+    fetchSchedule();
+  }, [step, draft.targetAmount, draft.startDate]);
 
   /* ---------------- Submit ---------------- */
   const submit = async () => {
@@ -187,12 +216,12 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
           </Step>
         )}
 
-        {/* STEP 3: Review */}
+        {/* STEP 3: Review & Schedule */}
         {step === 3 && (
           <Step>
             <h2 className="text-lg font-semibold">Review & Confirm</h2>
 
-            <div className="text-sm space-y-2">
+            <div className="text-sm space-y-2 mb-4">
               <p><b>Total Target:</b> ₦{Number(draft.targetAmount).toLocaleString()}</p>
               <p><b>Duration:</b> 30 days</p>
               <p><b>Daily Contribution:</b> ₦{depositAmount.toLocaleString()}</p>
@@ -202,6 +231,33 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
                 <p><b>Virtual Account:</b> {draft.vaAccount} ({draft.vaBank})</p>
               )}
             </div>
+
+            {schedule.length > 0 && (
+              <div className="overflow-x-auto max-h-64 border rounded p-2 mb-4">
+                <table className="table-auto w-full text-sm">
+                  <thead>
+                    <tr className="text-left">
+                      <th>Day</th>
+                      <th>Date</th>
+                      <th>Amount (₦)</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedule.map(item => (
+                      <tr key={item.day}>
+                        <td>{item.day}</td>
+                        <td>{item.date}</td>
+                        <td>{(item.amount / 100).toLocaleString()}</td>
+                        <td className={item.type === "PLATFORM" ? "text-red-600" : "text-green-600"}>
+                          {item.type}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex gap-3 mt-4">
               <button onClick={() => setStep(2)} className="btn-secondary w-full">Back</button>
