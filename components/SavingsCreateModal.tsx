@@ -16,7 +16,7 @@ const PURPOSES = [
 
 const DURATION_PRESETS = [
   { days: 90, rate: 10, color: "bg-amber-500" },
-  { days: 180, rate: 20, color: "bg-green-500" },
+  { days: 180, rate: 20, color: "bg-green-600" },
   { days: 365, rate: 24, color: "bg-emerald-600" },
   { days: 730, rate: 27, color: "bg-lime-700" }
 ];
@@ -32,21 +32,28 @@ export default function SavingsCreateModal({ onClose }: Props) {
   const [durationDays, setDurationDays] = useState<number | null>(null);
   const [purpose, setPurpose] = useState("");
   const [customPurpose, setCustomPurpose] = useState("");
-  const [frequency, setFrequency] = useState<"daily" | "weekly" | "monthly" | null>(null);
+  const [frequency, setFrequency] =
+    useState<"daily" | "weekly" | "monthly" | null>(null);
   const [startDate, setStartDate] = useState("");
-  const [primarySource, setPrimarySource] = useState<"WALLET" | "BANK" | null>(null);
-  const [secondarySource, setSecondarySource] = useState<"WALLET" | "BANK" | null>(null);
+
+  const [primarySource, setPrimarySource] =
+    useState<"WALLET" | "BANK" | null>(null);
+
+  const [bankCode, setBankCode] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
   const interestRate =
-    durationDays !== null
-      ? durationDays <= 90
-        ? 10
-        : durationDays <= 180
-        ? 20
-        : durationDays <= 365
-        ? 24
-        : 27
-      : 0;
+    durationDays === null
+      ? 0
+      : durationDays <= 90
+      ? 10
+      : durationDays <= 180
+      ? 20
+      : durationDays <= 365
+      ? 24
+      : 27;
 
   const depositAmount =
     targetAmount && durationDays && frequency
@@ -57,33 +64,48 @@ export default function SavingsCreateModal({ onClose }: Props) {
         : targetAmount / Math.ceil(durationDays / 30)
       : 0;
 
-  const submit = async () => {
+  async function resolveBank() {
+    try {
+      setVerifying(true);
+      const res = await api.post("/banks/resolve", {
+        bankCode,
+        accountNumber
+      });
+      setAccountName(res.data.accountName);
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function submit() {
     await api.post("/savings/goals", {
       targetAmount,
       durationDays,
       frequency,
-      purpose: purpose === "Other" ? customPurpose : purpose,
       startDate,
+      purpose: purpose === "Other" ? customPurpose : purpose,
       primarySource,
-      secondarySource
+      bankDetails:
+        primarySource === "BANK"
+          ? { bankCode, accountNumber, accountName }
+          : null
     });
-
     onClose();
-  };
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-zinc-900 text-black dark:text-white w-full max-w-lg rounded-xl p-6 space-y-6">
+      <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-xl p-6 space-y-6">
 
-        {/* STEP 1 — Amount & Duration */}
+        {/* STEP 1 */}
         {step === 1 && (
           <>
             <h2 className="text-lg font-semibold">Set your savings target</h2>
 
+            <label className="text-sm">Target amount</label>
             <input
               type="number"
-              placeholder="Target amount"
-              className="w-full p-3 rounded bg-gray-100 dark:bg-zinc-800"
+              className="input"
               onChange={e => setTargetAmount(Number(e.target.value))}
             />
 
@@ -94,7 +116,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
                   onClick={() => setDurationDays(p.days)}
                   className={`p-3 rounded text-white ${p.color}`}
                 >
-                  {p.days} days — {p.rate}% p.a
+                  {p.days} days · {p.rate}% p.a
                 </button>
               ))}
             </div>
@@ -103,10 +125,10 @@ export default function SavingsCreateModal({ onClose }: Props) {
               type="number"
               placeholder={
                 durationDays
-                  ? `${durationDays} days — ${interestRate}% p.a`
+                  ? `${durationDays} days · ${interestRate}% p.a`
                   : "Custom duration (days)"
               }
-              className="w-full p-3 rounded bg-gray-100 dark:bg-zinc-800"
+              className="input"
               onChange={e => setDurationDays(Number(e.target.value))}
             />
 
@@ -120,7 +142,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
           </>
         )}
 
-        {/* STEP 2 — Purpose */}
+        {/* STEP 2 */}
         {step === 2 && (
           <>
             <h2 className="text-lg font-semibold">I am saving for?</h2>
@@ -130,8 +152,10 @@ export default function SavingsCreateModal({ onClose }: Props) {
                 <button
                   key={p}
                   onClick={() => setPurpose(p)}
-                  className={`p-3 rounded border ${
-                    purpose === p ? "border-black dark:border-white" : ""
+                  className={`p-3 rounded font-medium ${
+                    purpose === p
+                      ? "bg-black text-white dark:bg-white dark:text-black"
+                      : "bg-gray-100 dark:bg-zinc-800"
                   }`}
                 >
                   {p}
@@ -142,7 +166,7 @@ export default function SavingsCreateModal({ onClose }: Props) {
             {purpose === "Other" && (
               <input
                 placeholder="Specify purpose"
-                className="w-full p-3 rounded bg-gray-100 dark:bg-zinc-800"
+                className="input"
                 onChange={e => setCustomPurpose(e.target.value)}
               />
             )}
@@ -157,18 +181,20 @@ export default function SavingsCreateModal({ onClose }: Props) {
           </>
         )}
 
-        {/* STEP 3 — Frequency & Start Date */}
+        {/* STEP 3 */}
         {step === 3 && (
           <>
-            <h2 className="text-lg font-semibold">How often do you want to save?</h2>
+            <h2 className="text-lg font-semibold">Savings frequency</h2>
 
             <div className="flex gap-3">
               {["daily", "weekly", "monthly"].map(f => (
                 <button
                   key={f}
                   onClick={() => setFrequency(f as any)}
-                  className={`px-4 py-2 rounded border ${
-                    frequency === f ? "border-black dark:border-white" : ""
+                  className={`px-4 py-2 rounded ${
+                    frequency === f
+                      ? "bg-black text-white dark:bg-white dark:text-black"
+                      : "bg-gray-100 dark:bg-zinc-800"
                   }`}
                 >
                   {f}
@@ -176,15 +202,16 @@ export default function SavingsCreateModal({ onClose }: Props) {
               ))}
             </div>
 
+            <label className="text-sm font-medium">Start date</label>
             <input
               type="date"
-              className="w-full p-3 rounded bg-gray-100 dark:bg-zinc-800"
+              className="input"
               onChange={e => setStartDate(e.target.value)}
             />
 
             {depositAmount > 0 && (
               <p className="text-sm text-gray-500">
-                You’ll save ₦{depositAmount.toLocaleString()} {frequency}.
+                ₦{depositAmount.toLocaleString()} will be deducted {frequency}.
               </p>
             )}
 
@@ -198,31 +225,52 @@ export default function SavingsCreateModal({ onClose }: Props) {
           </>
         )}
 
-        {/* STEP 4 — Funding Sources */}
+        {/* STEP 4 */}
         {step === 4 && (
           <>
             <h2 className="text-lg font-semibold">Funding source</h2>
 
             <select
-              className="w-full p-3 rounded bg-gray-100 dark:bg-zinc-800"
+              className="input"
               onChange={e => setPrimarySource(e.target.value as any)}
             >
-              <option value="">Primary source</option>
+              <option value="">Select primary source</option>
               <option value="WALLET">Nexa Wallet</option>
               <option value="BANK">External Bank</option>
             </select>
 
-            <select
-              className="w-full p-3 rounded bg-gray-100 dark:bg-zinc-800"
-              onChange={e => setSecondarySource(e.target.value as any)}
-            >
-              <option value="">Secondary (optional)</option>
-              <option value="WALLET">Nexa Wallet</option>
-              <option value="BANK">External Bank</option>
-            </select>
+            {primarySource === "BANK" && (
+              <>
+                <input
+                  placeholder="Bank code"
+                  className="input"
+                  onChange={e => setBankCode(e.target.value)}
+                />
+                <input
+                  placeholder="Account number"
+                  className="input"
+                  onChange={e => setAccountNumber(e.target.value)}
+                />
+                <button
+                  onClick={resolveBank}
+                  disabled={verifying}
+                  className="btn-secondary w-full"
+                >
+                  {verifying ? "Verifying…" : "Validate bank account"}
+                </button>
+                {accountName && (
+                  <p className="text-sm text-green-600">
+                    Account name: {accountName}
+                  </p>
+                )}
+              </>
+            )}
 
             <button
-              disabled={!primarySource}
+              disabled={
+                !primarySource ||
+                (primarySource === "BANK" && !accountName)
+              }
               onClick={submit}
               className="btn-primary w-full"
             >
