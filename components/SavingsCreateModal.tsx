@@ -108,23 +108,26 @@ export default function SavingsCreateModal({ onClose }: Props) {
     return () => clearTimeout(timer);
   }, [draft.accountNumber, draft.bankCode]);
 
+  const duration = Number(draft.durationDays) || 0;
+  const target = Number(draft.targetAmount) || 0;
+
   /* ---------------- Derived values ---------------- */
   const interestRate =
-    Number(draft.durationDays) <= 90
+    duration <= 90
       ? 10
-      : draft.durationDays <= 180
+      : duration <= 180
       ? 20
-      : draft.durationDays <= 365
+      : duration <= 365
       ? 24
       : 27;
 
   const depositAmount =
-    draft.targetAmount && draft.durationDays && draft.frequency
+    target && duration && draft.frequency
       ? draft.frequency === "daily"
-        ? draft.targetAmount / draft.durationDays
+        ? target / duration
         : draft.frequency === "weekly"
-        ? draft.targetAmount / Math.ceil(draft.durationDays / 7)
-        : draft.targetAmount / Math.ceil(draft.durationDays / 30)
+        ? target / Math.ceil(duration / 7)
+        : target / Math.ceil(duration / 30)
       : 0;
 
   /* ---------------- Submit ---------------- */
