@@ -302,7 +302,6 @@ export default function SavingsCreateModal({ onClose }: Props) {
               value={
                 draft.startDate
                 ? draft.startDate
-                : new
                 : new Date().toISOString().split("T")[0] // default to today
               }
               onChange={e =>
