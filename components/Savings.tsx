@@ -177,17 +177,28 @@ export default function Savings() {
       )}
 
       {/* FLOATING CTA */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-2">
+<div className="fixed bottom-6 right-6 flex flex-col gap-2 z-40">
+  {/* Regular Savings */}
   <button
     onClick={() => setCreateOpen(true)}
-    className="bg-green text-white px-5 py-3 rounded-full shadow-lg hover:scale-105 transition-transform"
+    className="
+      px-5 py-3 rounded-full shadow-lg transition-transform hover:scale-105
+      bg-green-600 text-white
+      dark:bg-green-500 dark:text-black
+    "
   >
     Create Savings Goal
   </button>
 
+  {/* Strict Daily */}
   <button
     onClick={() => setDailyCreateOpen(true)}
-    className="bg-white text-black border px-5 py-3 rounded-full shadow hover:bg-gray-100 transition"
+    className="
+      px-5 py-3 rounded-full shadow transition
+      bg-white text-black border border-gray-200
+      hover:bg-gray-100
+      dark:bg-zinc-900 dark:text-white dark:border-zinc-700 dark:hover:bg-zinc-800
+    "
   >
     Strict Daily Savings
   </button>
