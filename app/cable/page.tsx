@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
 import { useCheckout } from "@/hooks/useCheckout";
@@ -12,6 +12,9 @@ type Variation = {
   variation_amount: number;
 };
 
+type Stage = "verify" | "payment";
+
+/* ================= SERVICES ================= */
 const SERVICES = [
   { label: "DStv", value: "dstv" },
   { label: "GOtv", value: "gotv" },
@@ -19,33 +22,33 @@ const SERVICES = [
   { label: "Showmax", value: "showmax" },
 ];
 
+/* ================= PAGE ================= */
 export default function CablePage() {
   const [serviceId, setServiceId] = useState("");
   const [smartcard, setSmartcard] = useState("");
   const [phone, setPhone] = useState("");
 
-  const [verifying, setVerifying] = useState(false);
-  const [verifiedName, setVerifiedName] = useState("");
-
+  const [customerName, setCustomerName] = useState("");
   const [variations, setVariations] = useState<Variation[]>([]);
   const [selectedVar, setSelectedVar] = useState<Variation | null>(null);
 
+  const [stage, setStage] = useState<Stage>("verify");
+  const [verifying, setVerifying] = useState(false);
+
   const {
-    stage,
+    stage: checkoutStage,
     checkout,
     errorMessage,
     reference,
   } = useCheckout();
 
   /* ================= VERIFY SMARTCARD ================= */
- useEffect(() => {
-  if (!serviceId || smartcard.trim().length < 6) return;
+  const verifySmartcard = async () => {
+    if (!serviceId || !smartcard) return;
 
-  const timer = setTimeout(async () => {
     try {
       setVerifying(true);
-      setVerifyError("");
-      setVerifiedName("");
+      setCustomerName("");
       setVariations([]);
       setSelectedVar(null);
 
@@ -63,33 +66,31 @@ export default function CablePage() {
         "";
 
       if (!name) {
-        throw new Error("Customer name not returned");
+        throw new Error("Unable to verify smartcard");
       }
 
-      setVerifiedName(name);
+      setCustomerName(name);
 
       const vars = await api.get(
         `/vtpass/cable/variations?service=${serviceId}`
       );
 
       setVariations(vars.data?.variations || []);
+      setStage("payment");
     } catch (err: any) {
-      setVerifiedName("");
-      setVerifyError(
+      alert(
         err?.response?.data?.error ||
-        "Smartcard verification failed"
+          err?.message ||
+          "Smartcard verification failed"
       );
     } finally {
       setVerifying(false);
     }
-  }, 700);
-
-  return () => clearTimeout(timer);
-}, [serviceId, smartcard]);
+  };
 
   /* ================= CHECKOUT ================= */
   const handleCheckout = () => {
-    if (!selectedVar || !verifiedName || !phone) return;
+    if (!selectedVar || !phone) return;
 
     checkout({
       endpoint: "/vtpass/cable/checkout",
@@ -106,25 +107,17 @@ export default function CablePage() {
   /* ================= UI ================= */
   return (
     <BannersWrapper page="cable">
-      <div className="max-w-md mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-md mx-auto px-4 space-y-4 text-gray-900 dark:text-gray-100">
 
-        {/* FORM */}
-        {stage === "idle" && (
-          <div className="bg-white dark:bg-gray-900 border rounded-lg p-6 space-y-4 shadow">
-
-            <h2 className="text-xl font-bold">Cable Subscription</h2>
-
-            <input
-              value={smartcard}
-              onChange={e => setSmartcard(e.target.value)}
-              placeholder="Smartcard Number"
-              className="w-full p-3 border rounded"
-            />
+        {/* ===== VERIFY ===== */}
+        {stage === "verify" && (
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
+            <h2 className="text-xl font-bold">Verify Smartcard</h2>
 
             <select
               value={serviceId}
               onChange={e => setServiceId(e.target.value)}
-              className="w-full p-3 border rounded"
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             >
               <option value="">Select Provider</option>
               {SERVICES.map(s => (
@@ -134,76 +127,111 @@ export default function CablePage() {
               ))}
             </select>
 
-            {verifying && (
-              <p className="text-sm text-gray-500">Verifying smartcard…</p>
-            )}
+            <input
+              value={smartcard}
+              onChange={e => setSmartcard(e.target.value)}
+              placeholder="Smartcard Number"
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+            />
 
-            {verifiedName && (
-              <p className="text-sm text-green-600">
-                Customer: <b>{verifiedName}</b>
-              </p>
-            )}
+            <button
+              onClick={verifySmartcard}
+              disabled={verifying}
+              className="w-full bg-yellow-500 text-white py-3 rounded font-semibold disabled:opacity-60"
+            >
+              {verifying ? "Verifying…" : "Verify Smartcard"}
+            </button>
+          </div>
+        )}
 
-            {variations.length > 0 && (
-              <select
-                value={selectedVar?.variation_code || ""}
-                onChange={e =>
-                  setSelectedVar(
-                    variations.find(v => v.variation_code === e.target.value) ||
-                      null
-                  )
-                }
-                className="w-full p-3 border rounded"
-              >
-                <option value="">Select Package</option>
-                {variations.map(v => (
-                  <option key={v.variation_code} value={v.variation_code}>
-                    {v.name} — ₦{v.variation_amount}
-                  </option>
-                ))}
-              </select>
-            )}
+        {/* ===== PAYMENT ===== */}
+        {stage === "payment" && (
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
+            <h2 className="text-xl font-bold">Payment</h2>
+
+            <p className="text-sm">
+              <b>Customer:</b> {customerName}
+            </p>
+
+            <select
+              value={selectedVar?.variation_code || ""}
+              onChange={e =>
+                setSelectedVar(
+                  variations.find(v => v.variation_code === e.target.value) ||
+                    null
+                )
+              }
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+            >
+              <option value="">Select Package</option>
+              {variations.map(v => (
+                <option key={v.variation_code} value={v.variation_code}>
+                  {v.name} — ₦{v.variation_amount}
+                </option>
+              ))}
+            </select>
 
             <input
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="Phone Number"
-              className="w-full p-3 border rounded"
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             />
 
-            <button
-              onClick={handleCheckout}
-              disabled={!verifiedName || !selectedVar || !phone}
-              className="w-full bg-yellow-500 text-white py-3 rounded font-semibold disabled:opacity-60"
-            >
-              Pay
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStage("verify")}
+                className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleCheckout}
+                className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold"
+              >
+                Pay
+              </button>
+            </div>
           </div>
         )}
 
-        {/* PROCESSING */}
-        {stage === "processing" && (
-          <div className="bg-white border rounded-lg p-6 text-center shadow">
+        {/* ===== PROCESSING ===== */}
+        {checkoutStage === "processing" && (
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow">
             Processing your cable subscription…
           </div>
         )}
 
-        {/* SUCCESS */}
-        {stage === "success" && (
-          <div className="bg-green-100 border p-6 rounded text-center space-y-2">
-            <h2 className="text-xl font-bold">Success 🎉</h2>
+        {/* ===== SUCCESS ===== */}
+        {checkoutStage === "success" && (
+          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-3">
+            <h2 className="text-xl font-bold">
+              Cable Subscription Successful 📺
+            </h2>
+
             {reference && (
               <p className="text-xs break-all">
                 <b>Reference:</b> {reference}
               </p>
             )}
+
+            <p className="text-sm opacity-80">
+              Redirecting to transactions…
+            </p>
           </div>
         )}
 
-        {/* ERROR */}
-        {stage === "error" && (
-          <div className="bg-red-100 border p-6 rounded text-center">
+        {/* ===== ERROR ===== */}
+        {checkoutStage === "error" && (
+          <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
+            <h2 className="text-lg font-bold">Something went wrong</h2>
             <p className="text-sm">{errorMessage}</p>
+            <a
+              href="/contact"
+              className="inline-block bg-yellow-500 text-white py-3 px-4 rounded w-full"
+            >
+              Contact Support
+            </a>
           </div>
         )}
 
