@@ -48,31 +48,40 @@ export default function ElectricityPage() {
 
   /* ================= VERIFY METER ================= */
   const verifyMeter = async () => {
-    if (!serviceId || !meterNumber) return;
+  if (!serviceId || !meterNumber) return;
 
-    try {
-      setCustomerName("");
+  try {
+    setCustomerName("");
 
-      const res = await api.post("/vtpass/electricity/verify", {
-        serviceId,
-        meterNumber,
-        type,
-      });
+    const res = await api.post("/vtpass/electricity/verify", {
+      serviceId,
+      meterNumber,
+      type,
+    });
 
-      if (!res.data?.customer_name) {
-        throw new Error("Unable to verify meter");
-      }
-
+    // ✅ Normal verification success
+    if (res.data?.customer_name) {
       setCustomerName(res.data.customer_name);
       setStage("payment");
-    } catch (err: any) {
-      alert(
-        err?.response?.data?.error ||
-          err?.message ||
-          "Meter verification failed"
-      );
+      return;
     }
-  };
+
+    throw new Error("Unable to verify meter");
+  } catch (err: any) {
+    const error = err?.response?.data?.error || err?.message || "Meter verification failed";
+
+    // ⚡ Handle "already verified" case
+    if (error.toLowerCase().includes("already verified")) {
+      // Try to extract customer name from response if available
+      const customer = err?.response?.data?.customer_name || meterNumber;
+      setCustomerName(customer);
+      setStage("payment");
+      return;
+    }
+
+    alert(error);
+  }
+};
 
   /* ================= CHECKOUT ================= */
   const handleCheckout = () => {
