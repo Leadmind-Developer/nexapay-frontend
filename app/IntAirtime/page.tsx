@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
-import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 import { useCheckout } from "@/hooks/useCheckout";
 
@@ -114,8 +113,7 @@ export default function IntAirtimePage() {
   };
 
   /* ================= UI ================= */
-  return (
-    <ResponsiveLandingWrapper>
+  return (    
       <BannersWrapper page="int-airtime">
         <div className="max-w-md mx-auto px-4 space-y-4 text-gray-900 dark:text-gray-100">
 
@@ -277,6 +275,5 @@ export default function IntAirtimePage() {
 
         </div>
       </BannersWrapper>
-    </ResponsiveLandingWrapper>
   );
 }
