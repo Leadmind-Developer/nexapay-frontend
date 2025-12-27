@@ -38,39 +38,54 @@ export default function CablePage() {
   } = useCheckout();
 
   /* ================= VERIFY SMARTCARD ================= */
-  useEffect(() => {
-    if (!serviceId || smartcard.length < 6) return;
+ useEffect(() => {
+  if (!serviceId || smartcard.trim().length < 6) return;
 
-    const t = setTimeout(async () => {
-      try {
-        setVerifying(true);
-        setVerifiedName("");
-        setVariations([]);
-        setSelectedVar(null);
+  const timer = setTimeout(async () => {
+    try {
+      setVerifying(true);
+      setVerifyError("");
+      setVerifiedName("");
+      setVariations([]);
+      setSelectedVar(null);
 
-        const res = await api.post("/vtpass/cable/verify", {
-          service: serviceId,
-          smartcard,
-        });
+      const res = await api.post("/vtpass/cable/verify", {
+        service: serviceId,
+        smartcard,
+      });
 
-        const name = res.data?.content?.customer_name;
-        if (name) {
-          setVerifiedName(name);
+      const content = res.data?.content || {};
+      const name =
+        content.customer_name ||
+        content.Customer_Name ||
+        content.customerName ||
+        content.name ||
+        "";
 
-          const vars = await api.get(
-            `/vtpass/cable/variations?service=${serviceId}`
-          );
-          setVariations(vars.data?.variations || []);
-        }
-      } catch {
-        setVerifiedName("");
-      } finally {
-        setVerifying(false);
+      if (!name) {
+        throw new Error("Customer name not returned");
       }
-    }, 700);
 
-    return () => clearTimeout(t);
-  }, [serviceId, smartcard]);
+      setVerifiedName(name);
+
+      const vars = await api.get(
+        `/vtpass/cable/variations?service=${serviceId}`
+      );
+
+      setVariations(vars.data?.variations || []);
+    } catch (err: any) {
+      setVerifiedName("");
+      setVerifyError(
+        err?.response?.data?.error ||
+        "Smartcard verification failed"
+      );
+    } finally {
+      setVerifying(false);
+    }
+  }, 700);
+
+  return () => clearTimeout(timer);
+}, [serviceId, smartcard]);
 
   /* ================= CHECKOUT ================= */
   const handleCheckout = () => {
