@@ -33,7 +33,7 @@ export default function ElectricityPage() {
   /* ================= LOAD DISCOS ================= */
   useEffect(() => {
     api
-      .post<Disco[]>("/vtpass/electricity/verify")
+      .get<Disco[]>("/vtpass/electricity/discos")
       .then(res => {
         setDiscos(res.data || []);
         if (res.data?.length) setServiceId(res.data[0].code);
