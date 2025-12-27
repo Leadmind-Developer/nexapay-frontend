@@ -43,7 +43,9 @@ export default function ElectricityPage() {
 
   /* ================= VERIFY METER ================= */
   const verifyMeter = async () => {
-    if (!serviceId || !meterNumber) return setMessage("Enter meter number & select Disco");
+    if (!serviceId || !meterNumber)
+      return setMessage("Enter meter number & select Disco");
+    
     setMessage("");
     setCustomerName("");
 
@@ -54,20 +56,21 @@ export default function ElectricityPage() {
         type,
       });
 
-      if (res.data?.customer_name) {
-        setCustomerName(res.data.customer_name);
+      if (res.data?.success && res.data?.verified && res.data?.customerName) {
+        setCustomerName(res.data.customerName);
         setStage("payment");
         return;
       }
 
       throw new Error("Unable to verify meter");
     } catch (err: any) {
-      const error = err?.response?.data?.error || err?.message || "Verification failed";
+      const error =
+        err?.response?.data?.error || err?.message || "Verification failed";
       setMessage(error);
 
       // Already verified
       if (error.toLowerCase().includes("already verified")) {
-        setCustomerName(err?.response?.data?.customer_name || meterNumber);
+        setCustomerName(err?.response?.data?.customerName || meterNumber);
         setStage("payment");
       }
     }
