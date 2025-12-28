@@ -257,28 +257,28 @@ export default function ElectricityPage() {
         )}
 
         {/* ================= SUCCESS ================= */}
-        {stage === "success" && receipt && (
-          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-3">
-            <h2 className="text-lg font-bold">Purchase Successful ⚡</h2>
-            <p><b>Customer:</b> {receipt.customer_name}</p>
-            <p><b>Meter:</b> {receipt.meter_number}</p>
-            <p><b>Amount:</b> ₦{receipt.amount}</p>
+{stage === "success" && receipt && (
+  <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-3">
+    <h2 className="text-lg font-bold">Purchase Successful ⚡</h2>
+    <p><b>Customer:</b> {receipt.customer_name}</p>
+    <p><b>Meter:</b> {receipt.meter_number}</p>
+    <p><b>Amount:</b> ₦{receipt.amount}</p>
 
-            {receipt.token && (
-              <div className="bg-white/80 dark:bg-black/30 p-3 rounded">
-                <p className="font-semibold">Token</p>
-                <p className="font-mono tracking-wider">{receipt.token}</p>
-              </div>
-            )}
+    <div className="bg-white/80 dark:bg-black/30 p-3 rounded">
+      <p className="font-semibold">Token</p>
+      <p className="font-mono tracking-wider">
+        {receipt.token ? receipt.token : "Processing…"}
+      </p>
+    </div>
 
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full bg-green-600 text-white py-3 rounded font-semibold"
-            >
-              Buy Again
-            </button>
-          </div>
-        )}
+    <button
+      onClick={() => window.location.reload()}
+      className="w-full bg-green-600 text-white py-3 rounded font-semibold"
+    >
+      Buy Again
+    </button>
+  </div>
+)}
 
         {/* ================= ERROR ================= */}
         {stage === "error" && (
