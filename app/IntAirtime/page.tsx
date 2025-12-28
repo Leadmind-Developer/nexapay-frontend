@@ -53,21 +53,21 @@ export default function IntAirtimePage() {
 
   /* ================= LOOKUPS ================= */
   useEffect(() => {
-    api.get("/vtpass/intl/countries")
+    api.get("/vtpass/international/countries")
       .then(res => setCountries(res.data?.data || []))
       .catch(() => setCountries([]));
   }, []);
 
   useEffect(() => {
     if (!country) return setProductTypes([]);
-    api.get(`/vtpass/intl/product-types/${country}`)
+    api.get(`/vtpass/international/product-types/${country}`)
       .then(res => setProductTypes(res.data?.data || []))
       .catch(() => setProductTypes([]));
   }, [country]);
 
   useEffect(() => {
     if (!country || !productType) return setOperators([]);
-    api.get(`/vtpass/intl/operators`, {
+    api.get(`/vtpass/international/operators`, {
       params: { code: country, product_type_id: productType },
     })
       .then(res => setOperators(res.data?.data || []))
@@ -76,7 +76,7 @@ export default function IntAirtimePage() {
 
   useEffect(() => {
     if (!operator || !productType) return setVariations([]);
-    api.get(`/vtpass/intl/variations`, {
+    api.get(`/vtpass/international/variations`, {
       params: { operator_id: operator, product_type_id: productType },
     })
       .then(res => setVariations(res.data?.data || []))
@@ -98,7 +98,7 @@ export default function IntAirtimePage() {
   /* ================= CHECKOUT ================= */
   const handleCheckout = () => {
     checkout({
-      endpoint: "/vtpass/intl/checkout",
+      endpoint: "/vtpass/international/checkout",
       payload: {
         country_code: country,
         product_type_id: productType,
