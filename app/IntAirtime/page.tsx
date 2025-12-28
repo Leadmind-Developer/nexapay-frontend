@@ -61,7 +61,13 @@ export default function IntAirtimePage() {
   useEffect(() => {
     if (!country) return setProductTypes([]);
     api.get(`/vtpass/international/product-types/${country}`)
-      .then(res => setProductTypes(res.data?.data || []))
+      .then(res => {
+        const products = (res.data?.data || []).map(p => ({
+          id: p.id || p.code,
+          name: p.name,
+        }));
+        setProductTypes(products);
+      })
       .catch(() => setProductTypes([]));
   }, [country]);
 
