@@ -41,40 +41,49 @@ export default function ElectricityPage() {
       .catch(() => setMessage("Failed to load electricity providers"));
   }, []);
 
-  /* ================= VERIFY METER ================= */
-  const verifyMeter = async () => {
-    if (!serviceId || !meterNumber)
-      return setMessage("Enter meter number & select Disco");
-    
-    setMessage("");
-    setCustomerName("");
+  ;/* ================= VERIFY METER ================= */
+const verifyMeter = async () => {
+  if (!serviceId || !meterNumber) {
+    return setMessage("Enter meter number & select Disco");
+  }
 
-    try {
-      const res = await api.post("/vtpass/electricity/verify", {
-        serviceId,
-        meterNumber,
+  setMessage("");
+  setCustomerName("");
+  setReceipt(null); // reset previous receipt
+  setStage("verify");
+
+  try {
+    const res = await api.post("/vtpass/electricity/verify", {
+      serviceId,
+      meterNumber,
+      type,
+    });
+
+    if (res.data?.success && res.data?.verified && res.data?.details) {
+      const details = res.data.details;
+
+      // save details to state for table display
+      setReceipt({
+        requestId: "",
+        meter_number: details.meterNumber,
         type,
+        customer_name: details.customerName,
+        amount: 0,
+        token: "",
+        ...details, // spread all other info for table
       });
 
-      if (res.data?.success && res.data?.verified && res.data?.customerName) {
-        setCustomerName(res.data.customerName);
-        setStage("payment");
-        return;
-      }
-
-      throw new Error("Unable to verify meter");
-    } catch (err: any) {
-      const error =
-        err?.response?.data?.error || err?.message || "Verification failed";
-      setMessage(error);
-
-      // Already verified
-      if (error.toLowerCase().includes("already verified")) {
-        setCustomerName(err?.response?.data?.customerName || meterNumber);
-        setStage("payment");
-      }
+      setStage("review");
+      return;
     }
-  };
+
+    throw new Error("Unable to verify meter");
+  } catch (err: any) {
+    const error =
+      err?.response?.data?.error || err?.message || "Verification failed";
+    setMessage(error);
+  }
+};
 
   /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
@@ -153,31 +162,95 @@ export default function ElectricityPage() {
           </div>
         )}
 
-        {/* PAYMENT */}
-        {stage === "payment" && (
-          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
-            <h2 className="text-xl font-bold">Payment</h2>
-            <p className="text-sm"><b>Customer:</b> {customerName}</p>
-            <input
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="Amount"
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            />
-            <input
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="Phone Number"
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            />
-            {message && <p className="text-red-600 font-medium">{message}</p>}
-            <div className="flex gap-3">
-              <button onClick={() => setStage("verify")} className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">Back</button>
-              <button onClick={handleCheckout} className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold">Pay & Get Token</button>
-            </div>
-          </div>
-        )}
+        {/* REVIEW + PAYMENT */}
+{stage === "review" && receipt && (
+  <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 shadow space-y-4">
+    <h2 className="text-xl font-bold">Review Meter Details & Payment ⚡</h2>
+
+    {/* Tabular Details */}
+    <table className="w-full text-left border-collapse mb-4">
+      <tbody>
+        <tr>
+          <td className="p-2 font-semibold">Customer Name:</td>
+          <td className="p-2">{receipt.customer_name}</td>
+        </tr>
+        <tr className="bg-gray-50 dark:bg-gray-800">
+          <td className="p-2 font-semibold">Meter Number:</td>
+          <td className="p-2">{receipt.meter_number}</td>
+        </tr>
+        <tr>
+          <td className="p-2 font-semibold">Address:</td>
+          <td className="p-2">{receipt.address || "-"}</td>
+        </tr>
+        <tr className="bg-gray-50 dark:bg-gray-800">
+          <td className="p-2 font-semibold">Meter Type:</td>
+          <td className="p-2">{receipt.meterType || "-"}</td>
+        </tr>
+        <tr>
+          <td className="p-2 font-semibold">Account Type:</td>
+          <td className="p-2">{receipt.accountType || "-"}</td>
+        </tr>
+        <tr className="bg-gray-50 dark:bg-gray-800">
+          <td className="p-2 font-semibold">Can Vend:</td>
+          <td className="p-2">{receipt.canVend || "-"}</td>
+        </tr>
+        <tr>
+          <td className="p-2 font-semibold">Tariff Rate (NGN/KWh):</td>
+          <td className="p-2">{receipt.tariffRate || "-"}</td>
+        </tr>
+        <tr className="bg-gray-50 dark:bg-gray-800">
+          <td className="p-2 font-semibold">Phone:</td>
+          <td className="p-2">{receipt.phone || "-"}</td>
+        </tr>
+        <tr>
+          <td className="p-2 font-semibold">Email:</td>
+          <td className="p-2">{receipt.email || "-"}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    {/* Payment Inputs */}
+    <div className="space-y-4">
+      <input
+        type="number"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        placeholder="Amount"
+        className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+      />
+      <input
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="Phone Number"
+        className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+      />
+      {message && <p className="text-red-600 font-medium">{message}</p>}
+    </div>
+
+    <div className="flex gap-3 mt-4">
+      <button
+        onClick={() => {
+          setStage("verify");
+          setMeterNumber("");
+          setAmount("");
+          setPhone("");
+          setCustomerName("");
+          setReceipt(null);
+          setMessage("");
+        }}
+        className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
+      >
+        Back
+      </button>
+      <button
+        onClick={handleCheckout}
+        className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold"
+      >
+        Pay & Get Token
+      </button>
+    </div>
+  </div>
+)}
 
         {/* PROCESSING */}
         {stage === "processing" && (
