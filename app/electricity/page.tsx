@@ -35,6 +35,41 @@ interface Receipt {
     units?: string;
   };
 }
+/* ================= VTpass Normalizer ================= */
+function normalizeVtpassReceipt(raw: any, fallback: Partial<Receipt>): Receipt {
+  const statusRaw = String(raw?.status || raw?.transactionStatus || "").toLowerCase();
+
+  const status: Receipt["status"] =
+    ["successful", "delivered", "success"].includes(statusRaw)
+      ? "SUCCESS"
+      : ["failed", "error"].includes(statusRaw)
+      ? "FAILED"
+      : "PROCESSING";
+
+  const token =
+    raw?.token ||
+    raw?.token_code ||
+    raw?.vtpass?.token ||
+    raw?.vtpass?.token_code ||
+    null;
+
+  return {
+    requestId: raw?.requestId || fallback.requestId!,
+    meter_number: raw?.meter_number || raw?.meterNumber || fallback.meter_number!,
+    type: fallback.type!,
+    customer_name:
+      raw?.customer_name || raw?.customerName || fallback.customer_name!,
+    amount: Number(raw?.amount || fallback.amount || 0),
+    token,
+    status,
+    vtpass: {
+      token,
+      token_code: raw?.token_code,
+      exchangeReference: raw?.exchangeReference,
+      units: raw?.units,
+    },
+  };
+}
 
 /* ================= COUNTDOWN TIMER COMPONENT ================= */
 interface CountdownTimerProps {
@@ -121,33 +156,50 @@ export default function ElectricityPage() {
     }
   };
 
-  /* ================= FETCH RECEIPT ================= */
-  const fetchReceipt = async (requestId: string) => {
-    try {
-      const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
-      if (res.data?.success) {
-        const r = res.data.receipt;
-        setReceipt(r);
-        setStage(
-          r.status === "FAILED" ? "error" : r.status === "SUCCESS" ? "success" : "processing"
-        );
-        if (r.status === "PROCESSING") setTimeout(() => fetchReceipt(requestId), 3000);
-      } else {
-        setTimeout(() => fetchReceipt(requestId), 3000);
-      }
-    } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Failed to fetch receipt, retrying...");
-      setTimeout(() => fetchReceipt(requestId), 5000);
-    }
-  };
+  /* ================= FETCH RECEIPT (ROBUST) ================= */
+const fetchReceipt = async (requestId: string, fallback: Partial<Receipt>) => {
+  try {
+    const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
 
-  /* ================= CHECKOUT WITH POLLING ================= */
+    const raw = res.data?.receipt || res.data;
+    if (!raw) throw new Error("Empty receipt");
+
+    const normalized = normalizeVtpassReceipt(raw, fallback);
+    setReceipt(normalized);
+
+    if (normalized.status === "FAILED") {
+      setStage("error");
+      setMessage("Transaction failed");
+      return;
+    }
+
+    if (normalized.status === "SUCCESS") {
+      setStage("success");
+
+      // SUCCESS but token missing → keep polling
+      if (!normalized.token) {
+        setTimeout(() => fetchReceipt(requestId, fallback), 3000);
+      }
+      return;
+    }
+
+    // PROCESSING
+    setStage("processing");
+    setTimeout(() => fetchReceipt(requestId, fallback), 3000);
+
+  } catch {
+    // silent retry — VTpass is eventual
+    setTimeout(() => fetchReceipt(requestId, fallback), 4000);
+  }
+};
+
+/* ================= CHECKOUT (FINAL + SAFE) ================= */
 const handleCheckout = async () => {
   if (!verification) return setMessage("Verify meter first");
   if (!amount || !phone) return setMessage("Enter amount and phone number");
 
-  setStage("processing");
   setMessage("");
+  setStage("processing");
 
   try {
     const res = await api.post("/vtpass/electricity/checkout", {
@@ -158,56 +210,27 @@ const handleCheckout = async () => {
       phone,
     });
 
-    const requestId = res.data.requestId;
-    setReceipt({
+    const requestId = res.data?.requestId;
+    if (!requestId) throw new Error("No requestId returned");
+
+    const baseReceipt: Receipt = {
       requestId,
       meter_number: verification.meter_number,
       type,
       customer_name: verification.customer_name,
       amount: Number(amount),
-      token: null, // token not yet available
+      token: null,
       status: "PROCESSING",
-    });
-
-    // Poll for receipt every 3s until we get a final status
-    const pollReceipt = async () => {
-      try {
-        const receiptRes = await api.get(`/vtpass/electricity/receipt/${requestId}`);
-        const r = receiptRes.data?.receipt;
-
-        if (r && r.status !== "PROCESSING" && r.status !== "FAILED") {
-          setReceipt({
-            requestId: r.requestId,
-            meter_number: r.meter_number,
-            type,
-            customer_name: r.customer_name || verification.customer_name,
-            amount: Number(r.amount),
-            token: r.token,
-            status: r.status,
-          });
-          setStage("success");
-        } else if (r && r.status === "FAILED") {
-          setReceipt({
-            ...receipt!,
-            status: "FAILED",
-            token: r.token,
-          });
-          setStage("error");
-          setMessage("Transaction failed. Try again.");
-        } else {
-          // Still processing, poll again
-          setTimeout(pollReceipt, 3000);
-        }
-      } catch (err) {
-        setTimeout(pollReceipt, 3000);
-      }
     };
 
-    pollReceipt();
+    setReceipt(baseReceipt);
+
+    // start polling immediately
+    fetchReceipt(requestId, baseReceipt);
 
   } catch (err: any) {
-    setMessage(err?.response?.data?.error || err?.message || "Checkout failed");
     setStage("error");
+    setMessage(err?.response?.data?.error || "Checkout failed");
   }
 };
 
