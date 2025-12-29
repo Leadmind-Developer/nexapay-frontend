@@ -36,6 +36,33 @@ interface Receipt {
   };
 }
 
+/* ================= COUNTDOWN TIMER COMPONENT ================= */
+interface CountdownTimerProps {
+  duration: number; // seconds
+  onExpire?: () => void;
+}
+
+const CountdownTimer: React.FC<CountdownTimerProps> = ({ duration, onExpire }) => {
+  const [timeLeft, setTimeLeft] = React.useState(duration);
+
+  React.useEffect(() => {
+    if (timeLeft <= 0) {
+      onExpire?.();
+      return;
+    }
+    const interval = setInterval(() => {
+      setTimeLeft(t => t - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timeLeft, onExpire]);
+
+  return (
+    <p className="text-xs text-gray-600 dark:text-gray-400">
+      Time remaining: {timeLeft}s
+    </p>
+  );
+};
+
 /* ================= PAGE ================= */
 export default function ElectricityPage() {
   const [discos, setDiscos] = useState<Disco[]>([]);
