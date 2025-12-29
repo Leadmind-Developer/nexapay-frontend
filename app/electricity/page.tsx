@@ -114,43 +114,75 @@ export default function ElectricityPage() {
     }
   };
 
-  /* ================= CHECKOUT ================= */
-  const handleCheckout = async () => {
-    if (!verification) return setMessage("Verify meter first");
-    if (!amount || !phone) return setMessage("Enter amount and phone number");
+  /* ================= CHECKOUT WITH POLLING ================= */
+const handleCheckout = async () => {
+  if (!verification) return setMessage("Verify meter first");
+  if (!amount || !phone) return setMessage("Enter amount and phone number");
 
-    setStage("processing");
-    setMessage("");
+  setStage("processing");
+  setMessage("");
 
-    try {
-      const res = await api.post("/vtpass/electricity/checkout", {
-        serviceId,
-        meterNumber,
-        amount: Number(amount),
-        type,
-        phone,
-      });
+  try {
+    const res = await api.post("/vtpass/electricity/checkout", {
+      serviceId,
+      meterNumber,
+      amount: Number(amount),
+      type,
+      phone,
+    });
 
-      const requestId = res.data.requestId;
-      if (!requestId) throw new Error("No requestId returned from checkout");
+    const requestId = res.data.requestId;
+    setReceipt({
+      requestId,
+      meter_number: verification.meter_number,
+      type,
+      customer_name: verification.customer_name,
+      amount: Number(amount),
+      token: null, // token not yet available
+      status: "PROCESSING",
+    });
 
-      setReceipt({
-        requestId,
-        meter_number: verification.meter_number,
-        type,
-        customer_name: verification.customer_name,
-        amount: Number(amount),
-        token: null,
-        status: "PROCESSING",
-      });
+    // Poll for receipt every 3s until we get a final status
+    const pollReceipt = async () => {
+      try {
+        const receiptRes = await api.get(`/vtpass/electricity/receipt/${requestId}`);
+        const r = receiptRes.data?.receipt;
 
-      // start polling for final receipt
-      fetchReceipt(requestId);
-    } catch (err: any) {
-      setMessage(err?.response?.data?.error || err?.message || "Checkout failed");
-      setStage("error");
-    }
-  };
+        if (r && r.status !== "PROCESSING" && r.status !== "FAILED") {
+          setReceipt({
+            requestId: r.requestId,
+            meter_number: r.meter_number,
+            type,
+            customer_name: r.customer_name || verification.customer_name,
+            amount: Number(r.amount),
+            token: r.token,
+            status: r.status,
+          });
+          setStage("success");
+        } else if (r && r.status === "FAILED") {
+          setReceipt({
+            ...receipt!,
+            status: "FAILED",
+            token: r.token,
+          });
+          setStage("error");
+          setMessage("Transaction failed. Try again.");
+        } else {
+          // Still processing, poll again
+          setTimeout(pollReceipt, 3000);
+        }
+      } catch (err) {
+        setTimeout(pollReceipt, 3000);
+      }
+    };
+
+    pollReceipt();
+
+  } catch (err: any) {
+    setMessage(err?.response?.data?.error || err?.message || "Checkout failed");
+    setStage("error");
+  }
+};
 
   /* ================= UI ================= */
   return (
@@ -277,39 +309,70 @@ export default function ElectricityPage() {
         )}
 
         {/* ================= SUCCESS ================= */}
-        {stage === "success" && receipt && (
-          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-3">
-            <h2 className="text-lg font-bold">
-              {receipt.status === "SUCCESS"
-                ? "Purchase Successful ⚡"
-                : "Purchase Processing ⚡"}
-            </h2>
+{stage === "success" && receipt && (
+  <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-4">
+    <h2 className="text-lg font-bold">
+      {receipt.token ? "Purchase Successful ⚡" : "Purchase Processing ⚡"}
+    </h2>
 
-            <div className="space-y-2 text-sm text-left">
-              <p><b>Customer:</b> {receipt.customer_name}</p>
-              <p><b>Meter:</b> {receipt.meter_number}</p>
-              <p><b>Amount:</b> ₦{receipt.amount}</p>
+    <div className="space-y-1 text-sm">
+      <p><b>Customer:</b> {receipt.customer_name}</p>
+      <p><b>Meter:</b> {receipt.meter_number}</p>
+      <p><b>Amount:</b> ₦{receipt.amount}</p>
+    </div>
 
-              <div className="bg-white/80 dark:bg-black/30 p-3 rounded space-y-1">
-                <p className="font-semibold">Token</p>
-                <p className="font-mono tracking-wider">{receipt.token || "Processing…"}</p>
-
-                <p className="font-semibold">VTpass Ref</p>
-                <p className="font-mono tracking-wider">{receipt.vtpass?.exchangeReference || "Processing…"}</p>
-
-                <p className="font-semibold">Units</p>
-                <p className="font-mono tracking-wider">{receipt.vtpass?.units || "Processing…"}</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full bg-green-600 text-white py-3 rounded font-semibold"
+    <div className="bg-white/80 dark:bg-black/30 p-4 rounded space-y-2">
+      <p className="font-semibold">Token</p>
+      <div className="flex items-center justify-center space-x-2">
+        {receipt.token ? (
+          <span className="font-mono tracking-wider">{receipt.token}</span>
+        ) : (
+          <>
+            {/* Spinner */}
+            <svg
+              className="animate-spin h-5 w-5 text-yellow-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
             >
-              Buy Again
-            </button>
-          </div>
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
+              ></path>
+            </svg>
+            <span>Waiting for token…</span>
+          </>
         )}
+      </div>
+
+      {/* Countdown Timer */}
+      {!receipt.token && (
+        <CountdownTimer
+          duration={30} // seconds
+          onExpire={() => setMessage("Still processing. Please wait or refresh.")}
+        />
+      )}
+    </div>
+
+    <div className="flex gap-3 mt-4">
+      <button
+        onClick={() => window.location.reload()}
+        className="flex-1 bg-green-600 text-white py-3 rounded font-semibold"
+      >
+        Buy Again
+      </button>
+    </div>
+  </div>
+)}
 
         {/* ================= ERROR ================= */}
         {stage === "error" && (
