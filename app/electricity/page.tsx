@@ -120,9 +120,14 @@ export default function ElectricityPage() {
         amount: Number(amount),
         token: vtpass?.token || vtpass?.token_code || null,
         status,
+        vtpass,
       });
 
-      setStage(status === "FAILED" ? "error" : "success");
+      setStage(
+        transactionStatus === "FAILED" ? "error" :
+        transactionStatus === "SUCCESS" || transactionStatus === "DELIVERED" ? "success" :
+        "processing"
+      );
     } catch (err: any) {
       setMessage(
         err?.response?.data?.error || err?.message || "Checkout failed"
@@ -270,14 +275,12 @@ export default function ElectricityPage() {
     <p><b>Customer:</b> {receipt.customer_name}</p>
     <p><b>Meter:</b> {receipt.meter_number}</p>
     <p><b>Amount:</b> ₦{receipt.amount}</p>
-
-    <div className="bg-white/80 dark:bg-black/30 p-3 rounded">
-      <p className="font-semibold">Token</p>
-      <p className="font-mono tracking-wider">
-        {receipt.token ? receipt.token : "Processing…"}
-      </p>
-    </div>
-
+    <p><b>Token:</b> {receipt.token || "Processing…"}</p>
+    <p><b>VTpass Ref:</b> {receipt.vtpass?.exchangeReference || "N/A"}</p>
+    <p><b>Units:</b> {receipt.vtpass?.units || "N/A"}</p>
+    <pre className="text-left font-mono text-xs overflow-x-auto">
+      {JSON.stringify(receipt.vtpass, null, 2)}
+      </pre>
     <button
       onClick={() => window.location.reload()}
       className="w-full bg-green-600 text-white py-3 rounded font-semibold"
