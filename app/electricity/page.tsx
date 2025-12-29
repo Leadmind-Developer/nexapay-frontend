@@ -97,7 +97,7 @@ export default function ElectricityPage() {
   /* ================= FETCH RECEIPT ================= */
   const fetchReceipt = async (requestId: string) => {
     try {
-      const res = await api.get(`/vtpass/receipt/${requestId}`);
+      const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
       if (res.data?.success) {
         const r = res.data.receipt;
         setReceipt(r);
