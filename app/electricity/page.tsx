@@ -125,8 +125,8 @@ export default function ElectricityPage() {
       });
 
       setStage(
-        transactionStatus === "FAILED" ? "error" :
-        transactionStatus === "SUCCESS" || transactionStatus === "DELIVERED" ? "success" :
+        status === "FAILED" ? "error" :
+        status === "SUCCESS" || status === "DELIVERED" ? "success" :
         "processing"
       );
     } catch (err: any) {
