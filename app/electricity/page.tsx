@@ -28,6 +28,7 @@ interface Receipt {
   amount: number;
   token?: string | null;
   status: "SUCCESS" | "PROCESSING" | "FAILED";
+  vtpass?: any;
 }
 
 /* ================= PAGE ================= */
