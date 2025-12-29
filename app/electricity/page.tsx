@@ -26,7 +26,8 @@ interface Receipt {
   type: "prepaid" | "postpaid";
   customer_name: string;
   amount: number;
-  token?: string;
+  token?: string | null;
+  status: "SUCCESS" | "PROCESSING" | "FAILED";
 }
 
 /* ================= PAGE ================= */
@@ -109,6 +110,7 @@ export default function ElectricityPage() {
       });
 
       const vtpass = res.data?.vtpass;
+      const status = res.data?.status || "PROCESSING";
 
       setReceipt({
         requestId: res.data.requestId,
@@ -116,10 +118,11 @@ export default function ElectricityPage() {
         type,
         customer_name: verification.customer_name,
         amount: Number(amount),
-        token: vtpass?.token || vtpass?.token_code,
+        token: vtpass?.token || vtpass?.token_code || null,
+        status,
       });
 
-      setStage("success");
+      setStage(status === "FAILED" ? "error" : "success");
     } catch (err: any) {
       setMessage(
         err?.response?.data?.error || err?.message || "Checkout failed"
@@ -259,7 +262,11 @@ export default function ElectricityPage() {
         {/* ================= SUCCESS ================= */}
 {stage === "success" && receipt && (
   <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-3">
-    <h2 className="text-lg font-bold">Purchase Successful ⚡</h2>
+    <h2 className="text-lg font-bold">
+      {receipt.status === "SUCCESS"
+        ? "Purchase Successful ⚡"
+        : "Purchase Processing ⚡"}
+      </h2>
     <p><b>Customer:</b> {receipt.customer_name}</p>
     <p><b>Meter:</b> {receipt.meter_number}</p>
     <p><b>Amount:</b> ₦{receipt.amount}</p>
