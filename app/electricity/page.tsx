@@ -28,6 +28,12 @@ interface Receipt {
   amount: number;
   token?: string | null;
   status: "SUCCESS" | "PROCESSING" | "FAILED";
+  vtpass?: {
+    token?: string;
+    token_code?: string;
+    exchangeReference?: string;
+    units?: string;
+  };
 }
 
 /* ================= PAGE ================= */
@@ -39,9 +45,7 @@ export default function ElectricityPage() {
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
 
-  const [verification, setVerification] =
-    useState<MeterVerification | null>(null);
-
+  const [verification, setVerification] = useState<MeterVerification | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [stage, setStage] = useState<Stage>("verify");
   const [message, setMessage] = useState("");
@@ -84,11 +88,29 @@ export default function ElectricityPage() {
 
       throw new Error("Unable to verify meter");
     } catch (err: any) {
-      setMessage(
-        err?.response?.data?.error || err?.message || "Verification failed"
-      );
+      setMessage(err?.response?.data?.error || err?.message || "Verification failed");
     } finally {
       setLoadingVerify(false);
+    }
+  };
+
+  /* ================= FETCH RECEIPT ================= */
+  const fetchReceipt = async (requestId: string) => {
+    try {
+      const res = await api.get(`/vtpass/receipt/${requestId}`);
+      if (res.data?.success) {
+        const r = res.data.receipt;
+        setReceipt(r);
+        setStage(
+          r.status === "FAILED" ? "error" : r.status === "SUCCESS" ? "success" : "processing"
+        );
+        if (r.status === "PROCESSING") setTimeout(() => fetchReceipt(requestId), 3000);
+      } else {
+        setTimeout(() => fetchReceipt(requestId), 3000);
+      }
+    } catch (err: any) {
+      setMessage(err?.response?.data?.error || err?.message || "Failed to fetch receipt, retrying...");
+      setTimeout(() => fetchReceipt(requestId), 5000);
     }
   };
 
@@ -109,24 +131,23 @@ export default function ElectricityPage() {
         phone,
       });
 
-      const vtpass = res.data?.vtpass;
-      const status = res.data?.status || "PROCESSING";
+      const requestId = res.data.requestId;
+      if (!requestId) throw new Error("No requestId returned from checkout");
 
       setReceipt({
-        requestId: res.data.requestId,
+        requestId,
         meter_number: verification.meter_number,
         type,
         customer_name: verification.customer_name,
         amount: Number(amount),
-        token: vtpass?.token || vtpass?.token_code || null,
-        status,
+        token: null,
+        status: "PROCESSING",
       });
 
-      setStage(status === "FAILED" ? "error" : "success");
+      // start polling for final receipt
+      fetchReceipt(requestId);
     } catch (err: any) {
-      setMessage(
-        err?.response?.data?.error || err?.message || "Checkout failed"
-      );
+      setMessage(err?.response?.data?.error || err?.message || "Checkout failed");
       setStage("error");
     }
   };
@@ -177,7 +198,6 @@ export default function ElectricityPage() {
               {loadingVerify ? "Verifying…" : "Verify Meter"}
             </button>
 
-            {/* Skeleton Loader */}
             {loadingVerify && (
               <div className="space-y-3 animate-pulse">
                 <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded" />
@@ -193,13 +213,11 @@ export default function ElectricityPage() {
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-5 shadow space-y-4">
             <h2 className="text-lg font-bold">Review & Pay ⚡</h2>
 
-            {/* Core Info */}
             <div className="space-y-1 text-sm">
               <p><b>Customer:</b> {verification.customer_name}</p>
               <p><b>Meter:</b> {verification.meter_number}</p>
             </div>
 
-            {/* Collapsible */}
             <button
               onClick={() => setShowMore(v => !v)}
               className="text-yellow-600 text-sm font-medium"
@@ -217,7 +235,6 @@ export default function ElectricityPage() {
               </div>
             )}
 
-            {/* Payment */}
             <div className="space-y-3">
               <input
                 type="number"
@@ -260,32 +277,39 @@ export default function ElectricityPage() {
         )}
 
         {/* ================= SUCCESS ================= */}
-{stage === "success" && receipt && (
-  <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-3">
-    <h2 className="text-lg font-bold">
-      {receipt.status === "SUCCESS"
-        ? "Purchase Successful ⚡"
-        : "Purchase Processing ⚡"}
-      </h2>
-    <p><b>Customer:</b> {receipt.customer_name}</p>
-    <p><b>Meter:</b> {receipt.meter_number}</p>
-    <p><b>Amount:</b> ₦{receipt.amount}</p>
+        {stage === "success" && receipt && (
+          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-3">
+            <h2 className="text-lg font-bold">
+              {receipt.status === "SUCCESS"
+                ? "Purchase Successful ⚡"
+                : "Purchase Processing ⚡"}
+            </h2>
 
-    <div className="bg-white/80 dark:bg-black/30 p-3 rounded">
-      <p className="font-semibold">Token</p>
-      <p className="font-mono tracking-wider">
-        {receipt.token ? receipt.token : "Processing…"}
-      </p>
-    </div>
+            <div className="space-y-2 text-sm text-left">
+              <p><b>Customer:</b> {receipt.customer_name}</p>
+              <p><b>Meter:</b> {receipt.meter_number}</p>
+              <p><b>Amount:</b> ₦{receipt.amount}</p>
 
-    <button
-      onClick={() => window.location.reload()}
-      className="w-full bg-green-600 text-white py-3 rounded font-semibold"
-    >
-      Buy Again
-    </button>
-  </div>
-)}
+              <div className="bg-white/80 dark:bg-black/30 p-3 rounded space-y-1">
+                <p className="font-semibold">Token</p>
+                <p className="font-mono tracking-wider">{receipt.token || "Processing…"}</p>
+
+                <p className="font-semibold">VTpass Ref</p>
+                <p className="font-mono tracking-wider">{receipt.vtpass?.exchangeReference || "Processing…"}</p>
+
+                <p className="font-semibold">Units</p>
+                <p className="font-mono tracking-wider">{receipt.vtpass?.units || "Processing…"}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full bg-green-600 text-white py-3 rounded font-semibold"
+            >
+              Buy Again
+            </button>
+          </div>
+        )}
 
         {/* ================= ERROR ================= */}
         {stage === "error" && (
