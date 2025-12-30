@@ -138,7 +138,7 @@ export default function ElectricityPage() {
       setReceipt(normalized);
       setStage("receipt");
 
-      if (normalized.status !== "SUCCESS" || !normalized.token) {
+      if (normalized.status === "PROCESSING") {
         setTimeout(() => pollReceipt(requestId, base), 4000);
       }
     } catch {
