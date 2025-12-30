@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
 
@@ -12,9 +12,6 @@ interface MeterVerification {
   customer_name: string;
   meter_number: string;
   address?: string;
-  meterType?: string;
-  accountType?: string;
-  canVend?: string;
   tariffRate?: string;
 }
 
@@ -24,7 +21,7 @@ interface Receipt {
   type: "prepaid" | "postpaid";
   customer_name: string;
   amount: number;
-  token?: string | null;
+  token: string | null;
   status: "SUCCESS" | "PROCESSING" | "FAILED";
   vtpass?: {
     exchangeReference?: string;
@@ -32,55 +29,51 @@ interface Receipt {
   };
 }
 
-/* ================= VTpass NORMALIZER ================= */
+/* ================= VTpass NORMALIZER (FINAL) ================= */
 function normalizeVtpassReceipt(raw: any, fallback: Receipt): Receipt {
-  if (!raw) return { ...fallback };
+  if (!raw) return fallback;
 
-  const vt = raw.vtpass || {};
-  const content = {
-    token: raw.token || raw.token_code || raw.purchased_code?.replace(/^Token\s*:\s*/i, "") || vt.token || null,
-    exchangeReference: vt.exchangeReference || raw.exchangeReference || null,
-    units: vt.units || raw.units || null,
-  };
+  // Token is the ultimate source of truth
+  const token =
+    raw.token ||
+    raw.token_code ||
+    (typeof raw.purchased_code === "string"
+      ? raw.purchased_code.replace(/^Token\s*:\s*/i, "")
+      : null) ||
+    fallback.token ||
+    null;
 
-  const rawStatus = String(
-    raw.status || raw.transactionStatus || raw.response_description || ""
-  ).toLowerCase();
+  let status: Receipt["status"] = "PROCESSING";
 
-  const status: Receipt["status"] =
-    ["successful", "delivered", "success", "transaction successful"].some(s => rawStatus.includes(s))
-      ? "SUCCESS"
-      : ["failed", "error"].some(s => rawStatus.includes(s))
-      ? "FAILED"
-      : "PROCESSING";
+  if (token) {
+    status = "SUCCESS";
+  } else {
+    const text = String(
+      raw.response_description ||
+        raw.status ||
+        raw.transactionStatus ||
+        ""
+    ).toLowerCase();
+
+    if (text.includes("fail") || text.includes("error")) {
+      status = "FAILED";
+    }
+  }
 
   return {
     ...fallback,
     status,
-    token: content.token || fallback.token,
+    token,
     customer_name: raw.customerName || fallback.customer_name,
     meter_number: raw.meterNumber || fallback.meter_number,
     amount: Number(raw.amount) || fallback.amount,
     vtpass: {
-      exchangeReference: content.exchangeReference,
-      units: content.units,
+      exchangeReference:
+        raw.exchangeReference || fallback.vtpass?.exchangeReference,
+      units: raw.units || fallback.vtpass?.units,
     },
   };
 }
-
-
-/* ================= COUNTDOWN ================= */
-const CountdownTimer = ({ seconds }: { seconds: number }) => {
-  const [t, setT] = useState(seconds);
-
-  useEffect(() => {
-    if (t <= 0) return;
-    const i = setInterval(() => setT(v => v - 1), 1000);
-    return () => clearInterval(i);
-  }, [t]);
-
-  return <p className="text-xs text-gray-500">Checking again in {t}s…</p>;
-};
 
 /* ================= PAGE ================= */
 export default function ElectricityPage() {
@@ -91,16 +84,20 @@ export default function ElectricityPage() {
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
 
-  const [verification, setVerification] = useState<MeterVerification | null>(null);
+  const [verification, setVerification] =
+    useState<MeterVerification | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [stage, setStage] = useState<Stage>("verify");
   const [message, setMessage] = useState("");
   const [loadingVerify, setLoadingVerify] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+
   /* ================= LOAD DISCOS ================= */
   useEffect(() => {
-    api.get("/vtpass/electricity/discos")
+    api
+      .get("/vtpass/electricity/discos")
       .then(r => {
         setDiscos(r.data || []);
         if (r.data?.length) setServiceId(r.data[0].code);
@@ -138,31 +135,36 @@ export default function ElectricityPage() {
     }
   };
 
-  /* ================= POLL RECEIPT ================= */
-  const pollReceipt = async (requestId: string, base: Receipt) => {
-  try {
-    const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
-    const rawReceipt = res.data?.receipt;
+  /* ================= POLL RECEIPT (FINAL) ================= */
+  const pollReceipt = async (requestId: string) => {
+    try {
+      const res = await api.get(
+        `/vtpass/electricity/receipt/${requestId}`
+      );
+      const raw = res.data?.receipt;
 
-    // Normalize safely using our updated function
-    const normalized = normalizeVtpassReceipt(rawReceipt, base);
+      setReceipt(prev => {
+        if (!prev) return prev;
+        return normalizeVtpassReceipt(raw, prev);
+      });
 
-    // Update receipt state
-    setReceipt(prev => ({
-      ...prev,
-      ...normalized, // merge new info
-    }));
-    setStage("receipt");
+      setStage("receipt");
 
-    // Poll only if still processing
-    if (normalized.status === "PROCESSING") {
-      setTimeout(() => pollReceipt(requestId, normalized), 4000);
+      pollRef.current = setTimeout(() => {
+        setReceipt(prev => {
+          if (prev?.status === "PROCESSING") {
+            pollReceipt(requestId);
+          }
+          return prev;
+        });
+      }, 4000);
+    } catch {
+      pollRef.current = setTimeout(
+        () => pollReceipt(requestId),
+        5000
+      );
     }
-  } catch {
-    // Retry on network error
-    setTimeout(() => pollReceipt(requestId, base), 5000);
-  }
-};
+  };
 
   /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
@@ -192,7 +194,7 @@ export default function ElectricityPage() {
       };
 
       setReceipt(base);
-      pollReceipt(base.requestId, base);
+      pollReceipt(base.requestId);
     } catch (e: any) {
       setStage("error");
       setMessage(e?.response?.data?.error || "Checkout failed");
@@ -207,13 +209,30 @@ export default function ElectricityPage() {
         {/* VERIFY */}
         {stage === "verify" && (
           <Card title="Verify Meter">
-            <select value={serviceId} onChange={e => setServiceId(e.target.value)} className="input">
-              {discos.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
+            <select
+              value={serviceId}
+              onChange={e => setServiceId(e.target.value)}
+              className="input"
+            >
+              {discos.map(d => (
+                <option key={d.code} value={d.code}>
+                  {d.label}
+                </option>
+              ))}
             </select>
 
-            <input value={meterNumber} onChange={e => setMeterNumber(e.target.value)} className="input" placeholder="Meter Number" />
+            <input
+              value={meterNumber}
+              onChange={e => setMeterNumber(e.target.value)}
+              className="input"
+              placeholder="Meter Number"
+            />
 
-            <select value={type} onChange={e => setType(e.target.value as any)} className="input">
+            <select
+              value={type}
+              onChange={e => setType(e.target.value as any)}
+              className="input"
+            >
               <option value="prepaid">Prepaid</option>
               <option value="postpaid">Postpaid</option>
             </select>
@@ -232,7 +251,10 @@ export default function ElectricityPage() {
             <p><b>{verification.customer_name}</b></p>
             <p>{verification.meter_number}</p>
 
-            <button onClick={() => setShowMore(v => !v)} className="link">
+            <button
+              onClick={() => setShowMore(v => !v)}
+              className="link"
+            >
               {showMore ? "Hide details ▲" : "More details ▼"}
             </button>
 
@@ -243,12 +265,27 @@ export default function ElectricityPage() {
               </div>
             )}
 
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input" placeholder="Amount" />
-            <input value={phone} onChange={e => setPhone(e.target.value)} className="input" placeholder="Phone" />
+            <input
+              type="number"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              className="input"
+              placeholder="Amount"
+            />
+            <input
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              className="input"
+              placeholder="Phone"
+            />
 
             <div className="flex gap-3">
-              <SecondaryButton onClick={() => setStage("verify")}>Back</SecondaryButton>
-              <PrimaryButton onClick={handleCheckout}>Pay</PrimaryButton>
+              <SecondaryButton onClick={() => setStage("verify")}>
+                Back
+              </SecondaryButton>
+              <PrimaryButton onClick={handleCheckout}>
+                Pay
+              </PrimaryButton>
             </div>
           </Card>
         )}
@@ -263,32 +300,30 @@ export default function ElectricityPage() {
 
         {/* RECEIPT */}
         {stage === "receipt" && receipt && (
-  <Card title="Electricity Receipt ⚡">
-    <p><b>Status:</b> {receipt.status}</p>
-    <p><b>Customer:</b> {receipt.customer_name || "-"}</p>
-    <p><b>Meter:</b> {receipt.meter_number || "-"}</p>
-    <p><b>Amount:</b> ₦{receipt.amount ?? "-"}</p>
+          <Card title="Electricity Receipt ⚡">
+            <p><b>Status:</b> {receipt.status}</p>
+            <p><b>Customer:</b> {receipt.customer_name}</p>
+            <p><b>Meter:</b> {receipt.meter_number}</p>
+            <p><b>Amount:</b> ₦{receipt.amount}</p>
 
-    <div className="box text-center">
-      <p className="font-semibold">Token</p>
-      {receipt.token ? (
-        <p className="font-mono tracking-widest">{receipt.token}</p>
-      ) : receipt.status === "PROCESSING" ? (
-        <>
-          <Spinner />
-          <CountdownTimer seconds={30} />
-        </>
-      ) : (
-        <p className="text-red-600">Token not available</p>
-      )}
-    </div>
+            <div className="box text-center">
+              <p className="font-semibold">Token</p>
+              {receipt.token ? (
+                <p className="font-mono tracking-widest">
+                  {receipt.token}
+                </p>
+              ) : receipt.status === "PROCESSING" ? (
+                <Spinner />
+              ) : (
+                <p className="text-red-600">Token not available</p>
+              )}
+            </div>
 
-    <PrimaryButton onClick={() => window.location.reload()}>
-      Buy Again
-    </PrimaryButton>
-  </Card>
-)}
-
+            <PrimaryButton onClick={() => window.location.reload()}>
+              Buy Again
+            </PrimaryButton>
+          </Card>
+        )}
 
         {/* ERROR */}
         {stage === "error" && (
@@ -304,18 +339,32 @@ export default function ElectricityPage() {
 
 /* ================= UI HELPERS ================= */
 const Card = ({ title, children, center }: any) => (
-  <div className={`bg-white dark:bg-gray-900 border rounded p-5 space-y-4 shadow ${center && "text-center"}`}>
+  <div
+    className={`bg-white dark:bg-gray-900 border rounded p-5 space-y-4 shadow ${
+      center && "text-center"
+    }`}
+  >
     <h2 className="font-bold text-lg">{title}</h2>
     {children}
   </div>
 );
 
 const PrimaryButton = ({ children, ...p }: any) => (
-  <button {...p} className="w-full bg-yellow-500 text-white py-3 rounded font-semibold">{children}</button>
+  <button
+    {...p}
+    className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
+  >
+    {children}
+  </button>
 );
 
 const SecondaryButton = ({ children, ...p }: any) => (
-  <button {...p} className="w-full bg-gray-200 dark:bg-gray-700 py-3 rounded">{children}</button>
+  <button
+    {...p}
+    className="w-full bg-gray-200 dark:bg-gray-700 py-3 rounded"
+  >
+    {children}
+  </button>
 );
 
 const ErrorText = ({ children }: any) => (
