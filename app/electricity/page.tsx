@@ -36,33 +36,38 @@ interface Receipt {
 function normalizeVtpassReceipt(raw: any, fallback: Receipt): Receipt {
   if (!raw) return { ...fallback };
 
-  // Safe extraction of VTpass content
   const vt = raw.vtpass || {};
   const content = {
-    token: raw.token || raw.token_code || raw.purchased_code || vt.token || null,
+    token: raw.token || raw.token_code || raw.purchased_code?.replace(/^Token\s*:\s*/i, "") || vt.token || null,
     exchangeReference: vt.exchangeReference || raw.exchangeReference || null,
     units: vt.units || raw.units || null,
   };
 
-  // Normalize status
-  const rawStatus = String(raw.status || raw.transactionStatus || "").toLowerCase();
+  const rawStatus = String(
+    raw.status || raw.transactionStatus || raw.response_description || ""
+  ).toLowerCase();
+
   const status: Receipt["status"] =
-    ["successful", "delivered", "success"].includes(rawStatus)
+    ["successful", "delivered", "success", "transaction successful"].some(s => rawStatus.includes(s))
       ? "SUCCESS"
-      : ["failed", "error"].includes(rawStatus)
+      : ["failed", "error"].some(s => rawStatus.includes(s))
       ? "FAILED"
       : "PROCESSING";
 
   return {
     ...fallback,
     status,
-    token: content.token,
+    token: content.token || fallback.token,
+    customer_name: raw.customerName || fallback.customer_name,
+    meter_number: raw.meterNumber || fallback.meter_number,
+    amount: Number(raw.amount) || fallback.amount,
     vtpass: {
       exchangeReference: content.exchangeReference,
       units: content.units,
     },
   };
 }
+
 
 /* ================= COUNTDOWN ================= */
 const CountdownTimer = ({ seconds }: { seconds: number }) => {
