@@ -34,29 +34,32 @@ interface Receipt {
 
 /* ================= VTpass NORMALIZER ================= */
 function normalizeVtpassReceipt(raw: any, fallback: Receipt): Receipt {
-  const statusRaw = String(raw?.status || raw?.transactionStatus || "").toLowerCase();
+  if (!raw) return { ...fallback };
 
+  // Safe extraction of VTpass content
+  const vt = raw.vtpass || {};
+  const content = {
+    token: raw.token || raw.token_code || raw.purchased_code || vt.token || null,
+    exchangeReference: vt.exchangeReference || raw.exchangeReference || null,
+    units: vt.units || raw.units || null,
+  };
+
+  // Normalize status
+  const rawStatus = String(raw.status || raw.transactionStatus || "").toLowerCase();
   const status: Receipt["status"] =
-    ["successful", "delivered", "success"].includes(statusRaw)
+    ["successful", "delivered", "success"].includes(rawStatus)
       ? "SUCCESS"
-      : ["failed", "error"].includes(statusRaw)
+      : ["failed", "error"].includes(rawStatus)
       ? "FAILED"
       : "PROCESSING";
-
-  const token =
-    raw?.token ||
-    raw?.token_code ||
-    raw?.vtpass?.token ||
-    raw?.vtpass?.token_code ||
-    null;
 
   return {
     ...fallback,
     status,
-    token,
+    token: content.token,
     vtpass: {
-      exchangeReference: raw?.exchangeReference || raw?.vtpass?.exchangeReference,
-      units: raw?.units || raw?.vtpass?.units,
+      exchangeReference: content.exchangeReference,
+      units: content.units,
     },
   };
 }
