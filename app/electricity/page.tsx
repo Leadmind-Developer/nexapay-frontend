@@ -4,7 +4,6 @@ import React, { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
 
-/* ================= TYPES ================= */
 type Disco = { code: string; label: string };
 type Stage = "verify" | "review" | "processing" | "receipt" | "error";
 
@@ -29,48 +28,38 @@ interface Receipt {
   };
 }
 
-/* ================= VTpass NORMALIZER (FINAL) ================= */
+/* ================= NORMALIZER ================= */
 function normalizeVtpassReceipt(raw: any, fallback: Receipt): Receipt {
   if (!raw) return fallback;
 
-  // Token is the ultimate source of truth
+  const content = raw.content || raw;
+  const purchasedCode = content?.purchased_code || null;
+
   const token =
-    raw.token ||
-    raw.token_code ||
-    (typeof raw.purchased_code === "string"
-      ? raw.purchased_code.replace(/^Token\s*:\s*/i, "")
+    content.token ||
+    content.token_code ||
+    (typeof purchasedCode === "string"
+      ? purchasedCode.match(/(\d{10,})/)?.[1] || null
       : null) ||
     fallback.token ||
     null;
 
-  let status: Receipt["status"] = "PROCESSING";
-
-  if (token) {
-    status = "SUCCESS";
-  } else {
-    const text = String(
-      raw.response_description ||
-        raw.status ||
-        raw.transactionStatus ||
-        ""
-    ).toLowerCase();
-
-    if (text.includes("fail") || text.includes("error")) {
-      status = "FAILED";
-    }
-  }
+  const status: Receipt["status"] = token
+    ? "SUCCESS"
+    : raw?.code === "000"
+    ? "PROCESSING"
+    : "FAILED";
 
   return {
     ...fallback,
     status,
     token,
-    customer_name: raw.customerName || fallback.customer_name,
-    meter_number: raw.meterNumber || fallback.meter_number,
-    amount: Number(raw.amount) || fallback.amount,
+    customer_name: content.customerName || fallback.customer_name,
+    meter_number: content.meterNumber || fallback.meter_number,
+    amount: Number(content.amount) || fallback.amount,
     vtpass: {
-      exchangeReference:
-        raw.exchangeReference || fallback.vtpass?.exchangeReference,
-      units: raw.units || fallback.vtpass?.units,
+      exchangeReference: content.exchangeReference || fallback.vtpass?.exchangeReference,
+      units: content.units || fallback.vtpass?.units,
     },
   };
 }
@@ -84,20 +73,14 @@ export default function ElectricityPage() {
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
 
-  const [verification, setVerification] =
-    useState<MeterVerification | null>(null);
+  const [verification, setVerification] = useState<MeterVerification | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [stage, setStage] = useState<Stage>("verify");
   const [message, setMessage] = useState("");
-  const [loadingVerify, setLoadingVerify] = useState(false);
-  const [showMore, setShowMore] = useState(false);
-
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  /* ================= LOAD DISCOS ================= */
   useEffect(() => {
-    api
-      .get("/vtpass/electricity/discos")
+    api.get("/vtpass/electricity/discos")
       .then(r => {
         setDiscos(r.data || []);
         if (r.data?.length) setServiceId(r.data[0].code);
@@ -105,82 +88,47 @@ export default function ElectricityPage() {
       .catch(() => setMessage("Failed to load providers"));
   }, []);
 
-  /* ================= VERIFY ================= */
   const verifyMeter = async () => {
-    if (!serviceId || !meterNumber) {
-      return setMessage("Enter meter number");
-    }
-
-    setLoadingVerify(true);
-    setMessage("");
+    if (!serviceId || !meterNumber) return setMessage("Enter meter number");
+    setMessage(""); setStage("verify");
 
     try {
-      const res = await api.post("/vtpass/electricity/verify", {
-        serviceId,
-        meterNumber,
-        type,
-      });
-
+      const res = await api.post("/vtpass/electricity/verify", { serviceId, meterNumber, type });
       if (res.data?.verified) {
         setVerification(res.data.details);
         setStage("review");
         return;
       }
-
       throw new Error("Verification failed");
     } catch (e: any) {
       setMessage(e?.response?.data?.error || e.message);
-    } finally {
-      setLoadingVerify(false);
     }
   };
 
-  /* ================= POLL RECEIPT (FINAL) ================= */
   const pollReceipt = async (requestId: string) => {
     try {
-      const res = await api.get(
-        `/vtpass/electricity/receipt/${requestId}`
-      );
+      const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
       const raw = res.data?.receipt;
+      setReceipt(prev => normalizeVtpassReceipt(raw, prev!));
 
-      setReceipt(prev => {
-        if (!prev) return prev;
-        return normalizeVtpassReceipt(raw, prev);
-      });
-
-      setStage("receipt");
-
-      pollRef.current = setTimeout(() => {
-        setReceipt(prev => {
-          if (prev?.status === "PROCESSING") {
-            pollReceipt(requestId);
-          }
-          return prev;
-        });
-      }, 4000);
+      if (receipt?.status === "PROCESSING") {
+        pollRef.current = setTimeout(() => pollReceipt(requestId), 4000);
+      } else {
+        setStage("receipt");
+      }
     } catch {
-      pollRef.current = setTimeout(
-        () => pollReceipt(requestId),
-        5000
-      );
+      pollRef.current = setTimeout(() => pollReceipt(requestId), 5000);
     }
   };
 
-  /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
-    if (!verification) return;
-    if (!amount || !phone) return setMessage("Enter amount & phone");
+    if (!verification || !amount || !phone) return setMessage("Enter amount & phone");
 
-    setStage("processing");
-    setMessage("");
+    setStage("processing"); setMessage("");
 
     try {
       const res = await api.post("/vtpass/electricity/checkout", {
-        serviceId,
-        meterNumber,
-        type,
-        phone,
-        amount: Number(amount),
+        serviceId, meterNumber, type, phone, amount: Number(amount),
       });
 
       const base: Receipt = {
@@ -201,47 +149,22 @@ export default function ElectricityPage() {
     }
   };
 
-  /* ================= UI ================= */
   return (
     <BannersWrapper page="electricity">
       <div className="max-w-md mx-auto px-4 space-y-4">
-
         {/* VERIFY */}
         {stage === "verify" && (
           <Card title="Verify Meter">
-            <select
-              value={serviceId}
-              onChange={e => setServiceId(e.target.value)}
-              className="input"
-            >
-              {discos.map(d => (
-                <option key={d.code} value={d.code}>
-                  {d.label}
-                </option>
-              ))}
+            <select value={serviceId} onChange={e => setServiceId(e.target.value)} className="input">
+              {discos.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
             </select>
-
-            <input
-              value={meterNumber}
-              onChange={e => setMeterNumber(e.target.value)}
-              className="input"
-              placeholder="Meter Number"
-            />
-
-            <select
-              value={type}
-              onChange={e => setType(e.target.value as any)}
-              className="input"
-            >
+            <input value={meterNumber} onChange={e => setMeterNumber(e.target.value)} className="input" placeholder="Meter Number" />
+            <select value={type} onChange={e => setType(e.target.value as any)} className="input">
               <option value="prepaid">Prepaid</option>
               <option value="postpaid">Postpaid</option>
             </select>
-
             {message && <ErrorText>{message}</ErrorText>}
-
-            <PrimaryButton onClick={verifyMeter}>
-              {loadingVerify ? "Verifying…" : "Verify"}
-            </PrimaryButton>
+            <PrimaryButton onClick={verifyMeter}>{message ? "Retry" : "Verify"}</PrimaryButton>
           </Card>
         )}
 
@@ -250,53 +173,17 @@ export default function ElectricityPage() {
           <Card title="Review & Pay ⚡">
             <p><b>{verification.customer_name}</b></p>
             <p>{verification.meter_number}</p>
-
-            <button
-              onClick={() => setShowMore(v => !v)}
-              className="link"
-            >
-              {showMore ? "Hide details ▲" : "More details ▼"}
-            </button>
-
-            {showMore && (
-              <div className="box">
-                <p>Address: {verification.address || "-"}</p>
-                <p>Tariff: {verification.tariffRate || "-"}</p>
-              </div>
-            )}
-
-            <input
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              className="input"
-              placeholder="Amount"
-            />
-            <input
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              className="input"
-              placeholder="Phone"
-            />
-
+            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input" placeholder="Amount" />
+            <input value={phone} onChange={e => setPhone(e.target.value)} className="input" placeholder="Phone" />
             <div className="flex gap-3">
-              <SecondaryButton onClick={() => setStage("verify")}>
-                Back
-              </SecondaryButton>
-              <PrimaryButton onClick={handleCheckout}>
-                Pay
-              </PrimaryButton>
+              <SecondaryButton onClick={() => setStage("verify")}>Back</SecondaryButton>
+              <PrimaryButton onClick={handleCheckout}>Pay</PrimaryButton>
             </div>
           </Card>
         )}
 
         {/* PROCESSING */}
-        {stage === "processing" && (
-          <Card center title="Processing…">
-            <Spinner />
-            <p className="text-sm text-gray-500">Please wait</p>
-          </Card>
-        )}
+        {stage === "processing" && <Card center title="Processing…"><Spinner /><p>Please wait</p></Card>}
 
         {/* RECEIPT */}
         {stage === "receipt" && receipt && (
@@ -305,74 +192,34 @@ export default function ElectricityPage() {
             <p><b>Customer:</b> {receipt.customer_name}</p>
             <p><b>Meter:</b> {receipt.meter_number}</p>
             <p><b>Amount:</b> ₦{receipt.amount}</p>
-
             <div className="box text-center">
               <p className="font-semibold">Token</p>
-              {receipt.token ? (
-                <p className="font-mono tracking-widest">
-                  {receipt.token}
-                </p>
-              ) : receipt.status === "PROCESSING" ? (
-                <Spinner />
-              ) : (
-                <p className="text-red-600">Token not available</p>
-              )}
+              {receipt.token ? <p className="font-mono tracking-widest">{receipt.token}</p> : <Spinner />}
             </div>
-
-            <PrimaryButton onClick={() => window.location.reload()}>
-              Buy Again
-            </PrimaryButton>
+            <PrimaryButton onClick={() => window.location.reload()}>Buy Again</PrimaryButton>
           </Card>
         )}
 
-        {/* ERROR */}
-        {stage === "error" && (
-          <Card title="Something went wrong">
-            <ErrorText>{message}</ErrorText>
-          </Card>
-        )}
-
+        {stage === "error" && <Card title="Error"><ErrorText>{message}</ErrorText></Card>}
       </div>
     </BannersWrapper>
   );
 }
 
-/* ================= UI HELPERS ================= */
 const Card = ({ title, children, center }: any) => (
-  <div
-    className={`bg-white dark:bg-gray-900 border rounded p-5 space-y-4 shadow ${
-      center && "text-center"
-    }`}
-  >
+  <div className={`bg-white dark:bg-gray-900 border rounded p-5 space-y-4 shadow ${center && "text-center"}`}>
     <h2 className="font-bold text-lg">{title}</h2>
     {children}
   </div>
 );
 
 const PrimaryButton = ({ children, ...p }: any) => (
-  <button
-    {...p}
-    className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
-  >
-    {children}
-  </button>
+  <button {...p} className="w-full bg-yellow-500 text-white py-3 rounded font-semibold">{children}</button>
 );
 
 const SecondaryButton = ({ children, ...p }: any) => (
-  <button
-    {...p}
-    className="w-full bg-gray-200 dark:bg-gray-700 py-3 rounded"
-  >
-    {children}
-  </button>
+  <button {...p} className="w-full bg-gray-200 dark:bg-gray-700 py-3 rounded">{children}</button>
 );
 
-const ErrorText = ({ children }: any) => (
-  <p className="text-sm text-red-600">{children}</p>
-);
-
-const Spinner = () => (
-  <div className="flex justify-center">
-    <div className="h-6 w-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
-  </div>
-);
+const ErrorText = ({ children }: any) => <p className="text-sm text-red-600">{children}</p>;
+const Spinner = () => <div className="flex justify-center"><div className="h-6 w-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" /></div>;
