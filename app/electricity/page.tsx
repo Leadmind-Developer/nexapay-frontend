@@ -140,19 +140,29 @@ export default function ElectricityPage() {
 
   /* ================= POLL RECEIPT ================= */
   const pollReceipt = async (requestId: string, base: Receipt) => {
-    try {
-      const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
-      const normalized = normalizeVtpassReceipt(res.data.receipt, base);
-      setReceipt(normalized);
-      setStage("receipt");
+  try {
+    const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
+    const rawReceipt = res.data?.receipt;
 
-      if (normalized.status === "PROCESSING") {
-        setTimeout(() => pollReceipt(requestId, base), 4000);
-      }
-    } catch {
-      setTimeout(() => pollReceipt(requestId, base), 5000);
+    // Normalize safely using our updated function
+    const normalized = normalizeVtpassReceipt(rawReceipt, base);
+
+    // Update receipt state
+    setReceipt(prev => ({
+      ...prev,
+      ...normalized, // merge new info
+    }));
+    setStage("receipt");
+
+    // Poll only if still processing
+    if (normalized.status === "PROCESSING") {
+      setTimeout(() => pollReceipt(requestId, normalized), 4000);
     }
-  };
+  } catch {
+    // Retry on network error
+    setTimeout(() => pollReceipt(requestId, base), 5000);
+  }
+};
 
   /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
@@ -253,29 +263,32 @@ export default function ElectricityPage() {
 
         {/* RECEIPT */}
         {stage === "receipt" && receipt && (
-          <Card title="Electricity Receipt ⚡">
-            <p><b>Status:</b> {receipt.status}</p>
-            <p><b>Customer:</b> {receipt.customer_name}</p>
-            <p><b>Meter:</b> {receipt.meter_number}</p>
-            <p><b>Amount:</b> ₦{receipt.amount}</p>
+  <Card title="Electricity Receipt ⚡">
+    <p><b>Status:</b> {receipt.status}</p>
+    <p><b>Customer:</b> {receipt.customer_name || "-"}</p>
+    <p><b>Meter:</b> {receipt.meter_number || "-"}</p>
+    <p><b>Amount:</b> ₦{receipt.amount ?? "-"}</p>
 
-            <div className="box text-center">
-              <p className="font-semibold">Token</p>
-              {receipt.token ? (
-                <p className="font-mono tracking-widest">{receipt.token}</p>
-              ) : (
-                <>
-                  <Spinner />
-                  <CountdownTimer seconds={30} />
-                </>
-              )}
-            </div>
+    <div className="box text-center">
+      <p className="font-semibold">Token</p>
+      {receipt.token ? (
+        <p className="font-mono tracking-widest">{receipt.token}</p>
+      ) : receipt.status === "PROCESSING" ? (
+        <>
+          <Spinner />
+          <CountdownTimer seconds={30} />
+        </>
+      ) : (
+        <p className="text-red-600">Token not available</p>
+      )}
+    </div>
 
-            <PrimaryButton onClick={() => window.location.reload()}>
-              Buy Again
-            </PrimaryButton>
-          </Card>
-        )}
+    <PrimaryButton onClick={() => window.location.reload()}>
+      Buy Again
+    </PrimaryButton>
+  </Card>
+)}
+
 
         {/* ERROR */}
         {stage === "error" && (
