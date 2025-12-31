@@ -1,49 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Transaction } from "../lib/types";
+import { TransactionItem, isValidTransaction } from "@/app/transactions/page";
 
-// ---------------------------
-// Type guard
-// ---------------------------
-function isValidTransaction(tx: any): tx is Transaction {
-  return (
-    tx &&
-    typeof tx.requestId === "string" &&
-    typeof tx.serviceId === "string" &&
-    typeof tx.status === "string" &&
-    typeof tx.amount === "number" &&
-    typeof tx.createdAt === "string"
-  );
-}
-
-// ---------------------------
-// SSE Hook
-// ---------------------------
 export function useTransactionsSSE() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
 
   useEffect(() => {
-    // SSE with cookies (HttpOnly auth)
     const es = new EventSource("/api/transactions/sse", {
       fetch: (input, init) =>
-        fetch(input as RequestInfo, { ...init, credentials: "include" }),
+        fetch(input as RequestInfo, { ...init, credentials: "include" }), // cookie auth
     });
 
     es.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        const newTxs = Array.isArray(data) ? data.filter(isValidTransaction) : isValidTransaction(data) ? [data] : [];
+        const newTxs: TransactionItem[] = Array.isArray(data)
+          ? data.filter(isValidTransaction)
+          : isValidTransaction(data)
+          ? [data]
+          : [];
 
-        if (newTxs.length === 0) return;
+        if (!newTxs.length) return;
 
         setTransactions((prev) => {
+          // Create a map by requestId to deduplicate and merge PROCESSING updates
           const txMap = new Map(prev.map((tx) => [tx.requestId, tx]));
 
-          // Merge / update by requestId
-          newTxs.forEach((tx) => txMap.set(tx.requestId, tx));
+          newTxs.forEach((tx) => {
+            txMap.set(tx.requestId, tx);
+          });
 
-          // Sort newest first
           return Array.from(txMap.values()).sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
