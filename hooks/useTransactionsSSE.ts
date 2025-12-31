@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Transaction } from "@/types"; // import your Transaction type
-import EventSource from "eventsource";
+import { EventSource } from "eventsource"; 
 
 // Helper: Type guard to ensure a transaction is valid
 function isValidTransaction(tx: any): tx is Transaction {
