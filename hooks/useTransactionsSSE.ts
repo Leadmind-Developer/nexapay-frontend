@@ -1,29 +1,79 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import api from "@/lib/api";
 
-export function useTransactionsSSE() {
-  const [processingTxs, setProcessingTxs] = useState<any[]>([]);
+export interface Transaction {
+  requestId?: string;
+  serviceId?: string;
+  status?: "SUCCESS" | "FAILED" | "PROCESSING" | string;
+  amount?: number;
+  createdAt?: string;
+  apiResponse?: {
+    pin?: string;
+    token?: string;
+  };
+  phone?: string;
+  billersCode?: string;
+}
+
+/**
+ * Hook: Subscribe to real-time processing transactions via SSE.
+ * Always returns a valid array (empty if none) and filters invalid items.
+ */
+export function useTransactionsSSE(): Transaction[] {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
-    const evtSource = new EventSource("/transactions/sse");
+    let eventSource: EventSource | null = null;
 
-    evtSource.onmessage = (e) => {
+    const initSSE = () => {
       try {
-        const data = JSON.parse(e.data);
-        setProcessingTxs(data);
+        eventSource = new EventSource(`${api.defaults.baseURL}/transactions/sse`, {
+          withCredentials: true,
+        });
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (!Array.isArray(data)) return;
+
+            // Filter out invalid items
+            const validTxs = data.filter(
+              (tx) =>
+                tx &&
+                typeof tx.requestId === "string" &&
+                typeof tx.serviceId === "string" &&
+                typeof tx.status === "string" &&
+                tx.createdAt &&
+                !isNaN(new Date(tx.createdAt).getTime())
+            );
+
+            setTransactions(validTxs);
+          } catch (err) {
+            console.error("Failed to parse SSE data:", err);
+            setTransactions([]); // fallback to empty array
+          }
+        };
+
+        eventSource.onerror = (err) => {
+          console.error("SSE connection error:", err);
+          setTransactions([]); // reset on error
+          // Optionally try reconnect after a delay
+          eventSource?.close();
+          setTimeout(initSSE, 5000);
+        };
       } catch (err) {
-        console.error("SSE parse error:", err);
+        console.error("Failed to initialize SSE:", err);
       }
     };
 
-    evtSource.onerror = (err) => {
-      console.error("SSE error:", err);
-      evtSource.close();
-    };
+    initSSE();
 
-    return () => evtSource.close();
+    return () => {
+      eventSource?.close();
+    };
   }, []);
 
-  return processingTxs;
+  return transactions;
 }
