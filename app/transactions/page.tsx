@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import { useTransactionsSSE } from "@/hooks/useTransactionsSSE";
+import { API_BASE } from "@/lib/constants";
 
 export interface TransactionItem {
   requestId: string;
@@ -100,9 +101,7 @@ export default function TransactionsPage() {
 
   const openModal = (tx: TransactionItem) => {
     setSelectedTx(tx);
-    setPdfUrl(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/transactions/${tx.requestId}/receipt.pdf`
-      );
+    setPdfUrl(`${API_BASE}/transactions/${tx.requestId}/receipt.pdf`);
     setPdfZoom(1);
   };
 
