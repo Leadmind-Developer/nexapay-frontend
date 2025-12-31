@@ -114,25 +114,32 @@ export default function ElectricityPage() {
 
   /* ================= POLL RECEIPT ================= */
   const pollReceipt = async (requestId: string) => {
-    try {
-      const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
-      const raw = res.data?.receipt;
+  try {
+    const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
+    const raw = res.data?.receipt;
 
-      setReceipt(prev => {
-        if (!prev) return prev;
-        const updated = normalizeVtpassReceipt(raw, prev);
+    setReceipt(prev => {
+      if (!prev) return prev;
 
-        if (updated.status !== "PROCESSING" && pollRef.current) {
-          clearTimeout(pollRef.current);
-          pollRef.current = null;
-        }
+      const updated = normalizeVtpassReceipt(raw, prev);
 
-        return updated;
-      });
-    } catch {
-      pollRef.current = setTimeout(() => pollReceipt(requestId), 5000);
-    }
-  };
+      // ✅ STOP POLLING
+      if (updated.status !== "PROCESSING" && pollRef.current) {
+        clearTimeout(pollRef.current);
+        pollRef.current = null;
+      }
+
+      // ✅ AUTO-ADVANCE UI
+      if (updated.status === "SUCCESS" || updated.status === "FAILED") {
+        setStage("receipt");
+      }
+
+      return updated;
+    });
+  } catch {
+    pollRef.current = setTimeout(() => pollReceipt(requestId), 5000);
+  }
+};
 
   /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
