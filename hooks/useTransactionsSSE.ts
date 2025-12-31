@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Transaction } from "../lib/types";
 import { EventSource } from "eventsource"; 
 
-// Helper: Type guard to ensure a transaction is valid
+// -------------------------------
+// Type guard: ensures SSE data is a valid Transaction
+// -------------------------------
 function isValidTransaction(tx: any): tx is Transaction {
   return (
     tx &&
@@ -16,6 +18,9 @@ function isValidTransaction(tx: any): tx is Transaction {
   );
 }
 
+// -------------------------------
+// SSE Hook
+// -------------------------------
 export function useTransactionsSSE(token?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -36,28 +41,28 @@ export function useTransactionsSSE(token?: string) {
     es.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (Array.isArray(data)) {
-          const validTxs = data.filter(isValidTransaction);
-          if (validTxs.length) {
-            setTransactions((prev) => {
-              // Remove any previous transactions with same requestId
-              const filtered = prev.filter(
-                (tx) => !validTxs.some((vtx) => vtx.requestId === tx.requestId)
-              );
-              return [...filtered, ...validTxs].sort(
-                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              );
-            });
-          }
-        } else if (isValidTransaction(data)) {
-          setTransactions((prev) => {
-            const exists = prev.some((tx) => tx.requestId === data.requestId);
-            if (exists) return prev;
-            return [data, ...prev].sort(
-              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
+
+        const newTxs: Transaction[] = Array.isArray(data)
+          ? data.filter(isValidTransaction)
+          : isValidTransaction(data)
+          ? [data]
+          : [];
+
+        if (!newTxs.length) return;
+
+        setTransactions((prev) => {
+          // Deduplicate by requestId
+          const dedupedMap = new Map<string, Transaction>();
+
+          [...newTxs, ...prev].forEach((tx) => {
+            dedupedMap.set(tx.requestId, tx);
           });
-        }
+
+          // Convert back to array and sort by createdAt descending
+          return Array.from(dedupedMap.values()).sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        });
       } catch (err) {
         console.error("Failed to parse SSE transaction:", err);
       }
