@@ -142,35 +142,37 @@ export default function ElectricityPage() {
     }
   };
 
-  /* ================= POLL RECEIPT (FINAL) ================= */
-  const pollReceipt = async (requestId: string) => {
-    try {
-      const res = await api.get(
-        `/vtpass/electricity/receipt/${requestId}`
-      );
-      const raw = res.data?.receipt;
+  /* ================= POLL RECEIPT ================= */
+const pollReceipt = async (requestId: string) => {
+  try {
+    const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
+    const raw = res.data?.receipt;
 
-      setReceipt(prev => {
-  if (!prev) return prev;
+    setReceipt(prev => {
+      if (!prev) return prev;
+      const updated = normalizeVtpassReceipt(raw, prev);
 
-  const updated = normalizeVtpassReceipt(raw, prev);
+      // Stop polling once successful or failed
+      if (updated.status !== "PROCESSING" && pollRef.current) {
+        clearTimeout(pollRef.current);
+        pollRef.current = null;
+      }
 
-  // 🛑 stop polling once successful or failed
-  if (updated.status !== "PROCESSING" && pollRef.current) {
-    clearTimeout(pollRef.current);
-    pollRef.current = null;
+      // ✅ Automatically advance stage to "receipt" if successful
+      if (updated.status === "SUCCESS") {
+        setStage("receipt");
+      } else if (updated.status === "FAILED") {
+        setStage("error");
+        setMessage("Transaction failed. Please try again.");
+      }
+
+      return updated;
+    });
+  } catch {
+    pollRef.current = setTimeout(() => pollReceipt(requestId), 5000);
   }
+};
 
-  return updated;
-});
-      }, 4000);
-    } catch {
-      pollRef.current = setTimeout(
-        () => pollReceipt(requestId),
-        5000
-      );
-    }
-  };
 
   /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
