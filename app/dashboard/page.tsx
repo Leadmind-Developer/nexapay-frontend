@@ -29,7 +29,6 @@ import {
 } from "@/lib/transactionHelpers";
 import { generateReceiptPDF } from "@/lib/receipts/receiptPdf";
 
-generateReceiptPDF(selectedTx);
 
 interface VirtualAccount {
   number: string;
