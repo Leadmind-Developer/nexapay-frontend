@@ -5,15 +5,15 @@ import api from "@/lib/api";
 import { useTransactionsSSE } from "@/hooks/useTransactionsSSE";
 
 interface Transaction {
-  requestId: string;
-  serviceId: string;
-  status: "SUCCESS" | "FAILED" | "PROCESSING" | string;
-  amount: number;
+  requestId?: string;
+  serviceId?: string;
+  status?: "SUCCESS" | "FAILED" | "PROCESSING" | string;
+  amount?: number;
   apiResponse?: {
     pin?: string;
     token?: string;
   };
-  createdAt: string;
+  createdAt?: string;
   phone?: string;
   billersCode?: string;
 }
@@ -27,7 +27,7 @@ export default function TransactionsPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfZoom, setPdfZoom] = useState(1);
 
-  const processingTxs = useTransactionsSSE();
+  const processingTxs = useTransactionsSSE() || [];
 
   /* ---------------- FETCH ---------------- */
   useEffect(() => {
@@ -37,7 +37,9 @@ export default function TransactionsPage() {
   async function fetchTransactions() {
     try {
       const res = await api.get("/transactions");
-      setTransactions(res.data);
+      if (Array.isArray(res.data)) {
+        setTransactions(res.data);
+      }
     } catch (err) {
       console.error("Failed to fetch transactions:", err);
     } finally {
@@ -49,35 +51,44 @@ export default function TransactionsPage() {
   useEffect(() => {
     setTransactions((prev) => {
       const nonProcessing = prev.filter((tx) => tx.status !== "PROCESSING");
-      return [...nonProcessing, ...processingTxs].sort(
+      const validProcessing = (processingTxs || []).filter((tx) => tx.createdAt);
+      return [...nonProcessing, ...validProcessing].sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
+          new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
       );
     });
   }, [processingTxs]);
 
   /* ---------------- FILTER ---------------- */
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
-      const matchesSearch =
-        tx.requestId.toLowerCase().includes(search.toLowerCase()) ||
-        tx.serviceId.toLowerCase().includes(search.toLowerCase());
+    return (transactions || []).filter((tx) => {
+      const requestId = tx.requestId ?? "";
+      const serviceId = tx.serviceId ?? "";
+      const status = tx.status ?? "";
 
-      const matchesStatus =
-        !statusFilter || tx.status === statusFilter;
+      const matchesSearch =
+        requestId.toLowerCase().includes(search.toLowerCase()) ||
+        serviceId.toLowerCase().includes(search.toLowerCase());
+
+      const matchesStatus = !statusFilter || status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [transactions, search, statusFilter]);
 
   /* ---------------- HELPERS ---------------- */
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    alert("Copied to clipboard");
+  const copyToClipboard = (text?: string) => {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text);
+      alert("Copied to clipboard");
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
   };
 
   const openModal = (tx: Transaction) => {
+    if (!tx || !tx.requestId) return;
     setSelectedTx(tx);
     setPdfUrl(`/transactions/${tx.requestId}/receipt.pdf`);
     setPdfZoom(1);
@@ -121,48 +132,51 @@ export default function TransactionsPage() {
       ) : filteredTransactions.length === 0 ? (
         <p>No transactions found.</p>
       ) : (
-        filteredTransactions.map((tx) => (
-          <div
-            key={tx.requestId}
-            onClick={() => openModal(tx)}
-            className="p-4 border rounded flex justify-between items-center cursor-pointer
-                       hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-          >
-            <div>
-              <p className="font-semibold capitalize">
-                {tx.serviceId.replace("_", " ")}
-              </p>
-              <p className="text-sm text-gray-500">
-                Ref: {tx.requestId}
-              </p>
-              <p className="text-sm text-gray-500">
-                ₦{tx.amount}
-              </p>
-            </div>
+        filteredTransactions.map((tx, idx) => {
+          const status = tx.status ?? "PROCESSING";
+          return (
+            <div
+              key={tx.requestId ?? idx}
+              onClick={() => openModal(tx)}
+              className="p-4 border rounded flex justify-between items-center cursor-pointer
+                         hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+            >
+              <div>
+                <p className="font-semibold capitalize">
+                  {tx.serviceId?.replace("_", " ") ?? "Unknown Service"}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Ref: {tx.requestId ?? "N/A"}
+                </p>
+                <p className="text-sm text-gray-500">
+                  ₦{tx.amount ?? 0}
+                </p>
+              </div>
 
-            <div className="flex gap-2 items-center">
-              <span
-                className={`px-3 py-1 rounded text-xs font-semibold
-                  ${tx.status === "SUCCESS" && "bg-green-100 text-green-700"}
-                  ${tx.status === "FAILED" && "bg-red-100 text-red-700"}
-                  ${tx.status === "PROCESSING" && "bg-yellow-100 text-yellow-700"}
-                `}
-              >
-                {tx.status}
-              </span>
+              <div className="flex gap-2 items-center">
+                <span
+                  className={`px-3 py-1 rounded text-xs font-semibold
+                    ${status === "SUCCESS" ? "bg-green-100 text-green-700" : ""}
+                    ${status === "FAILED" ? "bg-red-100 text-red-700" : ""}
+                    ${status === "PROCESSING" ? "bg-yellow-100 text-yellow-700" : ""}
+                  `}
+                >
+                  {status}
+                </span>
 
-              <button
-                className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyToClipboard(tx.requestId);
-                }}
-              >
-                Copy Ref
-              </button>
+                <button
+                  className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyToClipboard(tx.requestId);
+                  }}
+                >
+                  Copy Ref
+                </button>
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
 
       {/* ---------------- MODAL ---------------- */}
@@ -180,17 +194,17 @@ export default function TransactionsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Details */}
               <div className="space-y-2">
-                <p><strong>Service:</strong> {selectedTx.serviceId}</p>
-                <p><strong>Reference:</strong> {selectedTx.requestId}</p>
-                <p><strong>Amount:</strong> ₦{selectedTx.amount}</p>
-                <p><strong>Status:</strong> {selectedTx.status}</p>
+                <p><strong>Service:</strong> {selectedTx.serviceId ?? "Unknown"}</p>
+                <p><strong>Reference:</strong> {selectedTx.requestId ?? "N/A"}</p>
+                <p><strong>Amount:</strong> ₦{selectedTx.amount ?? 0}</p>
+                <p><strong>Status:</strong> {selectedTx.status ?? "PROCESSING"}</p>
                 {selectedTx.phone && <p><strong>Phone:</strong> {selectedTx.phone}</p>}
                 {selectedTx.billersCode && (
                   <p><strong>Customer No:</strong> {selectedTx.billersCode}</p>
                 )}
                 {(selectedTx.apiResponse?.pin || selectedTx.apiResponse?.token) && (
                   <p className="text-indigo-600 font-bold">
-                    Token/PIN: {selectedTx.apiResponse.pin || selectedTx.apiResponse.token}
+                    Token/PIN: {selectedTx.apiResponse?.pin || selectedTx.apiResponse?.token}
                   </p>
                 )}
               </div>
@@ -233,7 +247,7 @@ export default function TransactionsPage() {
             <div className="flex gap-2 pt-2">
               <button
                 className="flex-1 bg-blue-600 text-white py-2 rounded"
-                onClick={() => window.open(pdfUrl || "#", "_blank")}
+                onClick={() => selectedTx?.requestId && window.open(pdfUrl || "#", "_blank")}
               >
                 Download Receipt
               </button>
