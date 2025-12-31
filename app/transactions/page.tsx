@@ -100,7 +100,9 @@ export default function TransactionsPage() {
 
   const openModal = (tx: TransactionItem) => {
     setSelectedTx(tx);
-    setPdfUrl(`/transactions/${tx.requestId}/receipt.pdf`);
+    setPdfUrl(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/transactions/${tx.requestId}/receipt.pdf`
+      );
     setPdfZoom(1);
   };
 
