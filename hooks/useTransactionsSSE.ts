@@ -7,10 +7,8 @@ export function useTransactionsSSE() {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
 
   useEffect(() => {
-    const es = new EventSource("/api/transactions/sse", {
-      fetch: (input, init) =>
-        fetch(input as RequestInfo, { ...init, credentials: "include" }), // cookie auth
-    });
+    // Browser-native EventSource; cookies are sent automatically for same-origin
+    const es = new EventSource("/api/transactions/sse");
 
     es.onmessage = (event) => {
       try {
@@ -24,13 +22,9 @@ export function useTransactionsSSE() {
         if (!newTxs.length) return;
 
         setTransactions((prev) => {
-          // Create a map by requestId to deduplicate and merge PROCESSING updates
+          // Deduplicate by requestId
           const txMap = new Map(prev.map((tx) => [tx.requestId, tx]));
-
-          newTxs.forEach((tx) => {
-            txMap.set(tx.requestId, tx);
-          });
-
+          newTxs.forEach((tx) => txMap.set(tx.requestId, tx));
           return Array.from(txMap.values()).sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
