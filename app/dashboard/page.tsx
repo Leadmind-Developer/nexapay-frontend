@@ -27,6 +27,9 @@ import {
   shareEmail,
   downloadReceipt,
 } from "@/lib/transactionHelpers";
+import { generateReceiptPDF } from "@/lib/receipts/receiptPdf";
+
+generateReceiptPDF(selectedTx);
 
 interface VirtualAccount {
   number: string;
@@ -313,7 +316,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 gap-3 pt-4">
         <button
-          onClick={() => downloadReceipt(selectedTx)}
+          onClick={() => generateReceiptPDF(selectedTx)}
           className="bg-blue-600 text-white py-2 rounded-lg"
         >
           Download
