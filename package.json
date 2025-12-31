@@ -21,6 +21,7 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "recharts": "^2.7.0",
+    "jspdf": "2.5.1",
     "swr": "^2.3.6"
   },
   "devDependencies": {
