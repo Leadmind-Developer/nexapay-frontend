@@ -33,7 +33,6 @@ interface Receipt {
 function normalizeVtpassReceipt(raw: any, fallback: Receipt): Receipt {
   if (!raw) return fallback;
 
-  // Token is the ultimate source of truth
   const token =
     raw.token ||
     raw.token_code ||
@@ -43,9 +42,17 @@ function normalizeVtpassReceipt(raw: any, fallback: Receipt): Receipt {
     fallback.token ||
     null;
 
+  const units =
+    raw.units ||
+    raw.unit ||
+    raw.powerUnits ||
+    fallback.vtpass?.units ||
+    null;
+
   let status: Receipt["status"] = "PROCESSING";
 
-  if (token) {
+  // ✅ SUCCESS CONDITION (VERY IMPORTANT)
+  if (token || units) {
     status = "SUCCESS";
   } else {
     const text = String(
@@ -70,7 +77,7 @@ function normalizeVtpassReceipt(raw: any, fallback: Receipt): Receipt {
     vtpass: {
       exchangeReference:
         raw.exchangeReference || fallback.vtpass?.exchangeReference,
-      units: raw.units || fallback.vtpass?.units,
+      units,
     },
   };
 }
@@ -144,19 +151,18 @@ export default function ElectricityPage() {
       const raw = res.data?.receipt;
 
       setReceipt(prev => {
-        if (!prev) return prev;
-        return normalizeVtpassReceipt(raw, prev);
-      });
+  if (!prev) return prev;
 
-      setStage("receipt");
+  const updated = normalizeVtpassReceipt(raw, prev);
 
-      pollRef.current = setTimeout(() => {
-        setReceipt(prev => {
-          if (prev?.status === "PROCESSING") {
-            pollReceipt(requestId);
-          }
-          return prev;
-        });
+  // 🛑 stop polling once successful or failed
+  if (updated.status !== "PROCESSING" && pollRef.current) {
+    clearTimeout(pollRef.current);
+    pollRef.current = null;
+  }
+
+  return updated;
+});
       }, 4000);
     } catch {
       pollRef.current = setTimeout(
@@ -299,32 +305,44 @@ export default function ElectricityPage() {
         )}
 
         {/* RECEIPT */}
-        {stage === "receipt" && receipt && (
-          <Card title="Electricity Receipt ⚡">
-            <p><b>Status:</b> {receipt.status}</p>
-            <p><b>Customer:</b> {receipt.customer_name}</p>
-            <p><b>Meter:</b> {receipt.meter_number}</p>
-            <p><b>Amount:</b> ₦{receipt.amount}</p>
+{stage === "receipt" && receipt && (
+  <Card title="Electricity Receipt ⚡">
+    <p><b>Status:</b> {receipt.status}</p>
+    <p><b>Customer:</b> {receipt.customer_name}</p>
+    <p><b>Meter:</b> {receipt.meter_number}</p>
+    <p><b>Amount:</b> ₦{receipt.amount}</p>
 
-            <div className="box text-center">
-              <p className="font-semibold">Token</p>
-              {receipt.token ? (
-                <p className="font-mono tracking-widest">
-                  {receipt.token}
-                </p>
-              ) : receipt.status === "PROCESSING" ? (
-                <Spinner />
-              ) : (
-                <p className="text-red-600">Token not available</p>
-              )}
-            </div>
+    {/* UNITS */}
+    {receipt.vtpass?.units && (
+      <p>
+        <b>Units:</b>{" "}
+        <span className="font-semibold">
+          {receipt.vtpass.units} kWh
+        </span>
+      </p>
+    )}
 
-            <PrimaryButton onClick={() => window.location.reload()}>
-              Buy Again
-            </PrimaryButton>
-          </Card>
-        )}
+    {/* TOKEN */}
+    <div className="box text-center">
+      <p className="font-semibold">Token</p>
 
+      {receipt.token ? (
+        <p className="font-mono tracking-widest">
+          {receipt.token}
+        </p>
+      ) : receipt.status === "PROCESSING" ? (
+        <Spinner />
+      ) : (
+        <p className="text-gray-500">No token required</p>
+      )}
+    </div>
+
+    <PrimaryButton onClick={() => window.location.reload()}>
+      Buy Again
+    </PrimaryButton>
+  </Card>
+)}
+        
         {/* ERROR */}
         {stage === "error" && (
           <Card title="Something went wrong">
