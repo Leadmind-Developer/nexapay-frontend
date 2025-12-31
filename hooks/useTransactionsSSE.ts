@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Transaction } from "../lib/types";
-import { EventSource } from "eventsource"; 
 
-// -------------------------------
-// Type guard: ensures SSE data is a valid Transaction
-// -------------------------------
+// ---------------------------
+// Type guard
+// ---------------------------
 function isValidTransaction(tx: any): tx is Transaction {
   return (
     tx &&
@@ -18,48 +17,34 @@ function isValidTransaction(tx: any): tx is Transaction {
   );
 }
 
-// -------------------------------
+// ---------------------------
 // SSE Hook
-// -------------------------------
-export function useTransactionsSSE(token?: string) {
+// ---------------------------
+export function useTransactionsSSE() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
-    if (!token) return;
-
+    // SSE with cookies (HttpOnly auth)
     const es = new EventSource("/api/transactions/sse", {
       fetch: (input, init) =>
-        fetch(input as RequestInfo, {
-          ...init,
-          headers: {
-            ...(init?.headers || {}),
-            Authorization: `Bearer ${token}`,
-          },
-        }),
+        fetch(input as RequestInfo, { ...init, credentials: "include" }),
     });
 
     es.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        const newTxs = Array.isArray(data) ? data.filter(isValidTransaction) : isValidTransaction(data) ? [data] : [];
 
-        const newTxs: Transaction[] = Array.isArray(data)
-          ? data.filter(isValidTransaction)
-          : isValidTransaction(data)
-          ? [data]
-          : [];
-
-        if (!newTxs.length) return;
+        if (newTxs.length === 0) return;
 
         setTransactions((prev) => {
-          // Deduplicate by requestId
-          const dedupedMap = new Map<string, Transaction>();
+          const txMap = new Map(prev.map((tx) => [tx.requestId, tx]));
 
-          [...newTxs, ...prev].forEach((tx) => {
-            dedupedMap.set(tx.requestId, tx);
-          });
+          // Merge / update by requestId
+          newTxs.forEach((tx) => txMap.set(tx.requestId, tx));
 
-          // Convert back to array and sort by createdAt descending
-          return Array.from(dedupedMap.values()).sort(
+          // Sort newest first
+          return Array.from(txMap.values()).sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         });
@@ -74,7 +59,7 @@ export function useTransactionsSSE(token?: string) {
     };
 
     return () => es.close();
-  }, [token]);
+  }, []);
 
   return transactions;
 }
