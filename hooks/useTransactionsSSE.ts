@@ -1,71 +1,59 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { EventSourcePolyfill } from "event-source-polyfill";
-import api from "@/lib/api";
+import { Transaction } from "@/types"; // import your Transaction type
+import EventSource from "eventsource";
 
-/**
- * Frontend-safe transaction type
- */
-export interface TransactionItem {
-  requestId: string;
-  serviceId: string;
-  status: "SUCCESS" | "FAILED" | "PROCESSING" | string;
-  amount: number;
-  createdAt: string;
-  phone?: string;
-  billersCode?: string;
-  apiResponse?: {
-    pin?: string;
-    token?: string;
-  };
-  meta?: Record<string, any>;
-}
-
-/**
- * Type guard: ensures object is a valid TransactionItem
- */
-export function isValidTransaction(obj: any): obj is TransactionItem {
+// Helper: Type guard to ensure a transaction is valid
+function isValidTransaction(tx: any): tx is Transaction {
   return (
-    obj &&
-    typeof obj.requestId === "string" &&
-    typeof obj.serviceId === "string" &&
-    typeof obj.status === "string" &&
-    typeof obj.amount === "number" &&
-    typeof obj.createdAt === "string"
+    tx &&
+    typeof tx.requestId === "string" &&
+    typeof tx.serviceId === "string" &&
+    typeof tx.status === "string" &&
+    typeof tx.amount === "number" &&
+    typeof tx.createdAt === "string"
   );
 }
 
-/**
- * Hook: SSE subscription for live transactions
- * Guarantees only valid transactions are emitted
- */
-export function useTransactionsSSE(): TransactionItem[] {
-  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+export function useTransactionsSSE(token?: string) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
-    const sseUrl = "/transactions/sse"; // adjust to your backend SSE endpoint
-    const es = new EventSourcePolyfill(sseUrl, {
-      headers: { Authorization: `Bearer ${api.getToken()}` }, // if needed
+    if (!token) return;
+
+    const es = new EventSource("/api/transactions/sse", {
+      fetch: (input, init) =>
+        fetch(input as RequestInfo, {
+          ...init,
+          headers: {
+            ...(init?.headers || {}),
+            Authorization: `Bearer ${token}`,
+          },
+        }),
     });
 
     es.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-
-        // data could be a single transaction or an array
-        const items: any[] = Array.isArray(data) ? data : [data];
-
-        // filter out invalid items
-        const validTransactions = items.filter(isValidTransaction);
-
-        if (validTransactions.length > 0) {
+        if (Array.isArray(data)) {
+          const validTxs = data.filter(isValidTransaction);
+          if (validTxs.length) {
+            setTransactions((prev) => {
+              // Remove any previous transactions with same requestId
+              const filtered = prev.filter(
+                (tx) => !validTxs.some((vtx) => vtx.requestId === tx.requestId)
+              );
+              return [...filtered, ...validTxs].sort(
+                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              );
+            });
+          }
+        } else if (isValidTransaction(data)) {
           setTransactions((prev) => {
-            // merge: remove old PROCESSING transactions that might be updated
-            const nonProcessing = prev.filter(
-              (tx) => tx.status !== "PROCESSING" && !validTransactions.find(v => v.requestId === tx.requestId)
-            );
-            return [...nonProcessing, ...validTransactions].sort(
+            const exists = prev.some((tx) => tx.requestId === data.requestId);
+            if (exists) return prev;
+            return [data, ...prev].sort(
               (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
           });
@@ -77,13 +65,11 @@ export function useTransactionsSSE(): TransactionItem[] {
 
     es.onerror = (err) => {
       console.error("SSE connection error:", err);
-      // Optionally attempt reconnect
-    };
-
-    return () => {
       es.close();
     };
-  }, []);
+
+    return () => es.close();
+  }, [token]);
 
   return transactions;
 }
