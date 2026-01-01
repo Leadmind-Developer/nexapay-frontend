@@ -1,27 +1,18 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
+import Link from "next/link";
 
 /* ================= TYPES ================= */
 type Disco = { code: string; label: string };
 
-type Stage =
-  | "verify"
-  | "review"
-  | "processing"
-  | "receipt"
-  | "delayed"
-  | "error";
-
-type TransactionStatus = "SUCCESS" | "PROCESSING" | "FAILED";
+type Stage = "verify" | "review" | "processing" | "success" | "error";
 
 interface MeterVerification {
   customer_name: string;
   meter_number: string;
-  address?: string;
-  tariffRate?: string;
 }
 
 interface Receipt {
@@ -30,15 +21,8 @@ interface Receipt {
   customer_name: string;
   type: "prepaid" | "postpaid";
   amount: number;
-  status: TransactionStatus;
-  token: string | null;
-  units?: string;
-  createdAt: string;
+  status: "SUCCESS" | "PROCESSING" | "FAILED";
 }
-
-/* ================= CONSTANTS ================= */
-const POLL_INTERVAL = 5_000;
-const MAX_PROCESSING_TIME = 10 * 60 * 1000; // 10 minutes
 
 /* ================= PAGE ================= */
 export default function ElectricityPage() {
@@ -49,23 +33,11 @@ export default function ElectricityPage() {
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
 
-  const [verification, setVerification] =
-    useState<MeterVerification | null>(null);
-
+  const [verification, setVerification] = useState<MeterVerification | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
-
   const [stage, setStage] = useState<Stage>("verify");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const pollTimer = useRef<NodeJS.Timeout | null>(null);
-
-  /* ================= CLEANUP ================= */
-  useEffect(() => {
-    return () => {
-      if (pollTimer.current) clearTimeout(pollTimer.current);
-    };
-  }, []);
 
   /* ================= LOAD DISCOS ================= */
   useEffect(() => {
@@ -78,13 +50,12 @@ export default function ElectricityPage() {
       .catch(() => setError("Failed to load electricity providers"));
   }, []);
 
-  /* ================= VERIFY ================= */
+  /* ================= VERIFY METER ================= */
   const verifyMeter = async () => {
     if (!serviceId || !meterNumber) {
       setError("Enter meter number");
       return;
     }
-
     setLoading(true);
     setError("");
 
@@ -121,81 +92,24 @@ export default function ElectricityPage() {
         amount: Number(amount),
       });
 
+      // Skip polling — just show success page
       const baseReceipt: Receipt = {
         requestId: res.data.requestId,
         meter_number: verification.meter_number,
         customer_name: verification.customer_name,
         type,
         amount: Number(amount),
-        status: "PROCESSING",
-        token: null,
-        createdAt: new Date().toISOString(),
+        status: "SUCCESS",
       };
 
       setReceipt(baseReceipt);
-      startPolling(baseReceipt.requestId, baseReceipt.createdAt);
+      setStage("success");
     } catch (e: any) {
       setStage("error");
       setError(e?.response?.data?.error || "Payment failed");
     } finally {
       setLoading(false);
     }
-  };
-
-  /* ================= POLLING ================= */
-  const startPolling = (requestId: string, createdAt: string) => {
-    const poll = async () => {
-      try {
-        const res = await api.get(
-          `/vtpass/electricity/receipt/${requestId}`
-        );
-
-        const data = res.data?.receipt;
-        if (!data) throw new Error("No receipt");
-
-        setReceipt((prev) => {
-          if (!prev) return prev;
-
-          const updated: Receipt = {
-            ...prev,
-            status: data.status,
-            token: data.token ?? prev.token,
-            units: data.vtpass?.units ?? prev.units,
-          };
-
-          if (updated.status === "SUCCESS") {
-            clearTimeout(pollTimer.current!);
-            pollTimer.current = null;
-            setStage("receipt");
-          }
-
-          if (updated.status === "FAILED") {
-            clearTimeout(pollTimer.current!);
-            pollTimer.current = null;
-            setStage("error");
-            setError("Transaction failed");
-          }
-
-          return updated;
-        });
-      } catch {
-        // silent — backend scheduler + next poll will resolve it
-      }
-
-      const age =
-        Date.now() - new Date(createdAt).getTime();
-
-      if (age > MAX_PROCESSING_TIME) {
-        clearTimeout(pollTimer.current!);
-        pollTimer.current = null;
-        setStage("delayed");
-        return;
-      }
-
-      pollTimer.current = setTimeout(poll, POLL_INTERVAL);
-    };
-
-    poll();
   };
 
   /* ================= UI ================= */
@@ -207,35 +121,34 @@ export default function ElectricityPage() {
         {/* VERIFY */}
         {stage === "verify" && (
           <Card title="Verify Meter">
-            <select
-              className="input"
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-            >
-              {discos.map((d) => (
-                <option key={d.code} value={d.code}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2 mb-2">
+              <select
+                className="input flex-1"
+                value={serviceId}
+                onChange={(e) => setServiceId(e.target.value)}
+              >
+                {discos.map((d) => (
+                  <option key={d.code} value={d.code}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input flex-1"
+                value={type}
+                onChange={(e) => setType(e.target.value as any)}
+              >
+                <option value="prepaid">Prepaid</option>
+                <option value="postpaid">Postpaid</option>
+              </select>
+            </div>
 
             <input
-              className="input"
+              className="input mb-2"
               placeholder="Meter Number"
               value={meterNumber}
               onChange={(e) => setMeterNumber(e.target.value)}
             />
-
-            <select
-              className="input"
-              value={type}
-              onChange={(e) =>
-                setType(e.target.value as any)
-              }
-            >
-              <option value="prepaid">Prepaid</option>
-              <option value="postpaid">Postpaid</option>
-            </select>
 
             {error && <ErrorText>{error}</ErrorText>}
 
@@ -248,27 +161,24 @@ export default function ElectricityPage() {
         {/* REVIEW */}
         {stage === "review" && verification && (
           <Card title="Review & Pay">
-            <p className="font-semibold">
-              {verification.customer_name}
-            </p>
-            <p className="text-sm text-gray-500">
-              {verification.meter_number}
-            </p>
+            <p className="font-semibold">{verification.customer_name}</p>
+            <p className="text-sm text-gray-500">{verification.meter_number}</p>
 
-            <input
-              className="input"
-              type="number"
-              placeholder="Amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-
-            <input
-              className="input"
-              placeholder="Phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+            <div className="flex gap-2 mb-2">
+              <input
+                className="input flex-1"
+                type="number"
+                placeholder="Amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <input
+                className="input flex-1"
+                placeholder="Phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
 
             <PrimaryButton disabled={loading} onClick={handleCheckout}>
               {loading ? <Spinner /> : "Pay Now"}
@@ -281,68 +191,23 @@ export default function ElectricityPage() {
           <Card center title="Processing Payment">
             <Spinner />
             <p className="text-sm text-gray-500 mt-2">
-              Completing transaction… checking for token
+              Completing transaction… please wait
             </p>
           </Card>
         )}
 
-        {/* DELAYED */}
-        {stage === "delayed" && receipt && (
-          <Card title="Taking Longer Than Expected">
-            <p className="text-sm text-gray-600">
-              This transaction is taking longer than expected.
+        {/* SUCCESS */}
+        {stage === "success" && receipt && (
+          <Card title="Payment Successful">
+            <p className="text-gray-700">
+              Your payment of <b>₦{receipt.amount}</b> was successful.
+            </p>
+            <p className="text-gray-700">
+              Check your <Link href="/transactions" className="text-yellow-600 underline font-semibold">Transactions page</Link> for your token and receipt.
             </p>
 
-            <ul className="list-disc pl-4 text-sm mt-2">
-              <li>
-                Please check the Transactions page later for
-                your token and receipt.
-              </li>
-              <li>
-                If the token is not delivered after 10 minutes,
-                contact support.
-              </li>
-            </ul>
-
-            <a
-              href="/support"
-              className="text-yellow-600 font-semibold underline mt-3 inline-block"
-            >
-              Contact Support
-            </a>
-          </Card>
-        )}
-
-        {/* RECEIPT */}
-        {stage === "receipt" && receipt && (
-          <Card title="Electricity Receipt">
-            <p>
-              <b>Status:</b> {receipt.status}
-            </p>
-            <p>
-              <b>Meter:</b> {receipt.meter_number}
-            </p>
-            <p>
-              <b>Amount:</b> ₦{receipt.amount}
-            </p>
-
-            {receipt.units && (
-              <p>
-                <b>Units:</b> {receipt.units} kWh
-              </p>
-            )}
-
-            <div className="box text-center">
-              <p className="font-semibold">Token</p>
-              <p className="font-mono tracking-widest">
-                {receipt.token}
-              </p>
-            </div>
-
-            <PrimaryButton
-              onClick={() => window.location.reload()}
-            >
-              Buy Again
+            <PrimaryButton onClick={() => window.location.reload()}>
+              Make Another Payment
             </PrimaryButton>
           </Card>
         )}
@@ -359,17 +224,13 @@ export default function ElectricityPage() {
 }
 
 /* ================= UI HELPERS ================= */
-const Card = ({
-  title,
-  children,
-  center,
-}: any) => (
+const Card = ({ title, children, center }: any) => (
   <div
     className={`bg-white dark:bg-gray-900 rounded-lg p-5 shadow space-y-4 ${
       center ? "text-center" : ""
     }`}
   >
-    <h2 className="font-semibold text-lg">{title}</h2>
+    <h2 className="font-semibold text-lg mb-2">{title}</h2>
     {children}
   </div>
 );
@@ -394,20 +255,22 @@ const Spinner = () => (
 );
 
 const Stepper = ({ stage }: { stage: Stage }) => {
-  const steps = ["verify", "review", "processing", "receipt"];
+  const steps = ["verify", "review", "processing", "success"];
   return (
-    <div className="flex justify-between text-xs text-gray-500">
-      {steps.map((s) => (
-        <span
-          key={s}
-          className={
-            stage === s
-              ? "font-semibold text-yellow-600"
-              : ""
-          }
-        >
-          {s.toUpperCase()}
-        </span>
+    <div className="flex justify-between mb-4">
+      {steps.map((s, i) => (
+        <div key={s} className="flex-1 text-center relative">
+          <div
+            className={`h-2 w-full rounded-full ${
+              stage === s || steps.indexOf(stage) > i
+                ? "bg-yellow-500"
+                : "bg-gray-300"
+            }`}
+          ></div>
+          <span className="absolute -top-5 text-xs text-gray-500 font-semibold">
+            {s.toUpperCase()}
+          </span>
+        </div>
       ))}
     </div>
   );
