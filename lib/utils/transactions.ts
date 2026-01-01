@@ -1,3 +1,4 @@
+
 /* -------- Time formatting -------- */
 export function formatTransactionTime(iso: string) {
   const date = new Date(iso);
@@ -62,3 +63,4 @@ export function shareViaWhatsApp(reference: string) {
   const message = `Hi! Here is my Nexa electricity receipt: ${pdfUrl}`;
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, "_blank");
 }
+
