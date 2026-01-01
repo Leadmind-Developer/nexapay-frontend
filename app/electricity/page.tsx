@@ -210,24 +210,12 @@ const handleCheckout = async () => {
       phone,
     });
 
-    const requestId = res.data?.requestId;
-    if (!requestId) throw new Error("No requestId returned");
+    if (!res.data?.requestId) {
+      throw new Error("Transaction reference not returned");
+    }
 
-    const baseReceipt: Receipt = {
-      requestId,
-      meter_number: verification.meter_number,
-      type,
-      customer_name: verification.customer_name,
-      amount: Number(amount),
-      token: null,
-      status: "PROCESSING",
-    };
-
-    setReceipt(baseReceipt);
-
-    // start polling immediately
-    fetchReceipt(requestId, baseReceipt);
-
+    // No polling, no receipt fetch
+    setStage("success");
   } catch (err: any) {
     setStage("error");
     setMessage(err?.response?.data?.error || "Checkout failed");
@@ -353,70 +341,49 @@ const handleCheckout = async () => {
 
         {/* ================= PROCESSING ================= */}
         {stage === "processing" && (
-          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow">
-            Processing your electricity purchase…
-          </div>
-        )}
-
+  <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow space-y-2">
+    <p className="font-medium">Processing payment…</p>
+    <p className="text-sm text-gray-500">
+      Please do not refresh this page
+    </p>
+  </div>
+)}
         {/* ================= SUCCESS ================= */}
-{stage === "success" && receipt && (
-  <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-4">
-    <h2 className="text-lg font-bold">
-      {receipt.token ? "Purchase Successful ⚡" : "Purchase Processing ⚡"}
-    </h2>
+        {stage === "success" && (
+  <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded-lg text-center space-y-4">
+    <h2 className="text-lg font-bold">Payment Successful ⚡</h2>
 
-    <div className="space-y-1 text-sm">
-      <p><b>Customer:</b> {receipt.customer_name}</p>
-      <p><b>Meter:</b> {receipt.meter_number}</p>
-      <p><b>Amount:</b> ₦{receipt.amount}</p>
-    </div>
+    <p className="text-sm">
+      Your electricity purchase was successful.
+    </p>
 
-    <div className="bg-white/80 dark:bg-black/30 p-4 rounded space-y-2">
-      <p className="font-semibold">Token</p>
-      <div className="flex items-center justify-center space-x-2">
-        {receipt.token ? (
-          <span className="font-mono tracking-wider">{receipt.token}</span>
-        ) : (
-          <>
-            {/* Spinner */}
-            <svg
-              className="animate-spin h-5 w-5 text-yellow-500"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
-              ></path>
-            </svg>
-            <span>Waiting for token…</span>
-          </>
-        )}
-      </div>
+    <p className="text-sm text-gray-700 dark:text-gray-300">
+      Token and receipt will be available on the{" "}
+      <a
+        href="/transactions"
+        className="text-green-700 dark:text-green-400 font-semibold underline"
+      >
+        Transactions page
+      </a>.
+    </p>
 
-      {/* Countdown Timer */}
-      {!receipt.token && (
-        <CountdownTimer
-          duration={30} // seconds
-          onExpire={() => setMessage("Still processing. Please wait or refresh.")}
-        />
-      )}
-    </div>
-
-    <div className="flex gap-3 mt-4">
-      <button
-        onClick={() => window.location.reload()}
+    <div className="flex gap-3 pt-2">
+      <a
+        href="/transactions"
         className="flex-1 bg-green-600 text-white py-3 rounded font-semibold"
+      >
+        View Transactions
+      </a>
+
+      <button
+        onClick={() => {
+          setStage("verify");
+          setMeterNumber("");
+          setAmount("");
+          setPhone("");
+          setVerification(null);
+        }}
+        className="flex-1 bg-white dark:bg-gray-800 border py-3 rounded font-semibold"
       >
         Buy Again
       </button>
