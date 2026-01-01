@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TransactionItem } from "@/lib/transactions/transaction.types";
+import { TransactionItem } from "@/lib/utils/transaction.types";
 
 export function useTransactionsSSE() {
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
