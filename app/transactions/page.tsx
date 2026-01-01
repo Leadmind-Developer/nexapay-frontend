@@ -238,12 +238,15 @@ export default function TransactionsPage() {
                 selectedTx.apiResponse.pin!
             )}
           </p>
-        </div>
-      {selectedTx.meta.units && (
-      <div>
-        <p className="text-xs text-gray-500">Units</p>
+        
+       {selectedTx.meta?.units && (
+      <div className="pt-2 border-t border-green-200 dark:border-green-700">
+        <p className="text-xs text-green-700 dark:text-green-300">
+          Units
+        </p>
         <p className="font-semibold">
-          {selectedTx.meta.units} {selectedTx.meta.unitLabel || "kWh"}
+          {selectedTx.meta.units}{" "}
+          {selectedTx.meta.unitLabel || "kWh"}
         </p>
       </div>
     )}
