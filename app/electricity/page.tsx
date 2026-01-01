@@ -1,12 +1,21 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
 
 /* ================= TYPES ================= */
 type Disco = { code: string; label: string };
-type Stage = "verify" | "review" | "processing" | "receipt" | "error";
+
+type Stage =
+  | "verify"
+  | "review"
+  | "processing"
+  | "receipt"
+  | "delayed"
+  | "error";
+
+type TransactionStatus = "SUCCESS" | "PROCESSING" | "FAILED";
 
 interface MeterVerification {
   customer_name: string;
@@ -18,45 +27,18 @@ interface MeterVerification {
 interface Receipt {
   requestId: string;
   meter_number: string;
-  type: "prepaid" | "postpaid";
   customer_name: string;
+  type: "prepaid" | "postpaid";
   amount: number;
+  status: TransactionStatus;
   token: string | null;
-  status: "SUCCESS" | "PROCESSING" | "FAILED";
-  vtpass?: {
-    units?: string;
-  };
+  units?: string;
+  createdAt: string;
 }
 
-/* ================= HELPERS ================= */
-function normalizeReceipt(raw: any, fallback: Receipt): Receipt {
-  if (!raw) return fallback;
-
-  const token =
-    raw.token ||
-    raw.token_code ||
-    (typeof raw.purchased_code === "string"
-      ? raw.purchased_code.replace(/^Token\s*:\s*/i, "")
-      : null) ||
-    fallback.token;
-
-  const units = raw.units || raw.powerUnits || fallback.vtpass?.units;
-
-  let status: Receipt["status"] = "PROCESSING";
-
-  if (token || units) status = "SUCCESS";
-  else {
-    const s = String(raw.status || raw.transactionStatus || "").toLowerCase();
-    if (s.includes("fail") || s.includes("error")) status = "FAILED";
-  }
-
-  return {
-    ...fallback,
-    token,
-    status,
-    vtpass: { units },
-  };
-}
+/* ================= CONSTANTS ================= */
+const POLL_INTERVAL = 5_000;
+const MAX_PROCESSING_TIME = 10 * 60 * 1000; // 10 minutes
 
 /* ================= PAGE ================= */
 export default function ElectricityPage() {
@@ -67,32 +49,44 @@ export default function ElectricityPage() {
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
 
-  const [verification, setVerification] = useState<MeterVerification | null>(null);
+  const [verification, setVerification] =
+    useState<MeterVerification | null>(null);
+
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   const [stage, setStage] = useState<Stage>("verify");
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
-  const requeryTriggered = useRef(false);
+  const pollTimer = useRef<NodeJS.Timeout | null>(null);
+
+  /* ================= CLEANUP ================= */
+  useEffect(() => {
+    return () => {
+      if (pollTimer.current) clearTimeout(pollTimer.current);
+    };
+  }, []);
 
   /* ================= LOAD DISCOS ================= */
   useEffect(() => {
-    api.get("/vtpass/electricity/discos")
-      .then(r => {
-        setDiscos(r.data || []);
-        if (r.data?.length) setServiceId(r.data[0].code);
+    api
+      .get("/vtpass/electricity/discos")
+      .then((res) => {
+        setDiscos(res.data || []);
+        if (res.data?.length) setServiceId(res.data[0].code);
       })
-      .catch(() => setMessage("Failed to load providers"));
+      .catch(() => setError("Failed to load electricity providers"));
   }, []);
 
   /* ================= VERIFY ================= */
   const verifyMeter = async () => {
-    if (!serviceId || !meterNumber) return setMessage("Enter meter number");
+    if (!serviceId || !meterNumber) {
+      setError("Enter meter number");
+      return;
+    }
 
     setLoading(true);
-    setMessage("");
+    setError("");
 
     try {
       const res = await api.post("/vtpass/electricity/verify", {
@@ -104,49 +98,9 @@ export default function ElectricityPage() {
       setVerification(res.data.details);
       setStage("review");
     } catch (e: any) {
-      setMessage(e?.response?.data?.error || "Verification failed");
+      setError(e?.response?.data?.error || "Meter verification failed");
     } finally {
       setLoading(false);
-    }
-  };
-
-  /* ================= POLL RECEIPT ================= */
-  const pollReceipt = async (requestId: string) => {
-    try {
-      const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
-      const raw = res.data?.receipt;
-
-      setReceipt(prev => {
-        if (!prev) return prev;
-
-        const updated = normalizeReceipt(raw, prev);
-
-        if (updated.status !== "PROCESSING") {
-          clearTimeout(pollRef.current!);
-          pollRef.current = null;
-          setStage("receipt");
-        }
-
-        return updated;
-      });
-
-      if (!pollRef.current) {
-        pollRef.current = setTimeout(() => pollReceipt(requestId), 5000);
-      }
-    } catch {
-      pollRef.current = setTimeout(() => pollReceipt(requestId), 5000);
-    }
-  };
-
-  /* ================= FRONTEND REQUERY ================= */
-  const triggerFrontendRequery = async (requestId: string) => {
-    if (requeryTriggered.current) return;
-    requeryTriggered.current = true;
-
-    try {
-      await api.post(`/vtpass/electricity/requery/${requestId}`);
-    } catch {
-      // silent — scheduler + polling will still resolve it
     }
   };
 
@@ -154,8 +108,9 @@ export default function ElectricityPage() {
   const handleCheckout = async () => {
     if (!verification || !amount || !phone) return;
 
-    setStage("processing");
     setLoading(true);
+    setStage("processing");
+    setError("");
 
     try {
       const res = await api.post("/vtpass/electricity/checkout", {
@@ -166,27 +121,81 @@ export default function ElectricityPage() {
         amount: Number(amount),
       });
 
-      const base: Receipt = {
+      const baseReceipt: Receipt = {
         requestId: res.data.requestId,
         meter_number: verification.meter_number,
         customer_name: verification.customer_name,
-        amount: Number(amount),
         type,
+        amount: Number(amount),
         status: "PROCESSING",
         token: null,
+        createdAt: new Date().toISOString(),
       };
 
-      setReceipt(base);
-      pollReceipt(base.requestId);
-
-      // ⏱️ Frontend-triggered requery after 7s
-      setTimeout(() => triggerFrontendRequery(base.requestId), 7000);
+      setReceipt(baseReceipt);
+      startPolling(baseReceipt.requestId, baseReceipt.createdAt);
     } catch (e: any) {
       setStage("error");
-      setMessage(e?.response?.data?.error || "Checkout failed");
+      setError(e?.response?.data?.error || "Payment failed");
     } finally {
       setLoading(false);
     }
+  };
+
+  /* ================= POLLING ================= */
+  const startPolling = (requestId: string, createdAt: string) => {
+    const poll = async () => {
+      try {
+        const res = await api.get(
+          `/vtpass/electricity/receipt/${requestId}`
+        );
+
+        const data = res.data?.receipt;
+        if (!data) throw new Error("No receipt");
+
+        setReceipt((prev) => {
+          if (!prev) return prev;
+
+          const updated: Receipt = {
+            ...prev,
+            status: data.status,
+            token: data.token ?? prev.token,
+            units: data.vtpass?.units ?? prev.units,
+          };
+
+          if (updated.status === "SUCCESS") {
+            clearTimeout(pollTimer.current!);
+            pollTimer.current = null;
+            setStage("receipt");
+          }
+
+          if (updated.status === "FAILED") {
+            clearTimeout(pollTimer.current!);
+            pollTimer.current = null;
+            setStage("error");
+            setError("Transaction failed");
+          }
+
+          return updated;
+        });
+      } catch {
+        // silent — backend scheduler + next poll will resolve it
+      }
+
+      const age =
+        Date.now() - new Date(createdAt).getTime();
+
+      if (age > MAX_PROCESSING_TIME) {
+        clearTimeout(pollTimer.current!);
+        pollTimer.current = null;
+        setStage("delayed");
+        return;
+      }
+
+      pollTimer.current = setTimeout(poll, POLL_INTERVAL);
+    };
+
+    poll();
   };
 
   /* ================= UI ================= */
@@ -195,22 +204,40 @@ export default function ElectricityPage() {
       <div className="max-w-md mx-auto px-4 space-y-6">
         <Stepper stage={stage} />
 
+        {/* VERIFY */}
         {stage === "verify" && (
           <Card title="Verify Meter">
-            <select className="input" value={serviceId} onChange={e => setServiceId(e.target.value)}>
-              {discos.map(d => (
-                <option key={d.code} value={d.code}>{d.label}</option>
+            <select
+              className="input"
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+            >
+              {discos.map((d) => (
+                <option key={d.code} value={d.code}>
+                  {d.label}
+                </option>
               ))}
             </select>
 
-            <input className="input" placeholder="Meter Number" value={meterNumber} onChange={e => setMeterNumber(e.target.value)} />
+            <input
+              className="input"
+              placeholder="Meter Number"
+              value={meterNumber}
+              onChange={(e) => setMeterNumber(e.target.value)}
+            />
 
-            <select className="input" value={type} onChange={e => setType(e.target.value as any)}>
+            <select
+              className="input"
+              value={type}
+              onChange={(e) =>
+                setType(e.target.value as any)
+              }
+            >
               <option value="prepaid">Prepaid</option>
               <option value="postpaid">Postpaid</option>
             </select>
 
-            {message && <ErrorText>{message}</ErrorText>}
+            {error && <ErrorText>{error}</ErrorText>}
 
             <PrimaryButton disabled={loading} onClick={verifyMeter}>
               {loading ? <Spinner /> : "Verify Meter"}
@@ -218,13 +245,30 @@ export default function ElectricityPage() {
           </Card>
         )}
 
+        {/* REVIEW */}
         {stage === "review" && verification && (
           <Card title="Review & Pay">
-            <p className="font-semibold">{verification.customer_name}</p>
-            <p className="text-sm text-gray-500">{verification.meter_number}</p>
+            <p className="font-semibold">
+              {verification.customer_name}
+            </p>
+            <p className="text-sm text-gray-500">
+              {verification.meter_number}
+            </p>
 
-            <input className="input" placeholder="Amount" type="number" value={amount} onChange={e => setAmount(e.target.value)} />
-            <input className="input" placeholder="Phone" value={phone} onChange={e => setPhone(e.target.value)} />
+            <input
+              className="input"
+              type="number"
+              placeholder="Amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+
+            <input
+              className="input"
+              placeholder="Phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
 
             <PrimaryButton disabled={loading} onClick={handleCheckout}>
               {loading ? <Spinner /> : "Pay Now"}
@@ -232,6 +276,7 @@ export default function ElectricityPage() {
           </Card>
         )}
 
+        {/* PROCESSING */}
         {stage === "processing" && (
           <Card center title="Processing Payment">
             <Spinner />
@@ -241,34 +286,71 @@ export default function ElectricityPage() {
           </Card>
         )}
 
+        {/* DELAYED */}
+        {stage === "delayed" && receipt && (
+          <Card title="Taking Longer Than Expected">
+            <p className="text-sm text-gray-600">
+              This transaction is taking longer than expected.
+            </p>
+
+            <ul className="list-disc pl-4 text-sm mt-2">
+              <li>
+                Please check the Transactions page later for
+                your token and receipt.
+              </li>
+              <li>
+                If the token is not delivered after 10 minutes,
+                contact support.
+              </li>
+            </ul>
+
+            <a
+              href="/support"
+              className="text-yellow-600 font-semibold underline mt-3 inline-block"
+            >
+              Contact Support
+            </a>
+          </Card>
+        )}
+
+        {/* RECEIPT */}
         {stage === "receipt" && receipt && (
           <Card title="Electricity Receipt">
-            <p><b>Status:</b> {receipt.status}</p>
-            <p><b>Meter:</b> {receipt.meter_number}</p>
-            <p><b>Amount:</b> ₦{receipt.amount}</p>
+            <p>
+              <b>Status:</b> {receipt.status}
+            </p>
+            <p>
+              <b>Meter:</b> {receipt.meter_number}
+            </p>
+            <p>
+              <b>Amount:</b> ₦{receipt.amount}
+            </p>
 
-            {receipt.vtpass?.units && (
-              <p><b>Units:</b> {receipt.vtpass.units} kWh</p>
+            {receipt.units && (
+              <p>
+                <b>Units:</b> {receipt.units} kWh
+              </p>
             )}
 
             <div className="box text-center">
               <p className="font-semibold">Token</p>
-              {receipt.token ? (
-                <p className="font-mono tracking-widest">{receipt.token}</p>
-              ) : (
-                <Spinner />
-              )}
+              <p className="font-mono tracking-widest">
+                {receipt.token}
+              </p>
             </div>
 
-            <PrimaryButton onClick={() => window.location.reload()}>
+            <PrimaryButton
+              onClick={() => window.location.reload()}
+            >
               Buy Again
             </PrimaryButton>
           </Card>
         )}
 
+        {/* ERROR */}
         {stage === "error" && (
           <Card title="Error">
-            <ErrorText>{message}</ErrorText>
+            <ErrorText>{error}</ErrorText>
           </Card>
         )}
       </div>
@@ -277,15 +359,26 @@ export default function ElectricityPage() {
 }
 
 /* ================= UI HELPERS ================= */
-const Card = ({ title, children, center }: any) => (
-  <div className={`bg-white dark:bg-gray-900 rounded-lg p-5 shadow space-y-4 ${center ? "text-center" : ""}`}>
+const Card = ({
+  title,
+  children,
+  center,
+}: any) => (
+  <div
+    className={`bg-white dark:bg-gray-900 rounded-lg p-5 shadow space-y-4 ${
+      center ? "text-center" : ""
+    }`}
+  >
     <h2 className="font-semibold text-lg">{title}</h2>
     {children}
   </div>
 );
 
 const PrimaryButton = ({ children, ...p }: any) => (
-  <button {...p} className="w-full bg-yellow-500 text-white py-3 rounded font-semibold disabled:opacity-60">
+  <button
+    {...p}
+    className="w-full bg-yellow-500 text-white py-3 rounded font-semibold disabled:opacity-60"
+  >
     {children}
   </button>
 );
@@ -304,8 +397,15 @@ const Stepper = ({ stage }: { stage: Stage }) => {
   const steps = ["verify", "review", "processing", "receipt"];
   return (
     <div className="flex justify-between text-xs text-gray-500">
-      {steps.map(s => (
-        <span key={s} className={stage === s ? "font-semibold text-yellow-600" : ""}>
+      {steps.map((s) => (
+        <span
+          key={s}
+          className={
+            stage === s
+              ? "font-semibold text-yellow-600"
+              : ""
+          }
+        >
           {s.toUpperCase()}
         </span>
       ))}
