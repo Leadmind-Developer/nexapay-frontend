@@ -6,10 +6,12 @@ export function formatTransactionTime(iso: string) {
   const diffMin = Math.floor(diffMs / 60000);
 
   if (diffMin < 1) return "Just now";
-  if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? "s" : ""} ago`;
+  if (diffMin < 60)
+    return `${diffMin} minute${diffMin > 1 ? "s" : ""} ago`;
 
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? "s" : ""} ago`;
+  if (diffHr < 24)
+    return `${diffHr} hour${diffHr > 1 ? "s" : ""} ago`;
 
   return date.toLocaleString(undefined, {
     month: "short",
@@ -22,6 +24,7 @@ export function formatTransactionTime(iso: string) {
 
 /* -------- Token formatting -------- */
 export function formatToken(token: string) {
+  if (!token) return "";
   return token.replace(/(.{4})/g, "$1 ").trim();
 }
 
@@ -34,7 +37,11 @@ export function groupTransactionsByDate<T extends { createdAt: string }>(
   const older: T[] = [];
 
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
   const startOfYesterday = new Date(startOfToday);
   startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
@@ -50,10 +57,20 @@ export function groupTransactionsByDate<T extends { createdAt: string }>(
 }
 
 /* -------- WhatsApp Share -------- */
-function shareViaWhatsApp(reference: string) {
-  const text = encodeURIComponent(
-    `Here is my Nexa transaction receipt.\nReference: ${reference}`
-  );
+export function shareViaWhatsApp(
+  reference: string,
+  url?: string
+) {
+  if (typeof window === "undefined") return;
+
+  const message = [
+    "Here is my Nexa transaction receipt.",
+    `Reference: ${reference}`,
+    url ? `Receipt: ${url}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const text = encodeURIComponent(message);
   window.open(`https://wa.me/?text=${text}`, "_blank");
 }
-
