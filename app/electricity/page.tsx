@@ -390,8 +390,32 @@ const handleCheckout = async () => {
     </div>
   </div>
 )}
-
-        {/* ================= ERROR ================= */}
+        
+    <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm text-yellow-800 dark:text-yellow-200">
+      <p className="font-medium mb-1">Didn’t get your token?</p>
+      <p>
+        Electricity tokens are usually delivered within a few minutes.
+        If your token does not appear in your{" "}
+        <a
+          href="/transactions"
+          className="underline font-semibold"
+        >
+          Transactions
+        </a>{" "}
+        after <b>10 minutes</b>, please contact our support team at{" "}
+        <a
+          href="/support"
+          className="underline font-semibold"
+        >
+          Support
+        </a>{" "}
+        and we’ll help you right away.
+      </p>
+    </div>
+  </>
+)}
+      
+      {/* ================= ERROR ================= */}
         {stage === "error" && (
           <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
             <h2 className="text-lg font-bold">Something went wrong</h2>
