@@ -3,15 +3,19 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
-import { useCheckout } from "@/hooks/useCheckout";
 
 /* ================= TYPES ================= */
-type Disco = {
-  code: string;
-  label: string;
-};
-
+type Disco = { code: string; label: string };
 type Stage = "verify" | "payment" | "processing" | "success" | "error";
+
+interface Receipt {
+  requestId: string;
+  meter_number: string;
+  type: "prepaid" | "postpaid";
+  customer_name: string;
+  amount: number;
+  token?: string;
+}
 
 /* ================= PAGE ================= */
 export default function ElectricityPage() {
@@ -21,17 +25,10 @@ export default function ElectricityPage() {
   const [type, setType] = useState<"prepaid" | "postpaid">("prepaid");
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
-
   const [customerName, setCustomerName] = useState("");
   const [stage, setStage] = useState<Stage>("verify");
-
-  const {
-    stage: checkoutStage,
-    errorMessage,
-    reference,
-    responseData,
-    checkout,
-  } = useCheckout();
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [message, setMessage] = useState("");
 
   /* ================= LOAD DISCOS ================= */
   useEffect(() => {
@@ -41,106 +38,121 @@ export default function ElectricityPage() {
         setDiscos(res.data || []);
         if (res.data?.length) setServiceId(res.data[0].code);
       })
-      .catch(() => {
-        /* silent fail — handled by UI */
-      });
+      .catch(() => setMessage("Failed to load electricity providers"));
   }, []);
 
-  /* ================= VERIFY METER ================= */
-  const verifyMeter = async () => {
-  if (!serviceId || !meterNumber) return;
+  ;/* ================= VERIFY METER ================= */
+const verifyMeter = async () => {
+  if (!serviceId || !meterNumber) {
+    return setMessage("Enter meter number & select Disco");
+  }
+
+  setMessage("");
+  setCustomerName("");
+  setReceipt(null); // reset previous receipt
+  setStage("verify");
 
   try {
-    setCustomerName("");
-
     const res = await api.post("/vtpass/electricity/verify", {
       serviceId,
       meterNumber,
       type,
     });
 
-    // ✅ Normal verification success
-    if (res.data?.customer_name) {
-      setCustomerName(res.data.customer_name);
-      setStage("payment");
+    if (res.data?.success && res.data?.verified && res.data?.details) {
+      const details = res.data.details;
+
+      // save details to state for table display
+      setReceipt({
+        requestId: "",
+        meter_number: details.meterNumber,
+        type,
+        customer_name: details.customerName,
+        amount: 0,
+        token: "",
+        ...details, // spread all other info for table
+      });
+
+      setStage("review");
       return;
     }
 
     throw new Error("Unable to verify meter");
   } catch (err: any) {
-    const error = err?.response?.data?.error || err?.message || "Meter verification failed";
-
-    // ⚡ Handle "already verified" case
-    if (error.toLowerCase().includes("already verified")) {
-      // Try to extract customer name from response if available
-      const customer = err?.response?.data?.customer_name || meterNumber;
-      setCustomerName(customer);
-      setStage("payment");
-      return;
-    }
-
-    alert(error);
+    const error =
+      err?.response?.data?.error || err?.message || "Verification failed";
+    setMessage(error);
   }
 };
 
   /* ================= CHECKOUT ================= */
-  const handleCheckout = () => {
-    checkout({
-      endpoint: "/vtpass/electricity/checkout",
-      payload: {
+  const handleCheckout = async () => {
+    if (!customerName) return setMessage("Verify meter first");
+    if (!amount || !phone) return setMessage("Enter amount and phone number");
+
+    setStage("processing");
+    setMessage("");
+
+    try {
+      const res = await api.post("/vtpass/electricity/checkout", {
         serviceId,
         meterNumber,
         amount: Number(amount),
         type,
         phone,
-      },
-    });
-  };
+      });
 
-  /* ================= DERIVED ================= */
-  const token =
-    responseData?.vtpass?.token ||
-    responseData?.vtpass?.token_code ||
-    null;
+      const vtpass = res.data?.vtpass;
+      setReceipt({
+        requestId: res.data?.requestId,
+        meter_number: meterNumber,
+        type,
+        customer_name: customerName,
+        amount: Number(amount),
+        token: vtpass?.token || vtpass?.token_code,
+      });
+
+      setStage("success");
+    } catch (err: any) {
+      const error = err?.response?.data?.error || err?.message || "Checkout failed";
+      setMessage(error);
+      setStage("error");
+    }
+  };
 
   /* ================= UI ================= */
   return (
     <BannersWrapper page="electricity">
       <div className="max-w-md mx-auto px-4 space-y-4 text-gray-900 dark:text-gray-100">
 
-        {/* ===== VERIFY ===== */}
+        {/* VERIFY */}
         {stage === "verify" && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
             <h2 className="text-xl font-bold">Verify Meter</h2>
-
             <select
               value={serviceId}
               onChange={e => setServiceId(e.target.value)}
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             >
               {discos.map(d => (
-                <option key={d.code} value={d.code}>
-                  {d.label}
-                </option>
+                <option key={d.code} value={d.code}>{d.label}</option>
               ))}
             </select>
-
             <input
               value={meterNumber}
               onChange={e => setMeterNumber(e.target.value)}
               placeholder="Meter Number"
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             />
-
             <select
               value={type}
-              onChange={e => setType(e.target.value as any)}
+              onChange={e => setType(e.target.value as "prepaid" | "postpaid")}
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             >
               <option value="prepaid">Prepaid</option>
               <option value="postpaid">Postpaid</option>
             </select>
-
+            {message && <p className="text-red-600 font-medium">{message}</p>}
             <button
               onClick={verifyMeter}
               className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
@@ -150,87 +162,140 @@ export default function ElectricityPage() {
           </div>
         )}
 
-        {/* ===== PAYMENT ===== */}
-        {stage === "payment" && (
-          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
-            <h2 className="text-xl font-bold">Payment</h2>
+        {/* REVIEW + PAYMENT */}
+{stage === "review" && receipt && (
+  <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 shadow space-y-4">
+    <h2 className="text-xl font-bold">Review Meter Details & Payment ⚡</h2>
 
-            <p className="text-sm">
-              <b>Customer:</b> {customerName}
-            </p>
+    {/* Tabular Details */}
+    <table className="w-full text-left border-collapse mb-4">
+      <tbody>
+        <tr>
+          <td className="p-2 font-semibold">Customer Name:</td>
+          <td className="p-2">{receipt.customer_name}</td>
+        </tr>
+        <tr className="bg-gray-50 dark:bg-gray-800">
+          <td className="p-2 font-semibold">Meter Number:</td>
+          <td className="p-2">{receipt.meter_number}</td>
+        </tr>
+        <tr>
+          <td className="p-2 font-semibold">Address:</td>
+          <td className="p-2">{receipt.address || "-"}</td>
+        </tr>
+        <tr className="bg-gray-50 dark:bg-gray-800">
+          <td className="p-2 font-semibold">Meter Type:</td>
+          <td className="p-2">{receipt.meterType || "-"}</td>
+        </tr>
+        <tr>
+          <td className="p-2 font-semibold">Account Type:</td>
+          <td className="p-2">{receipt.accountType || "-"}</td>
+        </tr>
+        <tr className="bg-gray-50 dark:bg-gray-800">
+          <td className="p-2 font-semibold">Can Vend:</td>
+          <td className="p-2">{receipt.canVend || "-"}</td>
+        </tr>
+        <tr>
+          <td className="p-2 font-semibold">Tariff Rate (NGN/KWh):</td>
+          <td className="p-2">{receipt.tariffRate || "-"}</td>
+        </tr>
+        <tr className="bg-gray-50 dark:bg-gray-800">
+          <td className="p-2 font-semibold">Phone:</td>
+          <td className="p-2">{receipt.phone || "-"}</td>
+        </tr>
+        <tr>
+          <td className="p-2 font-semibold">Email:</td>
+          <td className="p-2">{receipt.email || "-"}</td>
+        </tr>
+      </tbody>
+    </table>
 
-            <input
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="Amount"
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            />
+    {/* Payment Inputs */}
+    <div className="space-y-4">
+      <input
+        type="number"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        placeholder="Amount"
+        className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+      />
+      <input
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="Phone Number"
+        className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+      />
+      {message && <p className="text-red-600 font-medium">{message}</p>}
+    </div>
 
-            <input
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="Phone Number"
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            />
+    <div className="flex gap-3 mt-4">
+      <button
+        onClick={() => {
+          setStage("verify");
+          setMeterNumber("");
+          setAmount("");
+          setPhone("");
+          setCustomerName("");
+          setReceipt(null);
+          setMessage("");
+        }}
+        className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
+      >
+        Back
+      </button>
+      <button
+        onClick={handleCheckout}
+        className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold"
+      >
+        Pay & Get Token
+      </button>
+    </div>
+  </div>
+)}
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStage("verify")}
-                className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleCheckout}
-                className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold"
-              >
-                Pay
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ===== PROCESSING ===== */}
-        {checkoutStage === "processing" && (
+        {/* PROCESSING */}
+        {stage === "processing" && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow">
             Processing your electricity purchase…
           </div>
         )}
 
-        {/* ===== SUCCESS ===== */}
-        {checkoutStage === "success" && (
+        {/* SUCCESS */}
+        {stage === "success" && receipt && (
           <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-3">
-            <h2 className="text-xl font-bold">Electricity Purchase Successful ⚡</h2>
-
-            {reference && (
-              <p className="text-xs break-all">
-                <b>Reference:</b> {reference}
-              </p>
-            )}
-
-            {token && (
-              <div className="bg-white/80 dark:bg-black/30 p-3 rounded">
+            <h2 className="text-xl font-bold">Purchase Successful ⚡</h2>
+            <p><b>Meter:</b> {receipt.meter_number}</p>
+            <p><b>Type:</b> {receipt.type}</p>
+            <p><b>Amount:</b> ₦{receipt.amount}</p>
+            <p><b>Customer:</b> {receipt.customer_name}</p>
+            {receipt.token && (
+              <div className="bg-white/80 dark:bg-black/30 p-3 rounded mt-2">
                 <p className="font-semibold">Token</p>
-                <p className="font-mono text-lg tracking-wider">{token}</p>
+                <p className="font-mono text-lg tracking-wider">{receipt.token}</p>
               </div>
             )}
-
-            <p className="text-sm opacity-80">
-              Redirecting to transactions…
-            </p>
+            <button
+              onClick={() => {
+                setStage("verify");
+                setMeterNumber("");
+                setAmount("");
+                setPhone("");
+                setCustomerName("");
+                setReceipt(null);
+                setMessage("");
+              }}
+              className="w-full bg-green-600 text-white py-3 rounded font-semibold"
+            >
+              Buy Again
+            </button>
           </div>
         )}
 
-        {/* ===== ERROR ===== */}
-        {checkoutStage === "error" && (
+        {/* ERROR */}
+        {stage === "error" && (
           <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
             <h2 className="text-lg font-bold">Something went wrong</h2>
-            <p className="text-sm">{errorMessage}</p>
-            <a
-              href="/contact"
-              className="inline-block bg-yellow-500 text-white py-3 px-4 rounded w-full"
-            >
+            <p className="text-sm">{message}</p>
+            <a href="/contact" className="inline-block bg-yellow-500 text-white py-3 px-4 rounded w-full">
               Contact Support
             </a>
           </div>
