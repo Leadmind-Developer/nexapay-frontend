@@ -17,15 +17,20 @@ export interface TransactionItem {
   requestId: string;
   serviceId: string;
   status: "SUCCESS" | "FAILED" | "PROCESSING" | string;
-  amount: number;
+  amount: number;  
   createdAt: string;
   phone?: string;
   billersCode?: string;
   apiResponse?: {
     pin?: string;
     token?: string;
+    units?: string | number;
+    unitLabel?: string; // "kWh"
   };
-  meta?: Record<string, any>;
+  meta?: {
+    token?: string;
+    units?: string | number;
+    unitLabel?: string;
 }
 
 function isValidTransaction(obj: any): obj is TransactionItem {
@@ -234,7 +239,16 @@ export default function TransactionsPage() {
             )}
           </p>
         </div>
-      )}
+      {selectedTx.meta.units && (
+      <div>
+        <p className="text-xs text-gray-500">Units</p>
+        <p className="font-semibold">
+          {selectedTx.meta.units} {selectedTx.meta.unitLabel || "kWh"}
+        </p>
+      </div>
+    )}
+  </div>
+)}
 
       <div className="flex gap-2 pt-2">
         <button
