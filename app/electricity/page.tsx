@@ -3,26 +3,84 @@
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
-import Link from "next/link";
 
 /* ================= TYPES ================= */
 type Disco = { code: string; label: string };
-
-type Stage = "verify" | "review" | "processing" | "success" | "error";
+type Stage = "verify" | "review" | "processing" | "receipt" | "error";
 
 interface MeterVerification {
   customer_name: string;
   meter_number: string;
+  address?: string;
+  meterType?: string;
+  accountType?: string;
+  canVend?: string;
+  tariffRate?: string;
 }
 
 interface Receipt {
   requestId: string;
   meter_number: string;
-  customer_name: string;
   type: "prepaid" | "postpaid";
+  customer_name: string;
   amount: number;
+  token?: string | null;
   status: "SUCCESS" | "PROCESSING" | "FAILED";
+  vtpass?: {
+    exchangeReference?: string;
+    units?: string;
+  };
 }
+
+/* ================= VTpass NORMALIZER ================= */
+function normalizeVtpassReceipt(raw: any, fallback: Receipt): Receipt {
+  if (!raw) return { ...fallback };
+
+  const vt = raw.vtpass || {};
+  const content = {
+    token: raw.token || raw.token_code || raw.purchased_code?.replace(/^Token\s*:\s*/i, "") || vt.token || null,
+    exchangeReference: vt.exchangeReference || raw.exchangeReference || null,
+    units: vt.units || raw.units || null,
+  };
+
+  const rawStatus = String(
+    raw.status || raw.transactionStatus || raw.response_description || ""
+  ).toLowerCase();
+
+  const status: Receipt["status"] =
+    ["successful", "delivered", "success", "transaction successful"].some(s => rawStatus.includes(s))
+      ? "SUCCESS"
+      : ["failed", "error"].some(s => rawStatus.includes(s))
+      ? "FAILED"
+      : "PROCESSING";
+
+  return {
+    ...fallback,
+    status,
+    token: content.token || fallback.token,
+    customer_name: raw.customerName || fallback.customer_name,
+    meter_number: raw.meterNumber || fallback.meter_number,
+    amount: Number(raw.amount) || fallback.amount,
+    vtpass: {
+      exchangeReference: content.exchangeReference,
+      units: content.units,
+    },
+  };
+}
+
+
+/* ================= COUNTDOWN ================= */
+const CountdownTimer = ({ seconds }: { seconds: number }) => {
+  const [t, setT] = useState(seconds);
+
+  useEffect(() => {
+    if (t <= 0) return;
+    const i = setInterval(() => setT(v => v - 1), 1000);
+    return () => clearInterval(i);
+  }, [t]);
+
+  return <p className="text-xs text-gray-500">Checking again in {t}s…</p>;
+};
 
 /* ================= PAGE ================= */
 export default function ElectricityPage() {
@@ -36,28 +94,28 @@ export default function ElectricityPage() {
   const [verification, setVerification] = useState<MeterVerification | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [stage, setStage] = useState<Stage>("verify");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loadingVerify, setLoadingVerify] = useState(false);
+  const [showMore, setShowMore] = useState(false);
 
   /* ================= LOAD DISCOS ================= */
   useEffect(() => {
-    api
-      .get("/vtpass/electricity/discos")
-      .then((res) => {
-        setDiscos(res.data || []);
-        if (res.data?.length) setServiceId(res.data[0].code);
+    api.get("/vtpass/electricity/discos")
+      .then(r => {
+        setDiscos(r.data || []);
+        if (r.data?.length) setServiceId(r.data[0].code);
       })
-      .catch(() => setError("Failed to load electricity providers"));
+      .catch(() => setMessage("Failed to load providers"));
   }, []);
 
-  /* ================= VERIFY METER ================= */
+  /* ================= VERIFY ================= */
   const verifyMeter = async () => {
     if (!serviceId || !meterNumber) {
-      setError("Enter meter number");
-      return;
+      return setMessage("Enter meter number");
     }
-    setLoading(true);
-    setError("");
+
+    setLoadingVerify(true);
+    setMessage("");
 
     try {
       const res = await api.post("/vtpass/electricity/verify", {
@@ -66,22 +124,53 @@ export default function ElectricityPage() {
         type,
       });
 
-      setVerification(res.data.details);
-      setStage("review");
+      if (res.data?.verified) {
+        setVerification(res.data.details);
+        setStage("review");
+        return;
+      }
+
+      throw new Error("Verification failed");
     } catch (e: any) {
-      setError(e?.response?.data?.error || "Meter verification failed");
+      setMessage(e?.response?.data?.error || e.message);
     } finally {
-      setLoading(false);
+      setLoadingVerify(false);
     }
   };
 
+  /* ================= POLL RECEIPT ================= */
+  const pollReceipt = async (requestId: string, base: Receipt) => {
+  try {
+    const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
+    const rawReceipt = res.data?.receipt;
+
+    // Normalize safely using our updated function
+    const normalized = normalizeVtpassReceipt(rawReceipt, base);
+
+    // Update receipt state
+    setReceipt(prev => ({
+      ...prev,
+      ...normalized, // merge new info
+    }));
+    setStage("receipt");
+
+    // Poll only if still processing
+    if (normalized.status === "PROCESSING") {
+      setTimeout(() => pollReceipt(requestId, normalized), 4000);
+    }
+  } catch {
+    // Retry on network error
+    setTimeout(() => pollReceipt(requestId, base), 5000);
+  }
+};
+
   /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
-    if (!verification || !amount || !phone) return;
+    if (!verification) return;
+    if (!amount || !phone) return setMessage("Enter amount & phone");
 
-    setLoading(true);
     setStage("processing");
-    setError("");
+    setMessage("");
 
     try {
       const res = await api.post("/vtpass/electricity/checkout", {
@@ -92,132 +181,122 @@ export default function ElectricityPage() {
         amount: Number(amount),
       });
 
-      // Skip polling — just show success page
-      const baseReceipt: Receipt = {
+      const base: Receipt = {
         requestId: res.data.requestId,
         meter_number: verification.meter_number,
         customer_name: verification.customer_name,
-        type,
         amount: Number(amount),
-        status: "SUCCESS",
+        type,
+        status: "PROCESSING",
+        token: null,
       };
 
-      setReceipt(baseReceipt);
-      setStage("success");
+      setReceipt(base);
+      pollReceipt(base.requestId, base);
     } catch (e: any) {
       setStage("error");
-      setError(e?.response?.data?.error || "Payment failed");
-    } finally {
-      setLoading(false);
+      setMessage(e?.response?.data?.error || "Checkout failed");
     }
   };
 
   /* ================= UI ================= */
   return (
     <BannersWrapper page="electricity">
-      <div className="max-w-md mx-auto px-4 space-y-6">
-        <Stepper stage={stage} />
+      <div className="max-w-md mx-auto px-4 space-y-4">
 
         {/* VERIFY */}
         {stage === "verify" && (
           <Card title="Verify Meter">
-            <div className="flex gap-2 mb-2">
-              <select
-                className="input flex-1"
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-              >
-                {discos.map((d) => (
-                  <option key={d.code} value={d.code}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="input flex-1"
-                value={type}
-                onChange={(e) => setType(e.target.value as any)}
-              >
-                <option value="prepaid">Prepaid</option>
-                <option value="postpaid">Postpaid</option>
-              </select>
-            </div>
+            <select value={serviceId} onChange={e => setServiceId(e.target.value)} className="input">
+              {discos.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
+            </select>
 
-            <input
-              className="input mb-2"
-              placeholder="Meter Number"
-              value={meterNumber}
-              onChange={(e) => setMeterNumber(e.target.value)}
-            />
+            <input value={meterNumber} onChange={e => setMeterNumber(e.target.value)} className="input" placeholder="Meter Number" />
 
-            {error && <ErrorText>{error}</ErrorText>}
+            <select value={type} onChange={e => setType(e.target.value as any)} className="input">
+              <option value="prepaid">Prepaid</option>
+              <option value="postpaid">Postpaid</option>
+            </select>
 
-            <PrimaryButton disabled={loading} onClick={verifyMeter}>
-              {loading ? <Spinner /> : "Verify Meter"}
+            {message && <ErrorText>{message}</ErrorText>}
+
+            <PrimaryButton onClick={verifyMeter}>
+              {loadingVerify ? "Verifying…" : "Verify"}
             </PrimaryButton>
           </Card>
         )}
 
         {/* REVIEW */}
         {stage === "review" && verification && (
-          <Card title="Review & Pay">
-            <p className="font-semibold">{verification.customer_name}</p>
-            <p className="text-sm text-gray-500">{verification.meter_number}</p>
+          <Card title="Review & Pay ⚡">
+            <p><b>{verification.customer_name}</b></p>
+            <p>{verification.meter_number}</p>
 
-            <div className="flex gap-2 mb-2">
-              <input
-                className="input flex-1"
-                type="number"
-                placeholder="Amount"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-              <input
-                className="input flex-1"
-                placeholder="Phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
+            <button onClick={() => setShowMore(v => !v)} className="link">
+              {showMore ? "Hide details ▲" : "More details ▼"}
+            </button>
+
+            {showMore && (
+              <div className="box">
+                <p>Address: {verification.address || "-"}</p>
+                <p>Tariff: {verification.tariffRate || "-"}</p>
+              </div>
+            )}
+
+            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input" placeholder="Amount" />
+            <input value={phone} onChange={e => setPhone(e.target.value)} className="input" placeholder="Phone" />
+
+            <div className="flex gap-3">
+              <SecondaryButton onClick={() => setStage("verify")}>Back</SecondaryButton>
+              <PrimaryButton onClick={handleCheckout}>Pay</PrimaryButton>
             </div>
-
-            <PrimaryButton disabled={loading} onClick={handleCheckout}>
-              {loading ? <Spinner /> : "Pay Now"}
-            </PrimaryButton>
           </Card>
         )}
 
         {/* PROCESSING */}
         {stage === "processing" && (
-          <Card center title="Processing Payment">
+          <Card center title="Processing…">
             <Spinner />
-            <p className="text-sm text-gray-500 mt-2">
-              Completing transaction… please wait
-            </p>
+            <p className="text-sm text-gray-500">Please wait</p>
           </Card>
         )}
 
-        {/* SUCCESS */}
-        {stage === "success" && receipt && (
-          <Card title="Payment Successful">
-            <p className="text-gray-700">
-              Your payment of <b>₦{receipt.amount}</b> was successful.
-            </p>
-            <p className="text-gray-700">
-              Check your <Link href="/transactions" className="text-yellow-600 underline font-semibold">Transactions page</Link> for your token and receipt.
-            </p>
+        {/* RECEIPT */}
+        {stage === "receipt" && receipt && (
+  <Card title="Electricity Receipt ⚡">
+    <p><b>Status:</b> {receipt.status}</p>
+    <p><b>Customer:</b> {receipt.customer_name || "-"}</p>
+    <p><b>Meter:</b> {receipt.meter_number || "-"}</p>
+    <p><b>Amount:</b> ₦{receipt.amount ?? "-"}</p>
 
-            <PrimaryButton onClick={() => window.location.reload()}>
-              Make Another Payment
-            </PrimaryButton>
-          </Card>
-        )}
+    <div className="box text-center">
+      <p className="font-semibold">Token</p>
+      {receipt.token ? (
+        <p className="font-mono tracking-widest">{receipt.token}</p>
+      ) : receipt.status === "PROCESSING" ? (
+        <>
+          <Spinner />
+          <CountdownTimer seconds={30} />
+        </>
+      ) : (
+        <p className="text-red-600">Token not available</p>
+      )}
+    </div>
+
+    <PrimaryButton onClick={() => window.location.reload()}>
+      Buy Again
+    </PrimaryButton>
+  </Card>
+)}
+
 
         {/* ERROR */}
         {stage === "error" && (
-          <Card title="Error">
-            <ErrorText>{error}</ErrorText>
+          <Card title="Something went wrong">
+            <ErrorText>{message}</ErrorText>
           </Card>
         )}
+
       </div>
     </BannersWrapper>
   );
@@ -225,23 +304,18 @@ export default function ElectricityPage() {
 
 /* ================= UI HELPERS ================= */
 const Card = ({ title, children, center }: any) => (
-  <div
-    className={`bg-white dark:bg-gray-900 rounded-lg p-5 shadow space-y-4 ${
-      center ? "text-center" : ""
-    }`}
-  >
-    <h2 className="font-semibold text-lg mb-2">{title}</h2>
+  <div className={`bg-white dark:bg-gray-900 border rounded p-5 space-y-4 shadow ${center && "text-center"}`}>
+    <h2 className="font-bold text-lg">{title}</h2>
     {children}
   </div>
 );
 
 const PrimaryButton = ({ children, ...p }: any) => (
-  <button
-    {...p}
-    className="w-full bg-yellow-500 text-white py-3 rounded font-semibold disabled:opacity-60"
-  >
-    {children}
-  </button>
+  <button {...p} className="w-full bg-yellow-500 text-white py-3 rounded font-semibold">{children}</button>
+);
+
+const SecondaryButton = ({ children, ...p }: any) => (
+  <button {...p} className="w-full bg-gray-200 dark:bg-gray-700 py-3 rounded">{children}</button>
 );
 
 const ErrorText = ({ children }: any) => (
@@ -250,28 +324,6 @@ const ErrorText = ({ children }: any) => (
 
 const Spinner = () => (
   <div className="flex justify-center">
-    <div className="h-5 w-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+    <div className="h-6 w-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
   </div>
 );
-
-const Stepper = ({ stage }: { stage: Stage }) => {
-  const steps = ["verify", "review", "processing", "success"];
-  return (
-    <div className="flex justify-between mb-4">
-      {steps.map((s, i) => (
-        <div key={s} className="flex-1 text-center relative">
-          <div
-            className={`h-2 w-full rounded-full ${
-              stage === s || steps.indexOf(stage) > i
-                ? "bg-yellow-500"
-                : "bg-gray-300"
-            }`}
-          ></div>
-          <span className="absolute -top-5 text-xs text-gray-500 font-semibold">
-            {s.toUpperCase()}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-};
