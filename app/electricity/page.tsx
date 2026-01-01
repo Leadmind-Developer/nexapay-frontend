@@ -391,6 +391,10 @@ const handleCheckout = async () => {
   </div>
 )}
         
+   {stage === "success" && (
+  <>
+    {/* existing success card stays exactly as-is */}
+
     <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm text-yellow-800 dark:text-yellow-200">
       <p className="font-medium mb-1">Didn’t get your token?</p>
       <p>
