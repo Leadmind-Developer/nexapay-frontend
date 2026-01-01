@@ -17,20 +17,21 @@ export interface TransactionItem {
   requestId: string;
   serviceId: string;
   status: "SUCCESS" | "FAILED" | "PROCESSING" | string;
-  amount: number;  
+  amount: number;
   createdAt: string;
-  phone?: string;
-  billersCode?: string;
+
   apiResponse?: {
-    pin?: string;
     token?: string;
+    pin?: string;
     units?: string | number;
     unitLabel?: string; // "kWh"
   };
+
   meta?: {
     token?: string;
     units?: string | number;
     unitLabel?: string;
+  };
 }
 
 function isValidTransaction(obj: any): obj is TransactionItem {
