@@ -192,72 +192,76 @@ export default function TransactionsPage() {
       )}
 
       {/* ================= MODAL ================= */}
-      {selectedTx && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-          onClick={closeModal}
-        >
-          <div
-            className="bg-white max-w-xl w-full rounded-lg p-6 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold">Transaction Details</h2>
+{selectedTx && (
+  <div
+    className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
+    onClick={closeModal}
+  >
+    <div
+      className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 max-w-xl w-full rounded-lg p-6 space-y-4 shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h2 className="text-xl font-bold">Transaction Details</h2>
 
-            <div className="space-y-2 text-sm">
-              <p><b>Service:</b> {getServiceName(selectedTx.serviceId)}</p>
-              <p><b>Reference:</b> {selectedTx.requestId}</p>
-              <p><b>Amount:</b> ₦{selectedTx.amount}</p>
-              <p><b>Status:</b> {selectedTx.status}</p>
-              <p className="text-gray-500">
-                {formatTransactionTime(selectedTx.createdAt)}
-              </p>
-            </div>
+      <div className="space-y-2 text-sm">
+        <p>
+          <b>Service:</b> {getServiceName(selectedTx.serviceId)}
+        </p>
+        <p>
+          <b>Reference:</b> {selectedTx.requestId}
+        </p>
+        <p>
+          <b>Amount:</b> ₦{selectedTx.amount}
+        </p>
+        <p>
+          <b>Status:</b> {selectedTx.status}
+        </p>
+        <p className="text-gray-500 dark:text-gray-400">
+          {formatTransactionTime(selectedTx.createdAt)}
+        </p>
+      </div>
 
-            {(selectedTx.apiResponse?.token ||
-              selectedTx.apiResponse?.pin) && (
-              <div className="bg-green-50 border rounded p-3 text-center">
-                <p className="text-xs uppercase text-green-700 mb-1">
-                  Electricity Token
-                </p>
-                <p className="font-mono text-lg tracking-widest">
-                  {formatToken(
-                    selectedTx.apiResponse.token ||
-                      selectedTx.apiResponse.pin!
-                  )}
-                </p>
-              </div>
+      {(selectedTx.apiResponse?.token ||
+        selectedTx.apiResponse?.pin) && (
+        <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded p-3 text-center">
+          <p className="text-xs uppercase text-green-700 dark:text-green-300 mb-1">
+            Electricity Token
+          </p>
+          <p className="font-mono text-lg tracking-widest">
+            {formatToken(
+              selectedTx.apiResponse.token ||
+                selectedTx.apiResponse.pin!
             )}
-
-            <div className="flex gap-2 pt-2">
-              <button
-                className="flex-1 bg-blue-600 text-white py-2 rounded"
-                onClick={() => window.open(pdfUrl!, "_blank")}
-              >
-                Download Receipt
-              </button>
-
-              <button
-                className="flex-1 bg-green-600 text-white py-2 rounded"
-                onClick={() =>
-                  shareViaWhatsApp(selectedTx.requestId)
-                }
-              >
-                Share WhatsApp
-              </button>
-
-              <button
-                className="flex-1 bg-gray-200 py-2 rounded"
-                onClick={closeModal}
-              >
-                Close
-              </button>
-            </div>
-          </div>
+          </p>
         </div>
       )}
+
+      <div className="flex gap-2 pt-2">
+        <button
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
+          onClick={() => window.open(pdfUrl!, "_blank")}
+        >
+          Download Receipt
+        </button>
+
+        <button
+          className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
+          onClick={() => shareViaWhatsApp(selectedTx.requestId)}
+        >
+          Share WhatsApp
+        </button>
+
+        <button
+          className="flex-1 bg-gray-200 dark:bg-gray-700 dark:text-gray-100 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+          onClick={closeModal}
+        >
+          Close
+        </button>
+      </div>
     </div>
-  );
-}
+  </div>
+)}
+
 
 /* ================= SECTION ================= */
 
