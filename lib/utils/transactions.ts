@@ -57,20 +57,8 @@ export function groupTransactionsByDate<T extends { createdAt: string }>(
 }
 
 /* -------- WhatsApp Share -------- */
-export function shareViaWhatsApp(
-  reference: string,
-  url?: string
-) {
-  if (typeof window === "undefined") return;
-
-  const message = [
-    "Here is my Nexa transaction receipt.",
-    `Reference: ${reference}`,
-    url ? `Receipt: ${url}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  const text = encodeURIComponent(message);
-  window.open(`https://wa.me/?text=${text}`, "_blank");
+export function shareViaWhatsApp(reference: string) {
+  const pdfUrl = `${API_BASE}/transactions/${reference}/receipt.pdf`;
+  const message = `Hi! Here is my Nexa electricity receipt: ${pdfUrl}`;
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, "_blank");
 }
