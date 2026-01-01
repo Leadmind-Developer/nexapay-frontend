@@ -57,32 +57,35 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
 
   /* ---------------- Virtual account check ---------------- */
   useEffect(() => {
-    if (draft.primarySource !== "MANUAL") return;
+  if (draft.primarySource !== "MANUAL") return;
 
-    const fetchVA = async () => {
-      setVaLoading(true);
-      try {
-        const res = await api.get("/wallet/virtual-account");
-        if (res.data?.accountNumber) {
-          setVaExists(true);
-          setDraft(d => ({
-            ...d,
-            vaAccount: res.data.accountNumber,
-            vaBank: res.data.bankName,
-          }));
-        } else {
-          setVaExists(false);
-        }
-      } catch {
+  const fetchVA = async () => {
+    setVaLoading(true);
+    try {
+      const res = await api.get("/wallet");
+
+      const va = res.data?.virtualAccount;
+
+      if (va?.accountNumber) {
+        setVaExists(true);
+        setDraft(d => ({
+          ...d,
+          vaAccount: va.accountNumber,
+          vaBank: va.bankName,
+        }));
+      } else {
         setVaExists(false);
-      } finally {
-        setVaLoading(false);
       }
-    };
+    } catch (err) {
+      console.error("Failed to fetch virtual account:", err);
+      setVaExists(false);
+    } finally {
+      setVaLoading(false);
+    }
+  };
 
-    fetchVA();
-  }, [draft.primarySource]);
-
+  fetchVA();
+}, [draft.primarySource]);
   /* ---------------- Schedule preview (NAIRA → KOBO safe) ---------------- */
   useEffect(() => {
     if (step !== 3) return;
