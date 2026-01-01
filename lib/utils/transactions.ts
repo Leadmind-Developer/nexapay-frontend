@@ -59,18 +59,19 @@ export function groupTransactionsByDate<T extends { createdAt: string }>(
 /* -------- WhatsApp Share -------- */
 export function shareViaWhatsApp(
   reference: string,
-  url?: string
+  receiptUrl: string
 ) {
   if (typeof window === "undefined") return;
 
-  const message = [
-    "Here is my Nexa transaction receipt.",
-    `Reference: ${reference}`,
-    url ? `Receipt: ${url}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const message = `
+Nexa Transaction Receipt
+
+Reference: ${reference}
+Download Receipt: ${receiptUrl}
+  `.trim();
 
   const text = encodeURIComponent(message);
+
   window.open(`https://wa.me/?text=${text}`, "_blank");
 }
+
