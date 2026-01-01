@@ -48,3 +48,12 @@ export function groupTransactionsByDate<T extends { createdAt: string }>(
 
   return { today, yesterday, older };
 }
+
+/* -------- WhatsApp Share -------- */
+function shareViaWhatsApp(reference: string) {
+  const text = encodeURIComponent(
+    `Here is my Nexa transaction receipt.\nReference: ${reference}`
+  );
+  window.open(`https://wa.me/?text=${text}`, "_blank");
+}
+
