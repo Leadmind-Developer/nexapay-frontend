@@ -86,35 +86,6 @@ export default function SavingsDailyCreateModal({ onClose }: Props) {
 
   fetchVA();
 }, [draft.primarySource]);
-  /* ---------------- Schedule preview (NAIRA → KOBO safe) ---------------- */
-  useEffect(() => {
-    if (step !== 3) return;
-    if (!totalTarget || totalTarget <= 0 || !draft.startDate) {
-      setSchedule([]);
-      return;
-    }
-
-    const fetchSchedule = async () => {
-      try {
-        const res = await api.get("/savings/strict-daily/schedule-preview", {
-          params: {
-            targetAmount: totalTarget, // NAIRA
-            startDate: draft.startDate,
-          },
-        });
-
-        if (res.data?.success) {
-          setSchedule(res.data.data);
-        } else {
-          setSchedule([]);
-        }
-      } catch {
-        setSchedule([]);
-      }
-    };
-
-    fetchSchedule();
-  }, [step, totalTarget, draft.startDate]);
 
   /* ---------------- Submit ---------------- */
   const submit = async () => {
