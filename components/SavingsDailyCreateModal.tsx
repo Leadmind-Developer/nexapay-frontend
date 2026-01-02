@@ -22,7 +22,14 @@ type DailyScheduleItem = {
 
 const STORAGE_KEY = "savings-daily-draft";
 
-export default function SavingsDailyCreateModal({ onClose }: Props) {
+export default function SavingsDailyCreateModal({
+  onClose,
+  onCreated,
+  }: {
+  onClose: () => void;
+  onCreated: (goal: any) => void;
+  })
+
   const [step, setStep] = useState(1);
 
   const [draft, setDraft] = useState<DailyDraft>({
