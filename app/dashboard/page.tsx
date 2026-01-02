@@ -18,34 +18,10 @@ import {
   IoRefreshOutline,
 } from "react-icons/io5";
 import api from "@/lib/api";
-import {
-  formatDate,
-  getCategoryLabel,
-  normalizeStatus,
-  groupTransactions,
-  shareWhatsApp,
-  shareEmail,
-  downloadReceipt,
-} from "@/lib/transactionHelpers";
-import { generateReceiptPDF } from "@/lib/receipts/receiptPdf";
-
 
 interface VirtualAccount {
   number: string;
   bank: string;
-}
-
-interface Transaction {
-  id: number;
-  type: "credit" | "debit";
-  amount: number;
-  reference?: string | null;
-  createdAt: string;
-
-  category?: string;
-  narration?: string;
-  status?: string;
-  transactionStatus?: string;
 }
 
 export default function DashboardPage() {
@@ -55,8 +31,6 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
   const fetchWallet = useCallback(async () => {
     try {
@@ -75,7 +49,6 @@ export default function DashboardPage() {
 
       if (walletData) {
         setBalance(walletData.balance); // already in Naira
-        setTransactions(walletData.transactions || []);
       }
 
       // Virtual account
@@ -94,7 +67,6 @@ export default function DashboardPage() {
     }
   }, [refreshing]);
 
-  // Initial fetch
   useEffect(() => {
     fetchWallet();
   }, [fetchWallet]);
@@ -228,124 +200,51 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Transaction History */}
-<div>
-  <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">
-    Recent Transactions
-  </h2>
-
-  {transactions.length === 0 ? (
-    <p className="text-gray-500 dark:text-gray-400">No transactions yet</p>
-  ) : (
-    (() => {
-      const grouped = groupTransactions(transactions);
-
-      return (
-        <div className="space-y-4">
-          {(["today", "thisWeek", "older"] as const).map((key) =>
-            grouped[key].length > 0 ? (
-              <div key={key}>
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
-                  {key === "today"
-                    ? "TODAY"
-                    : key === "thisWeek"
-                    ? "THIS WEEK"
-                    : "OLDER"}
-                </p>
-
-                {grouped[key].map((tx) => {
-                  const status = normalizeStatus(tx);
-
-                  return (
-                    <button
-                      key={tx.id}
-                      onClick={() => setSelectedTx(tx)}
-                      className={`w-full flex justify-between items-center p-3 rounded-lg mb-2 transition
-                        ${
-                          tx.type === "credit"
-                            ? "bg-green-50 dark:bg-green-900"
-                            : "bg-red-50 dark:bg-red-900"
-                        }
-                      `}
-                    >
-                      <div className="text-left">
-                        <p className="font-semibold text-gray-900 dark:text-gray-100">
-                          {getCategoryLabel(tx)}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatDate(tx.createdAt)}
-                        </p>
-                        <p className="text-xs capitalize opacity-70">
-                          {status}
-                        </p>
-                      </div>
-
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">
-                        {tx.type === "credit" ? "+" : "-"}₦
-                        {tx.amount.toLocaleString()}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null
-          )}
-        </div>
-      );
-    })()
-  )}
-</div>
-
-        {selectedTx && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white dark:bg-gray-900 w-[90%] max-w-md p-6 rounded-xl space-y-4">
-      <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">
-        Transaction Receipt
-      </h3>
-
-      <div className="text-sm space-y-1 text-gray-700 dark:text-gray-300">
-        <p><b>Status:</b> {normalizeStatus(selectedTx)}</p>
-        <p><b>Category:</b> {getCategoryLabel(selectedTx)}</p>
-        <p><b>Amount:</b> ₦{selectedTx.amount}</p>
-        <p><b>Date:</b> {formatDate(selectedTx.createdAt)}</p>
-        <p className="break-all">
-          <b>Reference:</b> {selectedTx.reference || "N/A"}
+        {/* Transactions / Events / Expenses Shortcut */}
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+          See all your transactions, events, and expenses below
         </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <a
+            href="/transactions"
+            className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow hover:shadow-lg transition flex flex-col justify-between"
+          >
+            <div>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">Transactions</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                All wallet, bills & transfers
+              </p>
+            </div>
+            <span className="mt-2 text-blue-600 dark:text-blue-400 font-semibold">Go</span>
+          </a>
+
+          <a
+            href="/event"
+            className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow hover:shadow-lg transition flex flex-col justify-between"
+          >
+            <div>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">Events</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                View & manage your events
+              </p>
+            </div>
+            <span className="mt-2 text-blue-600 dark:text-blue-400 font-semibold">Go</span>
+          </a>
+
+          <a
+            href="/expense"
+            className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow hover:shadow-lg transition flex flex-col justify-between"
+          >
+            <div>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">Expenses</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Track & manage your expenses
+              </p>
+            </div>
+            <span className="mt-2 text-blue-600 dark:text-blue-400 font-semibold">Go</span>
+          </a>
+        </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-3 pt-4">
-        <button
-          onClick={() => generateReceiptPDF(selectedTx)}
-          className="bg-blue-600 text-white py-2 rounded-lg"
-        >
-          Download
-        </button>
-
-        <button
-          onClick={() => shareWhatsApp(selectedTx)}
-          className="bg-green-600 text-white py-2 rounded-lg"
-        >
-          WhatsApp
-        </button>
-
-        <button
-          onClick={() => shareEmail(selectedTx)}
-          className="col-span-2 bg-gray-700 text-white py-2 rounded-lg"
-        >
-          Share via Email
-        </button>
-
-        <button
-          onClick={() => setSelectedTx(null)}
-          className="col-span-2 bg-gray-200 dark:bg-gray-700 py-2 rounded-lg"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
- </div>
     </div>
   );
 }
