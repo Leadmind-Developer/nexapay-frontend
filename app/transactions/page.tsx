@@ -315,8 +315,8 @@ function TransactionSection({
               <p className="font-semibold capitalize">{getServiceName(tx.serviceId)}</p>
               <p className="text-xs text-gray-500">{formatTransactionTime(tx.createdAt)}</p>
               {tx.status && (
-                <p className={`text-xs uppercase ${tx.type === "service" ? getTxColor(tx) : ""}`}>
-                  {tx.status}
+                <p className={`${tx.type === "service" ? getTxColor(tx) : ""}`}>
+                  <b>Status:</b> {tx.status}
                 </p>
               )}
             </div>
