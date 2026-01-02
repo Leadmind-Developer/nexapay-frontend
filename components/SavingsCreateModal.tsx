@@ -38,9 +38,14 @@ type SavingsDraft = {
   accountName: string;
 };
 
-type Props = { onClose: () => void };
+type Props = {
+  open: boolean;
+  onClose: () => void;
+};
 
-export default function SavingsCreateModal({ onClose }: Props) {
+export default function SavingsCreateModal({ open, onClose }: Props) {
+  if (!open) return null;
+  
   const [step, setStep] = useState(1);
   const [banks, setBanks] = useState<any[]>([]);
   const [verifying, setVerifying] = useState(false);
@@ -148,8 +153,14 @@ export default function SavingsCreateModal({ onClose }: Props) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-xl p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-white rounded-xl p-6 w-full max-w-lg">
+        {/* modal content */}
+        <button onClick={onClose}>Close</button>
+        </div>
+      </div>
+    );
+  }
 
         {/* STEP 1 */}
         {step === 1 && (
