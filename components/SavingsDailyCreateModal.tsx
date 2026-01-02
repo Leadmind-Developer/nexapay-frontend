@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
-type Props = { onClose: () => void };
+type Props = {
+  onClose: () => void;
+  onCreated: (goal: any) => void;
+};
 
 type DailyDraft = {
   targetAmount: string; // NAIRA
@@ -22,14 +25,7 @@ type DailyScheduleItem = {
 
 const STORAGE_KEY = "savings-daily-draft";
 
-export default function SavingsDailyCreateModal({
-  onClose,
-  onCreated,
-  }: {
-  onClose: () => void;
-  onCreated: (goal: any) => void;
-  })
-
+export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
   const [step, setStep] = useState(1);
 
   const [draft, setDraft] = useState<DailyDraft>({
@@ -64,53 +60,62 @@ export default function SavingsDailyCreateModal({
 
   /* ---------------- Virtual account check ---------------- */
   useEffect(() => {
-  if (draft.primarySource !== "MANUAL") return;
+    if (draft.primarySource !== "MANUAL") return;
 
-  const fetchVA = async () => {
-    setVaLoading(true);
-    try {
-      const res = await api.get("/wallet");
+    const fetchVA = async () => {
+      setVaLoading(true);
+      try {
+        const res = await api.get("/wallet");
+        const va = res.data?.virtualAccount;
 
-      const va = res.data?.virtualAccount;
-
-      if (va?.accountNumber) {
-        setVaExists(true);
-        setDraft(d => ({
-          ...d,
-          vaAccount: va.accountNumber,
-          vaBank: va.bankName,
-        }));
-      } else {
+        if (va?.accountNumber) {
+          setVaExists(true);
+          setDraft((d) => ({
+            ...d,
+            vaAccount: va.accountNumber,
+            vaBank: va.bankName,
+          }));
+        } else {
+          setVaExists(false);
+        }
+      } catch (err) {
+        console.error("Failed to fetch virtual account:", err);
         setVaExists(false);
+      } finally {
+        setVaLoading(false);
       }
-    } catch (err) {
-      console.error("Failed to fetch virtual account:", err);
-      setVaExists(false);
-    } finally {
-      setVaLoading(false);
-    }
-  };
+    };
 
-  fetchVA();
-}, [draft.primarySource]);
+    fetchVA();
+  }, [draft.primarySource]);
 
   /* ---------------- Submit ---------------- */
   const submit = async () => {
     if (!draft.primarySource || !totalTarget) return;
 
-    await api.post("/savings/strict-daily", {
-      targetAmount: totalTarget, // NAIRA
-      startDate: draft.startDate,
-      primarySource: "MANUAL",
-      vaAccount: draft.vaAccount,
-      vaBank: draft.vaBank,
-      durationDays: 30,
-      frequency: "daily",
-      planType: "STRICT_DAILY",
-    });
+    try {
+      const res = await api.post("/savings/strict-daily", {
+        targetAmount: totalTarget, // NAIRA
+        startDate: draft.startDate,
+        primarySource: "MANUAL",
+        vaAccount: draft.vaAccount,
+        vaBank: draft.vaBank,
+        durationDays: 30,
+        frequency: "daily",
+        planType: "STRICT_DAILY",
+      });
 
-    localStorage.removeItem(STORAGE_KEY);
-    onClose();
+      const goal = res.data?.goal;
+      if (goal) {
+        onCreated(goal); // Notify parent
+      }
+
+      localStorage.removeItem(STORAGE_KEY);
+      onClose();
+    } catch (err) {
+      console.error("Failed to create strict daily savings:", err);
+      alert("Failed to create savings. Try again.");
+    }
   };
 
   const Step = ({ children }: { children: React.ReactNode }) => (
@@ -136,8 +141,8 @@ export default function SavingsDailyCreateModal({
               placeholder="Total amount (₦)"
               className="input w-full"
               value={draft.targetAmount}
-              onChange={e =>
-                setDraft(d => ({ ...d, targetAmount: e.target.value }))
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, targetAmount: e.target.value }))
               }
             />
 
@@ -146,8 +151,8 @@ export default function SavingsDailyCreateModal({
               type="date"
               className="input w-full"
               value={draft.startDate}
-              onChange={e =>
-                setDraft(d => ({ ...d, startDate: e.target.value }))
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, startDate: e.target.value }))
               }
             />
 
@@ -183,8 +188,8 @@ export default function SavingsDailyCreateModal({
             <select
               className="input w-full"
               value={draft.primarySource}
-              onChange={e =>
-                setDraft(d => ({
+              onChange={(e) =>
+                setDraft((d) => ({
                   ...d,
                   primarySource: e.target.value as DailyDraft["primarySource"],
                 }))
@@ -197,9 +202,7 @@ export default function SavingsDailyCreateModal({
             {draft.primarySource === "MANUAL" && (
               <div className="space-y-1">
                 {vaLoading && (
-                  <p className="text-sm text-gray-500">
-                    Checking virtual account…
-                  </p>
+                  <p className="text-sm text-gray-500">Checking virtual account…</p>
                 )}
                 {!vaLoading && vaExists && (
                   <p className="text-sm text-green-600">
@@ -235,17 +238,29 @@ export default function SavingsDailyCreateModal({
             <h2 className="text-lg font-semibold">Review & Schedule</h2>
 
             <div className="text-sm space-y-1">
-              <p><b>Total:</b> ₦{totalTarget.toLocaleString()}</p>
-              <p><b>Duration:</b> 30 days</p>
-              <p><b>Daily:</b> ₦{dailyAmount.toLocaleString()}</p>
-              <p><b>Start:</b> {draft.startDate}</p>
-              <p><b>Source:</b> Manual Transfer</p>
+              <p>
+                <b>Total:</b> ₦{totalTarget.toLocaleString()}
+              </p>
+              <p>
+                <b>Duration:</b> 30 days
+              </p>
+              <p>
+                <b>Daily:</b> ₦{dailyAmount.toLocaleString()}
+              </p>
+              <p>
+                <b>Start:</b> {draft.startDate}
+              </p>
+              <p>
+                <b>Source:</b> Manual Transfer
+              </p>
             </div>
 
             {schedule.length > 0 && (
-              <div className="max-h-64 overflow-x-auto rounded border
+              <div
+                className="max-h-64 overflow-x-auto rounded border
                               border-gray-200 dark:border-zinc-700
-                              bg-gray-50 dark:bg-zinc-800 p-2">
+                              bg-gray-50 dark:bg-zinc-800 p-2"
+              >
                 <table className="w-full text-sm text-gray-700 dark:text-gray-200">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-zinc-700">
@@ -256,7 +271,7 @@ export default function SavingsDailyCreateModal({
                     </tr>
                   </thead>
                   <tbody>
-                    {schedule.map(item => (
+                    {schedule.map((item) => (
                       <tr key={item.day} className="border-b last:border-0">
                         <td>{item.day}</td>
                         <td>{item.date}</td>
@@ -287,7 +302,6 @@ export default function SavingsDailyCreateModal({
             </div>
           </Step>
         )}
-
       </div>
     </div>
   );
