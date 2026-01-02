@@ -13,9 +13,7 @@ export default function LayoutExceptionsWrapper({ children }: { children: ReactN
     setSkipLayout(isLanding || isOrganizer);
   }, [pathname]);
 
-  // If we want full-page exceptions, just render children
   if (skipLayout) return <>{children}</>;
 
-  // Otherwise, render normal layout (children are wrapped in root layout already)
   return <>{children}</>;
 }
