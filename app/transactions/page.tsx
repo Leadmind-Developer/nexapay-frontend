@@ -70,9 +70,12 @@ function isValidWallet(tx: any): tx is WalletTransaction {
   return (
     tx &&
     typeof tx.id === "string" &&
-    (tx.type === "credit" || tx.type === "debit") &&
     typeof tx.amount === "number" &&
-    typeof tx.createdAt === "string"
+    typeof tx.createdAt === "string" &&
+    (tx.type === "credit" ||
+      tx.type === "debit" ||
+      tx.type === "CREDIT" ||
+      tx.type === "DEBIT")
   );
 }
 
@@ -105,7 +108,7 @@ export default function TransactionsPage() {
   (walletRes.data?.wallet?.transactions || [])
     .filter(isValidWallet)
     .map((tx: WalletTransaction) => ({
-      type: tx.type,
+      type: tx.type.toLowerCase() as "credit" | "debit",
       requestId: tx.id,
       amount: tx.amount,
       createdAt: tx.createdAt,
@@ -183,7 +186,9 @@ const vtpassTx: TransactionItem[] =
         (tx.serviceId?.toLowerCase().includes(search.toLowerCase()) ?? false);
 
       const matchesStatus =
-        !statusFilter || (tx.status?.toLowerCase() === statusFilter.toLowerCase());
+        !statusFilter ||
+        tx.type !== "service" ||
+        tx.status?.toLowerCase() === statusFilter.toLowerCase();
 
       return matchesSearch && matchesStatus;
     });
