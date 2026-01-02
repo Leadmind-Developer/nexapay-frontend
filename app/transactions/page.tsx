@@ -18,13 +18,14 @@ export interface TransactionItem {
   serviceId: string;
   status: "SUCCESS" | "FAILED" | "PROCESSING" | string;
   amount: number;
+  type?: "credit" | "debit"; // new
   createdAt: string;
 
   apiResponse?: {
     token?: string;
     pin?: string;
     units?: string | number;
-    unitLabel?: string; // "kWh"
+    unitLabel?: string;
   };
 
   meta?: {
@@ -63,12 +64,28 @@ export default function TransactionsPage() {
   useEffect(() => {
     (async () => {
       try {
+        // Fetch VTpass/service transactions
         const res = await api.get("/transactions");
-        if (Array.isArray(res.data)) {
-          setTransactions(
-            res.data.filter(isValidTransaction).sort(sortByDateDesc)
-          );
-        }
+        const vtpassTxs = Array.isArray(res.data)
+          ? res.data.filter(isValidTransaction)
+          : [];
+
+        // Fetch wallet transactions
+        const walletRes = await api.get("/wallet");
+        const walletTxsRaw = walletRes.data.wallet?.transactions || [];
+
+        const walletTxs: TransactionItem[] = walletTxsRaw.map((tx: any) => ({
+          requestId: tx.id,
+          serviceId: "wallet_transaction",
+          status: tx.status || "SUCCESS",
+          amount: tx.amount,
+          type: tx.amount >= 0 ? "credit" : "debit",
+          createdAt: tx.createdAt,
+        }));
+
+        // Merge & sort all transactions
+        const allTxs = [...walletTxs, ...vtpassTxs].sort(sortByDateDesc);
+        setTransactions(allTxs);
       } catch (err) {
         console.error("Failed to fetch transactions", err);
       } finally {
@@ -92,13 +109,10 @@ export default function TransactionsPage() {
     });
 
     setTransactions((prev) => {
-      const nonProcessing = prev.filter(
-        (tx) => tx.status !== "PROCESSING"
-      );
+      const nonProcessing = prev.filter((tx) => tx.status !== "PROCESSING");
       return [...nonProcessing, ...updates].sort(sortByDateDesc);
     });
 
-    // auto-remove highlight after 6s
     setTimeout(() => {
       setHighlighted((prev) => {
         const next = new Set(prev);
@@ -121,10 +135,7 @@ export default function TransactionsPage() {
     });
   }, [transactions, search, statusFilter]);
 
-  const grouped = useMemo(
-    () => groupTransactionsByDate(filtered),
-    [filtered]
-  );
+  const grouped = useMemo(() => groupTransactionsByDate(filtered), [filtered]);
 
   /* ================= HELPERS ================= */
 
@@ -138,8 +149,11 @@ export default function TransactionsPage() {
     setPdfUrl(null);
   }
 
-  function getServiceName(serviceId: string) {
-    return serviceId.replace(/_/g, " ");
+  function getServiceName(tx: TransactionItem) {
+    if (tx.serviceId === "wallet_transaction") {
+      return tx.type === "credit" ? "Wallet Credit" : "Wallet Debit";
+    }
+    return tx.serviceId.replace(/_/g, " ");
   }
 
   function sortByDateDesc(a: TransactionItem, b: TransactionItem) {
@@ -198,91 +212,90 @@ export default function TransactionsPage() {
       )}
 
       {/* ================= MODAL ================= */}
-{selectedTx && (
-  <div
-    className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-    onClick={closeModal}
-  >
-    <div
-      className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 max-w-xl w-full rounded-lg p-6 space-y-4 shadow-lg"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <h2 className="text-xl font-bold">Transaction Details</h2>
-
-      <div className="space-y-2 text-sm">
-        <p>
-          <b>Service:</b> {getServiceName(selectedTx.serviceId)}
-        </p>
-        <p>
-          <b>Reference:</b> {selectedTx.requestId}
-        </p>
-        <p>
-          <b>Amount:</b> ₦{selectedTx.amount}
-        </p>
-        <p>
-          <b>Status:</b> {selectedTx.status}
-        </p>
-        <p className="text-gray-500 dark:text-gray-400">
-          {formatTransactionTime(selectedTx.createdAt)}
-        </p>
-      </div>
-
-      {(selectedTx.apiResponse?.token ||
-        selectedTx.apiResponse?.pin) && (
-        <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded p-3 text-center">
-          <p className="text-xs uppercase text-green-700 dark:text-green-300 mb-1">
-            Electricity Token
-          </p>
-          <p className="font-mono text-lg tracking-widest">
-            {formatToken(
-              selectedTx.apiResponse.token ||
-                selectedTx.apiResponse.pin!
-            )}
-          </p>
-        
-       {selectedTx.meta?.units && (
-      <div className="pt-2 border-t border-green-200 dark:border-green-700">
-        <p className="text-xs text-green-700 dark:text-green-300">
-          Units
-        </p>
-        <p className="font-semibold">
-          {selectedTx.meta.units}{" "}
-          {selectedTx.meta.unitLabel || "kWh"}
-        </p>
-      </div>
-    )}
-  </div>
-)}
-
-      <div className="flex gap-2 pt-2">
-        <button
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
-          onClick={() => window.open(pdfUrl!, "_blank")}
-        >
-          Download Receipt
-        </button>
-
-        <button
-          className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
-          onClick={() => shareViaWhatsApp(selectedTx.requestId)}
-        >
-          Share WhatsApp
-        </button>
-
-        <button
-          className="flex-1 bg-gray-200 dark:bg-gray-700 dark:text-gray-100 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+      {selectedTx && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
           onClick={closeModal}
         >
-          Close
-        </button>
-      </div>
+          <div
+            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 max-w-xl w-full rounded-lg p-6 space-y-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold">Transaction Details</h2>
+
+            <div className="space-y-2 text-sm">
+              <p>
+                <b>Service:</b> {getServiceName(selectedTx)}
+              </p>
+              <p>
+                <b>Reference:</b> {selectedTx.requestId}
+              </p>
+              <p>
+                <b>Amount:</b>{" "}
+                {selectedTx.type === "debit" ? "-" : "+"}₦{selectedTx.amount}
+              </p>
+              <p>
+                <b>Status:</b> {selectedTx.status}
+              </p>
+              <p className="text-gray-500 dark:text-gray-400">
+                {formatTransactionTime(selectedTx.createdAt)}
+              </p>
+            </div>
+
+            {(selectedTx.apiResponse?.token ||
+              selectedTx.apiResponse?.pin) && (
+              <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded p-3 text-center">
+                <p className="text-xs uppercase text-green-700 dark:text-green-300 mb-1">
+                  Electricity Token
+                </p>
+                <p className="font-mono text-lg tracking-widest">
+                  {formatToken(
+                    selectedTx.apiResponse.token || selectedTx.apiResponse.pin!
+                  )}
+                </p>
+
+                {selectedTx.meta?.units && (
+                  <div className="pt-2 border-t border-green-200 dark:border-green-700">
+                    <p className="text-xs text-green-700 dark:text-green-300">
+                      Units
+                    </p>
+                    <p className="font-semibold">
+                      {selectedTx.meta.units}{" "}
+                      {selectedTx.meta.unitLabel || "kWh"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
+                onClick={() => window.open(pdfUrl!, "_blank")}
+              >
+                Download Receipt
+              </button>
+
+              <button
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
+                onClick={() => shareViaWhatsApp(selectedTx.requestId, pdfUrl!)}
+              >
+                Share WhatsApp
+              </button>
+
+              <button
+                className="flex-1 bg-gray-200 dark:bg-gray-700 dark:text-gray-100 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                onClick={closeModal}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-)}
-</div>
   );
 }
-
 
 /* ================= SECTION ================= */
 
@@ -301,9 +314,7 @@ function TransactionSection({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase text-gray-500">
-        {title}
-      </h3>
+      <h3 className="text-xs font-semibold uppercase text-gray-500">{title}</h3>
 
       {items.map((tx) => (
         <div
@@ -319,9 +330,11 @@ function TransactionSection({
         >
           <div className="flex justify-between">
             <div>
-              <p className="font-semibold capitalize">
-                {tx.serviceId.replace(/_/g, " ")}
-              </p>
+              <p className="font-semibold capitalize">{tx.serviceId === "wallet_transaction"
+                  ? tx.type === "credit"
+                    ? "Wallet Credit"
+                    : "Wallet Debit"
+                  : tx.serviceId.replace(/_/g, " ")}</p>
               <p className="text-xs text-gray-500">
                 {formatTransactionTime(tx.createdAt)}
               </p>
@@ -330,24 +343,20 @@ function TransactionSection({
             <span
               className={`px-2 py-1 text-xs rounded font-semibold
                 ${
-                  tx.status === "SUCCESS" &&
-                  "bg-green-100 text-green-700"
+                  tx.status === "SUCCESS" && "bg-green-100 text-green-700"
                 }
-                ${
-                  tx.status === "FAILED" &&
-                  "bg-red-100 text-red-700"
-                }
-                ${
-                  tx.status === "PROCESSING" &&
-                  "bg-yellow-100 text-yellow-700"
-                }
+                ${tx.status === "FAILED" && "bg-red-100 text-red-700"}
+                ${tx.status === "PROCESSING" && "bg-yellow-100 text-yellow-700"}
               `}
             >
               {tx.status}
             </span>
           </div>
 
-          <p className="text-sm mt-1">₦{tx.amount}</p>
+          <p className="text-sm mt-1">
+            {tx.type === "debit" ? "-" : tx.type === "credit" ? "+" : ""}
+            ₦{tx.amount.toLocaleString()}
+          </p>
         </div>
       ))}
     </div>
