@@ -1,9 +1,9 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import NavBar from "@/components/NavBar";
+import LayoutExceptionsWrapper from "@/components/LayoutExceptionsWrapper";
 import { cookies } from "next/headers";
 
-// Keep metadata
 export const metadata = {
   title: "NexaApp",
   description: "NexaApp — payments unified interface",
@@ -19,35 +19,15 @@ interface RootLayoutProps {
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
-  /**
-   * ----------------------------
-   * Server-side detection
-   * ----------------------------
-   * Cookies are synchronous
-   */
+  // Example: server-side user detection
   const token = cookies().get("token")?.value;
   const isLoggedIn = Boolean(token);
-
-  // ----------------------------
-  // Pathname-based layout exceptions
-  // ----------------------------
-  // Root layout cannot use `usePathname()` here because it's server component
-  // So we wrap in a client component if needed
-  const LandingAndOrganizerWrapper = ({ children }: { children: ReactNode }) => {
-    "use client";
-    import { usePathname } from "next/navigation";
-    const pathname = usePathname();
-    const isLanding = pathname === "/";
-    const isOrganizer = pathname.startsWith("/organizer");
-    const skipGlobalLayout = isLanding || isOrganizer;
-    return <>{skipGlobalLayout ? children : <>{children}</>}</>;
-  };
 
   return (
     <html lang="en">
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <LandingAndOrganizerWrapper>
-          {/* Global Layout */}
+        {/* Wrap with client-side exceptions handler */}
+        <LayoutExceptionsWrapper>
           <div className="min-h-screen flex flex-col md:flex-row">
             <NavBar />
             <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
@@ -57,7 +37,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
               </footer>
             </div>
           </div>
-        </LandingAndOrganizerWrapper>
+        </LayoutExceptionsWrapper>
       </body>
     </html>
   );
