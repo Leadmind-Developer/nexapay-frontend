@@ -166,6 +166,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
               onChange={(e) => {
                 const v = e.target.value.replace(/\D/g, "");
                 setAmountInput(v);
+              }}
             />
 
             <label className="text-sm text-gray-500">Start Date</label>
