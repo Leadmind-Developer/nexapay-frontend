@@ -130,9 +130,8 @@ if (res.data.success) {
 
       if (draft.primarySource === "AUTO") {
         await api.post("/wallet/transfer", {
-          userId: goal.userId,
-          amount: draft.targetAmount,
-          reference: `SAVINGS-STRICT-${goal.id}`,
+          toUserId: goal.userId,
+          amount: Number(draft.targetAmount)          
         });
       }
 
