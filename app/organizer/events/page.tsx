@@ -33,10 +33,28 @@ export default function OrganizerEventsPage() {
   }, []);
 
   const stats = useMemo(() => {
+    let revenue = 0;
+    let ticketsSold = 0;
+
+   events.forEach(event => {
+    // SAFE placeholders – backend can fill later
+    // @ts-ignore
+    if (event.stats?.totalRevenue) {
+      // @ts-ignore
+      revenue += event.stats.totalRevenue;
+    }
+    // @ts-ignore
+    if (event.stats?.ticketsSold) {
+      // @ts-ignore
+      ticketsSold += event.stats.ticketsSold;
+    }
+  })
     return {
-      total: events.length,
+      totalEvents: events.length,
       published: events.filter(e => e.published).length,
       drafts: events.filter(e => !e.published).length,
+      revenue,
+      ticketsSold
     };
   }, [events]);
 
@@ -62,11 +80,28 @@ export default function OrganizerEventsPage() {
       </div>
 
       {/* STATS */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-        <DashboardStat label="Total Events" value={stats.total} />
-        <DashboardStat label="Published" value={stats.published} />
-        <DashboardStat label="Drafts" value={stats.drafts} />
-      </section>
+  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+   <DashboardStat
+    label="Total Events"
+    value={stats.totalEvents}
+  />
+  <DashboardStat
+    label="Published Events"
+    value={stats.published}
+  />
+  <DashboardStat
+    label="Tickets Sold"
+    value={stats.ticketsSold || "—"}
+  />
+  <DashboardStat
+    label="Revenue"
+    value={
+      stats.revenue
+        ? `₦${stats.revenue.toLocaleString()}`
+        : "—"
+    }
+  />
+</section>
 
       {/* EVENTS */}
       <section>
