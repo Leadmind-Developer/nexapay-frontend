@@ -219,7 +219,7 @@ export default function DashboardPage() {
           </a>
 
           <a
-            href="/event"
+            href="/events"
             className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow hover:shadow-lg transition flex flex-col justify-between"
           >
             <div>
@@ -232,7 +232,7 @@ export default function DashboardPage() {
           </a>
 
           <a
-            href="/expense"
+            href="/expenses"
             className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow hover:shadow-lg transition flex flex-col justify-between"
           >
             <div>
