@@ -53,6 +53,8 @@ export interface TransactionItem {
   meta?: VTpassTransaction["meta"];
 }
 
+/* ================= VALIDATORS ================= */
+
 function isValidVTpass(tx: any): tx is VTpassTransaction {
   return (
     tx &&
@@ -102,7 +104,7 @@ export default function TransactionsPage() {
         const walletTx: TransactionItem[] =
           (walletRes.data?.wallet?.transactions || [])
             .filter(isValidWallet)
-            .map((tx: WalletTransaction) => ({
+            .map((tx) => ({
               type: tx.type,
               requestId: tx.id,
               amount: tx.amount,
@@ -113,7 +115,7 @@ export default function TransactionsPage() {
         const vtpassTx: TransactionItem[] =
           (vtpassRes.data || [])
             .filter(isValidVTpass)
-            .map((tx: VTpassTransaction) => ({
+            .map((tx) => ({
               type: "service",
               requestId: tx.requestId,
               serviceId: tx.serviceId,
@@ -133,7 +135,7 @@ export default function TransactionsPage() {
     })();
   }, []);
 
-  /* ================= REALTIME ================= */
+  /* ================= SSE REALTIME ================= */
   useEffect(() => {
     if (!Array.isArray(sseTransactions)) return;
 
@@ -148,7 +150,7 @@ export default function TransactionsPage() {
 
     setTransactions((prev) => {
       const nonProcessing = prev.filter((tx) => tx.status !== "PROCESSING");
-      const newUpdates: TransactionItem[] = updates.map((tx: VTpassTransaction) => ({
+      const newUpdates: TransactionItem[] = updates.map((tx) => ({
         type: "service",
         requestId: tx.requestId,
         serviceId: tx.serviceId,
@@ -162,6 +164,7 @@ export default function TransactionsPage() {
       return [...nonProcessing, ...newUpdates].sort(sortByDateDesc);
     });
 
+    // remove highlight after 6s
     setTimeout(() => {
       setHighlighted((prev) => {
         const next = new Set(prev);
@@ -180,6 +183,7 @@ export default function TransactionsPage() {
 
       const matchesStatus =
         !statusFilter || (tx.status?.toLowerCase() === statusFilter.toLowerCase());
+
       return matchesSearch && matchesStatus;
     });
   }, [transactions, search, statusFilter]);
@@ -205,20 +209,17 @@ export default function TransactionsPage() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   }
 
-  /**
- * Returns the Tailwind color class for a transaction
- */
-export function getTxColor(tx: TransactionItem) {
-  if (tx.type === "credit") return "text-green-700";
-  if (tx.type === "debit") return "text-red-700";
-  if (tx.type === "service") {
-    if (tx.status === "SUCCESS") return "text-green-700";
-    if (tx.status === "FAILED") return "text-red-700";
-    if (tx.status === "PROCESSING") return "text-yellow-600";
+  function getTxColor(tx: TransactionItem) {
+    if (tx.type === "credit") return "text-green-700";
+    if (tx.type === "debit") return "text-red-700";
+    if (tx.type === "service") {
+      if (tx.status === "SUCCESS") return "text-green-700";
+      if (tx.status === "FAILED") return "text-red-700";
+      if (tx.status === "PROCESSING") return "text-yellow-600";
+      return "text-gray-900";
+    }
     return "text-gray-900";
   }
-  return "text-gray-900";
-}
 
   /* ================= UI ================= */
   if (loading) {
@@ -266,11 +267,7 @@ export function getTxColor(tx: TransactionItem) {
       ))}
 
       {selectedTx && (
-        <TransactionModal
-          tx={selectedTx}
-          pdfUrl={pdfUrl}
-          onClose={closeModal}
-        />
+        <TransactionModal tx={selectedTx} pdfUrl={pdfUrl} onClose={closeModal} />
       )}
     </div>
   );
@@ -300,22 +297,21 @@ function TransactionSection({
     <div className="space-y-2">
       <h3 className="text-xs font-semibold uppercase text-gray-500">{title}</h3>
 
-      {items.map((tx: TransactionItem) => (
+      {items.map((tx) => (
         <div
           key={tx.requestId}
           onClick={() => onOpen(tx)}
           className={`p-4 border rounded-lg cursor-pointer transition
             ${highlighted.has(tx.requestId)
               ? "bg-green-50 border-green-400"
-              : "hover:bg-gray-50 dark:hover:bg-gray-700"}
-          `}
+              : "hover:bg-gray-50 dark:hover:bg-gray-700"}`}
         >
           <div className="flex justify-between">
             <div>
               <p className="font-semibold capitalize">{getServiceName(tx.serviceId)}</p>
               <p className="text-xs text-gray-500">{formatTransactionTime(tx.createdAt)}</p>
               {tx.status && (
-                <p className={`${tx.type === "service" ? getTxColor(tx) : ""}`}>
+                <p className={`text-xs uppercase ${tx.type === "service" ? getTxColor(tx) : ""}`}>
                   <b>Status:</b> {tx.status}
                 </p>
               )}
@@ -344,6 +340,18 @@ function TransactionModal({
 }) {
   function getServiceName(serviceId?: string) {
     return serviceId?.replace(/_/g, " ") ?? "Wallet Transaction";
+  }
+
+  function getTxColor(tx: TransactionItem) {
+    if (tx.type === "credit") return "text-green-700";
+    if (tx.type === "debit") return "text-red-700";
+    if (tx.type === "service") {
+      if (tx.status === "SUCCESS") return "text-green-700";
+      if (tx.status === "FAILED") return "text-red-700";
+      if (tx.status === "PROCESSING") return "text-yellow-600";
+      return "text-gray-900";
+    }
+    return "text-gray-900";
   }
 
   return (
