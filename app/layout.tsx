@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import NavBar from "@/components/NavBar";
+import { cookies } from "next/headers"; // optional for server-side detection
 
 export const metadata = {
   title: "NexaApp",
@@ -14,17 +15,29 @@ export const metadata = {
 
 interface RootLayoutProps {
   children: ReactNode;
-  params: { [key: string]: string }; // provided by Next.js
+  params: { [key: string]: string }; // dynamic segments
 }
 
-export default function RootLayout({ children, params }: RootLayoutProps) {
-  // Determine current route from params or folder structure
-  // Root landing page has empty params
+export default async function RootLayout({ children, params }: RootLayoutProps) {
+  /**
+   * ----------------------------
+   * Server-side route detection
+   * ----------------------------
+   * Landing page: root '/'
+   * Organizer pages: /organizer/...
+   */
   const isLanding = Object.keys(params).length === 0;
-
-  // Organizer routes are in /organizer folder
   const isOrganizer = "organizer" in params;
 
+  // ----------------------------
+  // Optional: Server-side user detection
+  // ----------------------------
+  const token = cookies().get("token")?.value;
+  const isLoggedIn = Boolean(token);
+
+  // ----------------------------
+  // Skip global layout for landing or organizer routes
+  // ----------------------------
   const skipGlobalLayout = isLanding || isOrganizer;
 
   return (
@@ -35,8 +48,10 @@ export default function RootLayout({ children, params }: RootLayoutProps) {
         ) : (
           <div className="min-h-screen flex flex-col md:flex-row">
             <NavBar />
+
             <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
               <main className="flex-1 overflow-auto">{children}</main>
+
               <footer className="text-center py-4 text-sm text-gray-500">
                 © {new Date().getFullYear()} NexaApp
               </footer>
