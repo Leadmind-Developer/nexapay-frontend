@@ -1,9 +1,13 @@
-"use client";
+"use client"; // MUST be at the top
 
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-export default function LayoutExceptionsWrapper({ children }: { children: ReactNode }) {
+interface Props {
+  children: ReactNode;
+}
+
+export default function LayoutExceptionsWrapper({ children }: Props) {
   const pathname = usePathname();
   const [skipLayout, setSkipLayout] = useState(false);
 
@@ -13,7 +17,8 @@ export default function LayoutExceptionsWrapper({ children }: { children: ReactN
     setSkipLayout(isLanding || isOrganizer);
   }, [pathname]);
 
-  if (skipLayout) return <>{children}</>;
+  // ✅ Use <div> instead of fragments for Turbopack
+  if (skipLayout) return <div>{children}</div>;
 
-  return <>{children}</>;
+  return <div>{children}</div>;
 }
