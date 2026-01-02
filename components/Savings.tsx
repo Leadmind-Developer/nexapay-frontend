@@ -65,7 +65,7 @@ export default function Savings() {
   const filteredGoals = useMemo(
     () =>
       goals.filter(
-        g) => g.status?.toUpperCase() === tab
+        (g) => g.status?.toUpperCase() === tab
     ),
     [goals, tab]
   );
