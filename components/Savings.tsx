@@ -49,8 +49,8 @@ export default function Savings() {
           api.get("/savings/ai/recommendations"),
         ]);
 
-        setSummary(analyticsRes.data?.data ?? null);
-        setGoals(goalsRes.data?.data ?? []);
+        setSummary(analyticsRes.data?.summary ?? null);
+        setGoals(goalsRes.data?.goals ?? []);
         setTips(aiRes.data?.tips ?? []);
       } catch (err) {
         console.error("Savings load error:", err);
