@@ -63,7 +63,10 @@ export default function Savings() {
   }, []);
 
   const filteredGoals = useMemo(
-    () => goals.filter((g) => g.status === tab),
+    () =>
+      goals.filter(
+        g) => g.status?.toUpperCase() === tab
+    ),
     [goals, tab]
   );
 
@@ -212,6 +215,10 @@ export default function Savings() {
       {dailyCreateOpen && (
   <SavingsDailyCreateModal
     onClose={() => setDailyCreateOpen(false)}
+    onCreated={(goal) => {
+      setGoals((prev) => [goal, ...prev]);
+      setTab("ACTIVE"); // ensure visible
+      }}
   />
 )}
       {withdrawGoal && (
