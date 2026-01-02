@@ -158,11 +158,14 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             <h2 className="text-lg font-semibold">Strict Daily Contributions</h2>
 
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               placeholder="Total amount (₦)"
               className="input w-full"
               value={amountInput}
-              onChange={(e) => setAmountInput(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "");
+                setAmountInput(v);
             />
 
             <label className="text-sm text-gray-500">Start Date</label>
