@@ -8,7 +8,7 @@ import SavingsDailyCreateModal from "./SavingsDailyCreateModal";
 import WithdrawalModal from "./WithdrawalModal";
 import SavingsAI from "./SavingsAI";
 
-/* ---------------- Types ---------------- */
+/* ===================== Types ===================== */
 
 type GoalStatus = "ACTIVE" | "MATURED" | "BROKEN";
 
@@ -30,10 +30,10 @@ type SavingsTip = {
   message: string;
 };
 
-/* ---------------- Component ---------------- */
+/* ===================== Component ===================== */
 
 export default function Savings() {
-  /* -------- View state -------- */
+  /* -------- UI State -------- */
   const [tab, setTab] = useState<GoalStatus>("ACTIVE");
   const [loading, setLoading] = useState(true);
 
@@ -42,15 +42,15 @@ export default function Savings() {
   const [summary, setSummary] = useState<SavingsSummary | null>(null);
   const [tips, setTips] = useState<SavingsTip[]>([]);
 
-  /* -------- Modals (OPEN STATE ONLY) -------- */
+  /* -------- Modals (OPEN FLAGS ONLY) -------- */
   const [createOpen, setCreateOpen] = useState(false);
   const [dailyCreateOpen, setDailyCreateOpen] = useState(false);
   const [withdrawGoal, setWithdrawGoal] = useState<SavingsGoal | null>(null);
 
-  /* ---------------- Load savings data ---------------- */
+  /* ===================== Data Load ===================== */
 
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
 
     const load = async () => {
       try {
@@ -62,7 +62,7 @@ export default function Savings() {
           api.get("/savings/ai/recommendations"),
         ]);
 
-        if (!mounted) return;
+        if (cancelled) return;
 
         setSummary(analyticsRes.data?.summary ?? null);
         setGoals(goalsRes.data?.goals ?? []);
@@ -70,30 +70,28 @@ export default function Savings() {
       } catch (err) {
         console.error("Savings load error:", err);
       } finally {
-        mounted && setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     load();
     return () => {
-      mounted = false;
+      cancelled = true;
     };
   }, []);
 
-  /* ---------------- Derived ---------------- */
+  /* ===================== Derived ===================== */
 
-  const filteredGoals = useMemo(
-    () => goals.filter((g) => g.status === tab),
-    [goals, tab]
-  );
+  const filteredGoals = useMemo(() => {
+    return goals.filter((g) => g.status === tab);
+  }, [goals, tab]);
 
   const formatMoney = (v = 0) => `₦${Number(v).toLocaleString()}`;
 
-  /* ---------------- Render ---------------- */
+  /* ===================== Render ===================== */
 
   return (
     <div className="p-6 space-y-6">
-
       {/* ================= SUMMARY ================= */}
       <div className="bg-white rounded-xl p-4 shadow">
         <div className="flex flex-wrap justify-between gap-4">
@@ -111,13 +109,13 @@ export default function Savings() {
             </p>
           </div>
 
-          <span className="rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
+          <span className="self-start rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
             Up to 23% p.a
           </span>
         </div>
       </div>
 
-      {/* ================= AI TIPS ================= */}
+      {/* ================= AI ================= */}
       {tips.length > 0 && <SavingsAI tips={tips} />}
 
       {/* ================= TABS ================= */}
@@ -175,7 +173,7 @@ export default function Savings() {
                 <div>
                   <div className="h-2 bg-gray-200 rounded overflow-hidden">
                     <div
-                      className="h-2 bg-green-500 transition-all duration-700"
+                      className="h-2 bg-green-500 rounded transition-all duration-700 ease-out"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
