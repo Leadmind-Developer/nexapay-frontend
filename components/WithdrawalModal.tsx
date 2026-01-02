@@ -13,36 +13,42 @@ type Goal = {
 
 type Props = {
   open: boolean;
-  goal: SavingsGoal | null;
+  goal: Goal | null;
   onClose: () => void;
 };
 
-export default function WithdrawalModal({ goal, onClose }: WithdrawalModalProps) {
+export default function WithdrawalModal({ open, goal, onClose }: Props) {
   if (!open || !goal) return null;
-  const [otp, setOtp] = useState<string>("");
 
-  // Request OTP when modal mounts
-  const requestOtp = async () => {
-    try {
-      await api.post("/savings/break/request", { goalId: goal.id });
-    } catch (err) {
-      console.error("Failed to request OTP", err);
-    }
-  };
+  const [otp, setOtp] = useState("");
+
+  // Request OTP when modal opens
+  useEffect(() => {
+    if (!goal) return;
+
+    const requestOtp = async () => {
+      try {
+        await api.post("/savings/break/request", { goalId: goal.id });
+      } catch (err) {
+        console.error("Failed to request OTP", err);
+      }
+    };
+
+    requestOtp();
+  }, [goal]);
 
   // Confirm withdrawal with OTP
   const confirm = async () => {
     try {
-      await api.post("/savings/break/confirm", { goalId: goal.id, otp });
+      await api.post("/savings/break/confirm", {
+        goalId: goal.id,
+        otp,
+      });
       onClose();
     } catch (err) {
       console.error("Failed to confirm withdrawal", err);
     }
   };
-
-  useEffect(() => {
-    requestOtp();
-  }, [goal.id]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
