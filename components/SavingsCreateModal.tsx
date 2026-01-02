@@ -154,13 +154,11 @@ export default function SavingsCreateModal({ open, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-xl p-6 w-full max-w-lg">
-        {/* modal content */}
-        <button onClick={onClose}>Close</button>
-        </div>
-      </div>
-    );
-  }
+      <div className="bg-white rounded-xl p-6 w-full max-w-lg space-y-6">
+        {/* Close button */}
+        <button onClick={onClose} className="text-sm text-gray-500">
+          Close
+        </button>
 
         {/* STEP 1 */}
         {step === 1 && (
