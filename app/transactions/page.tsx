@@ -102,29 +102,30 @@ export default function TransactionsPage() {
         ]);
 
         const walletTx: TransactionItem[] =
-          (walletRes.data?.wallet?.transactions || [])
-            .filter(isValidWallet)
-            .map((tx) => ({
-              type: tx.type,
-              requestId: tx.id,
-              amount: tx.amount,
-              createdAt: tx.createdAt,
-              reference: tx.reference,
-            }));
+  (walletRes.data?.wallet?.transactions || [])
+    .filter(isValidWallet)
+    .map((tx: WalletTransaction) => ({
+      type: tx.type,
+      requestId: tx.id,
+      amount: tx.amount,
+      createdAt: tx.createdAt,
+      reference: tx.reference,
+    }));
 
-        const vtpassTx: TransactionItem[] =
-          (vtpassRes.data || [])
-            .filter(isValidVTpass)
-            .map((tx) => ({
-              type: "service",
-              requestId: tx.requestId,
-              serviceId: tx.serviceId,
-              status: tx.status,
-              amount: tx.amount,
-              createdAt: tx.createdAt,
-              apiResponse: tx.apiResponse,
-              meta: tx.meta,
-            }));
+const vtpassTx: TransactionItem[] =
+  (vtpassRes.data || [])
+    .filter(isValidVTpass)
+    .map((tx: VTpassTransaction) => ({
+      type: "service",
+      requestId: tx.requestId,
+      serviceId: tx.serviceId,
+      status: tx.status,
+      amount: tx.amount,
+      createdAt: tx.createdAt,
+      apiResponse: tx.apiResponse,
+      meta: tx.meta,
+    }));
+
 
         setTransactions([...walletTx, ...vtpassTx].sort(sortByDateDesc));
       } catch (err) {
