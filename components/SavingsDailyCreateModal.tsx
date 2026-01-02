@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
 type FundingSource = "MANUAL" | "AUTO" | "";
 
 type DailyDraft = {
-  targetAmount: string; // NAIRA
+  targetAmount: number;
   startDate: string;
   primarySource: FundingSource;
   vaAccount?: string;
@@ -19,31 +19,42 @@ type DailyDraft = {
 };
 
 export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [toastVisible, setToastVisible] = useState(false);
 
+  /* ---------------- Local input buffer (NO re-render storm) ---------------- */
+  const [amountInput, setAmountInput] = useState("");
+
+  /* ---------------- Draft (committed values only) ---------------- */
   const [draft, setDraft] = useState<DailyDraft>({
-    targetAmount: "",
+    targetAmount: 0,
     startDate: new Date().toISOString().split("T")[0],
     primarySource: "",
   });
 
+  /* ---------------- Virtual account state ---------------- */
   const [vaLoading, setVaLoading] = useState(false);
   const [vaExists, setVaExists] = useState(false);
 
-  const totalTarget = Number(draft.targetAmount) || 0;
-  const dailyAmount = totalTarget > 0 ? Math.round(totalTarget / 30) : 0;
+  /* ---------------- Derived values (memoized) ---------------- */
+  const dailyAmount = useMemo(() => {
+    if (draft.targetAmount <= 0) return 0;
+    return Math.round(draft.targetAmount / 30);
+  }, [draft.targetAmount]);
 
-  /* ---------------- Virtual account check (MANUAL only) ---------------- */
+  /* ---------------- VA check (MANUAL only, stable) ---------------- */
   useEffect(() => {
     if (draft.primarySource !== "MANUAL") return;
+
+    let cancelled = false;
 
     const fetchVA = async () => {
       setVaLoading(true);
       try {
         const res = await api.get("/wallet");
-        const va = res.data?.virtualAccount;
+        if (cancelled) return;
 
+        const va = res.data?.virtualAccount;
         if (va?.accountNumber) {
           setVaExists(true);
           setDraft((d) => ({
@@ -55,22 +66,42 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           setVaExists(false);
         }
       } catch {
-        setVaExists(false);
+        if (!cancelled) setVaExists(false);
       } finally {
-        setVaLoading(false);
+        if (!cancelled) setVaLoading(false);
       }
     };
 
     fetchVA();
+    return () => {
+      cancelled = true;
+    };
   }, [draft.primarySource]);
+
+  /* ---------------- Step transitions ---------------- */
+  const goToStep2 = () => {
+    const amount = Number(amountInput);
+    if (!amount || amount <= 0) return;
+
+    setDraft((d) => ({
+      ...d,
+      targetAmount: amount,
+    }));
+    setStep(2);
+  };
+
+  const goToStep3 = () => {
+    if (!draft.primarySource) return;
+    setStep(3);
+  };
 
   /* ---------------- Submit ---------------- */
   const submit = async () => {
-    if (!draft.primarySource || totalTarget <= 0) return;
+    if (!draft.primarySource || draft.targetAmount <= 0) return;
 
     try {
       const res = await api.post("/strict-daily", {
-        targetAmount: totalTarget,
+        targetAmount: draft.targetAmount,
         startDate: draft.startDate,
         primarySource: draft.primarySource,
         vaAccount: draft.primarySource === "MANUAL" ? draft.vaAccount : undefined,
@@ -83,11 +114,10 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
       const goal = res.data?.data;
       if (!goal) throw new Error("No plan returned");
 
-      // AUTO = wallet debit upfront
       if (draft.primarySource === "AUTO") {
         await api.post("/wallet/debit", {
           userId: goal.userId,
-          amount: totalTarget,
+          amount: draft.targetAmount,
           reference: `SAVINGS-STRICT-${goal.id}`,
         });
       }
@@ -105,6 +135,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
     }
   };
 
+  /* ---------------- UI helpers ---------------- */
   const Step = ({ children }: { children: React.ReactNode }) => (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-6">
       {children}
@@ -121,7 +152,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           </div>
         )}
 
-        {/* STEP 1 */}
+        {/* ---------------- STEP 1 ---------------- */}
         {step === 1 && (
           <Step>
             <h2 className="text-lg font-semibold">Strict Daily Contributions</h2>
@@ -130,10 +161,8 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
               type="number"
               placeholder="Total amount (₦)"
               className="input w-full"
-              value={draft.targetAmount}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, targetAmount: e.target.value }))
-              }
+              value={amountInput}
+              onChange={(e) => setAmountInput(e.target.value)}
             />
 
             <label className="text-sm text-gray-500">Start Date</label>
@@ -146,9 +175,9 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
               }
             />
 
-            {dailyAmount > 0 && (
+            {Number(amountInput) > 0 && (
               <p className="text-sm text-gray-500">
-                ₦{dailyAmount.toLocaleString()} per day
+                ₦{Math.round(Number(amountInput) / 30).toLocaleString()} per day
               </p>
             )}
 
@@ -157,8 +186,8 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
                 Cancel
               </button>
               <button
-                disabled={!totalTarget}
-                onClick={() => setStep(2)}
+                disabled={!Number(amountInput)}
+                onClick={goToStep2}
                 className="btn-primary w-full"
               >
                 Continue
@@ -167,7 +196,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           </Step>
         )}
 
-        {/* STEP 2 */}
+        {/* ---------------- STEP 2 ---------------- */}
         {step === 2 && (
           <Step>
             <h2 className="text-lg font-semibold">Funding Source</h2>
@@ -209,7 +238,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
               </button>
               <button
                 disabled={!draft.primarySource}
-                onClick={() => setStep(3)}
+                onClick={goToStep3}
                 className="btn-primary w-full"
               >
                 Continue
@@ -218,13 +247,13 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           </Step>
         )}
 
-        {/* STEP 3 */}
+        {/* ---------------- STEP 3 ---------------- */}
         {step === 3 && (
           <Step>
             <h2 className="text-lg font-semibold">Review</h2>
 
             <div className="text-sm space-y-1">
-              <p><b>Total:</b> ₦{totalTarget.toLocaleString()}</p>
+              <p><b>Total:</b> ₦{draft.targetAmount.toLocaleString()}</p>
               <p><b>Daily:</b> ₦{dailyAmount.toLocaleString()}</p>
               <p><b>Start:</b> {draft.startDate}</p>
               <p>
