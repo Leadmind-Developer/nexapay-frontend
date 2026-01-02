@@ -269,9 +269,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
 
             {schedule.length > 0 && (
               <div
-                className="max-h-64 overflow-x-auto rounded border
-                              border-gray-200 dark:border-zinc-700
-                              bg-gray-50 dark:bg-zinc-800 p-2"
+                className="max-h-64 overflow-x-auto rounded border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 p-2"
               >
                 <table className="w-full text-sm text-gray-700 dark:text-gray-200">
                   <thead>
