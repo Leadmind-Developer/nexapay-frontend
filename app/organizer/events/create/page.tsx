@@ -22,37 +22,32 @@ export default function EventFormPage() {
     description: "",
     startAt: "",
     endAt: "",
-    published: true,
+    published: false, // SAFER DEFAULT
   });
 
-  const [status, setStatus] = useState<"saving" | "success" | "error" | null>(null);
+  const [status, setStatus] = useState<"saving" | "error" | null>(null);
 
-  // Fetch existing event for editing
   useEffect(() => {
     if (!eventId) return;
 
     api
       .get<EventPayload>(`/organizer/events/${eventId}`)
-      .then((res) => setForm(res.data))
+      .then(res => setForm(res.data))
       .catch(console.error);
   }, [eventId]);
 
-  // Handle input changes
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value, type } = e.target;
-
-    // Narrow type for checkboxes
     if (type === "checkbox") {
-      const target = e.target as HTMLInputElement;
-      setForm((prev) => ({ ...prev, [name]: target.checked }));
+      setForm(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
     } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
+      setForm(prev => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, redirect?: string) => {
     e.preventDefault();
     setStatus("saving");
 
@@ -60,9 +55,13 @@ export default function EventFormPage() {
       if (eventId) {
         await api.patch(`/organizer/events/${eventId}`, form);
       } else {
-        await api.post("/organizer/events", form);
+        const res = await api.post("/organizer/events", form);
+        if (redirect) {
+          router.push(`/organizer/events/${res.data.id}/${redirect}`);
+          return;
+        }
       }
-      setStatus("success");
+
       router.push("/organizer/events");
     } catch (err) {
       console.error(err);
@@ -71,71 +70,109 @@ export default function EventFormPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">
-        {eventId ? "Edit Event" : "Create Event"}
+    <main className="max-w-4xl mx-auto px-6 py-8">
+      <h1 className="text-3xl font-bold mb-2">
+        {eventId ? "Edit Event" : "Create New Event"}
       </h1>
+      <p className="text-gray-500 mb-8">
+        Basic information about your event. You’ll add tickets next.
+      </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          name="title"
-          value={form.title}
-          onChange={handleChange}
-          placeholder="Event Title"
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-        />
+      <form className="space-y-10">
+        {/* EVENT DETAILS */}
+        <section className="bg-white border rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Event Details</h2>
 
-        <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Description"
-          rows={4}
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-        />
+          <div className="space-y-4">
+            <input
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              placeholder="Event title (e.g. Lagos Tech Meetup)"
+              required
+              className="w-full rounded-xl border px-4 py-3"
+            />
 
-        <input
-          type="datetime-local"
-          name="startAt"
-          value={form.startAt}
-          onChange={handleChange}
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-        />
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Describe your event"
+              rows={4}
+              required
+              className="w-full rounded-xl border px-4 py-3"
+            />
+          </div>
+        </section>
 
-        <input
-          type="datetime-local"
-          name="endAt"
-          value={form.endAt}
-          onChange={handleChange}
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-        />
+        {/* SCHEDULE */}
+        <section className="bg-white border rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Schedule</h2>
 
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            name="published"
-            checked={form.published}
-            onChange={handleChange}
-          />
-          <span>Published</span>
-        </label>
+          <div className="grid md:grid-cols-2 gap-4">
+            <input
+              type="datetime-local"
+              name="startAt"
+              value={form.startAt}
+              onChange={handleChange}
+              required
+              className="rounded-xl border px-4 py-3"
+            />
 
-        <button
-          type="submit"
-          disabled={status === "saving"}
-          className="w-full rounded-xl bg-black text-white py-2 font-medium hover:opacity-90"
-        >
-          {status === "saving" ? "Saving..." : "Save Event"}
-        </button>
+            <input
+              type="datetime-local"
+              name="endAt"
+              value={form.endAt}
+              onChange={handleChange}
+              required
+              className="rounded-xl border px-4 py-3"
+            />
+          </div>
+        </section>
+
+        {/* VISIBILITY */}
+        <section className="bg-white border rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-2">Visibility</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Draft events are hidden from the public.
+          </p>
+
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="published"
+              checked={form.published}
+              onChange={handleChange}
+            />
+            <span>Publish event</span>
+          </label>
+        </section>
+
+        {/* ACTIONS */}
+        <div className="flex flex-col md:flex-row gap-3">
+          <button
+            onClick={(e) => handleSubmit(e)}
+            disabled={status === "saving"}
+            className="flex-1 rounded-xl bg-black text-white py-3 font-medium"
+          >
+            Save Event
+          </button>
+
+          {!eventId && (
+            <button
+              onClick={(e) => handleSubmit(e, "tickets")}
+              disabled={status === "saving"}
+              className="flex-1 rounded-xl border py-3 font-medium"
+            >
+              Save & Add Tickets →
+            </button>
+          )}
+        </div>
+
+        {status === "error" && (
+          <p className="text-red-500">Failed to save event.</p>
+        )}
       </form>
-
-      {status === "error" && (
-        <p className="text-red-500 mt-2">Failed to save event.</p>
-      )}
-    </div>
+    </main>
   );
 }
