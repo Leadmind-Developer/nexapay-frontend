@@ -4,10 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
 
+/* ================= TYPES ================= */
+
 interface TicketType {
   id: string;
   name: string;
   price: number;
+}
+
+interface EventStats {
+  totalRevenue?: number;
+  ticketsSold?: number;
 }
 
 interface Event {
@@ -18,7 +25,10 @@ interface Event {
   endAt: string;
   published: boolean;
   ticketTypes: TicketType[];
+  stats?: EventStats; // optional – safe for now
 }
+
+/* ================= PAGE ================= */
 
 export default function OrganizerEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -36,25 +46,21 @@ export default function OrganizerEventsPage() {
     let revenue = 0;
     let ticketsSold = 0;
 
-   events.forEach(event => {
-    // SAFE placeholders – backend can fill later
-    // @ts-ignore
-    if (event.stats?.totalRevenue) {
-      // @ts-ignore
-      revenue += event.stats.totalRevenue;
-    }
-    // @ts-ignore
-    if (event.stats?.ticketsSold) {
-      // @ts-ignore
-      ticketsSold += event.stats.ticketsSold;
-    }
-  })
+    events.forEach((event) => {
+      if (event.stats?.totalRevenue) {
+        revenue += event.stats.totalRevenue;
+      }
+      if (event.stats?.ticketsSold) {
+        ticketsSold += event.stats.ticketsSold;
+      }
+    });
+
     return {
       totalEvents: events.length,
-      published: events.filter(e => e.published).length,
-      drafts: events.filter(e => !e.published).length,
+      published: events.filter((e) => e.published).length,
+      drafts: events.filter((e) => !e.published).length,
       revenue,
-      ticketsSold
+      ticketsSold,
     };
   }, [events]);
 
@@ -62,48 +68,51 @@ export default function OrganizerEventsPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-6 py-8">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+      {/* ================= TOP BAR ================= */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Events Dashboard</h1>
+          <h1 className="text-3xl font-bold">Organizer Dashboard</h1>
           <p className="text-gray-500 mt-1">
-            Create events, manage tickets, and track performance.
+            Manage events, revenue, and payouts.
           </p>
         </div>
 
-        <Link
-          href="/organizer/events/create"
-          className="mt-4 md:mt-0 inline-flex items-center justify-center bg-black text-white px-5 py-3 rounded-xl font-medium hover:opacity-90"
-        >
-          + Create Event
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href="/organizer/payouts"
+            className="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
+          >
+            Payouts
+          </Link>
+
+          <Link
+            href="/organizer/events/create"
+            className="rounded-xl bg-black text-white px-5 py-2 font-medium hover:opacity-90"
+          >
+            + Create Event
+          </Link>
+        </div>
       </div>
 
-      {/* STATS */}
-  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-   <DashboardStat
-    label="Total Events"
-    value={stats.totalEvents}
-  />
-  <DashboardStat
-    label="Published Events"
-    value={stats.published}
-  />
-  <DashboardStat
-    label="Tickets Sold"
-    value={stats.ticketsSold || "—"}
-  />
-  <DashboardStat
-    label="Revenue"
-    value={
-      stats.revenue
-        ? `₦${stats.revenue.toLocaleString()}`
-        : "—"
-    }
-  />
-</section>
+      {/* ================= STATS ================= */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        <DashboardStat label="Total Events" value={stats.totalEvents} />
+        <DashboardStat label="Published Events" value={stats.published} />
+        <DashboardStat
+          label="Tickets Sold"
+          value={stats.ticketsSold || "—"}
+        />
+        <DashboardStat
+          label="Revenue"
+          value={
+            stats.revenue > 0
+              ? `₦${stats.revenue.toLocaleString()}`
+              : "—"
+          }
+        />
+      </section>
 
-      {/* EVENTS */}
+      {/* ================= EVENTS ================= */}
       <section>
         <h2 className="text-xl font-semibold mb-4">Your Events</h2>
 
@@ -111,7 +120,7 @@ export default function OrganizerEventsPage() {
           <EmptyState />
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {events.map(event => (
+            {events.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
           </div>
@@ -121,9 +130,15 @@ export default function OrganizerEventsPage() {
   );
 }
 
-/* ---------------- COMPONENTS ---------------- */
+/* ================= COMPONENTS ================= */
 
-function DashboardStat({ label, value }: { label: string; value: number }) {
+function DashboardStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
   return (
     <div className="bg-white border rounded-xl p-5 shadow-sm">
       <p className="text-sm text-gray-500">{label}</p>
@@ -133,6 +148,10 @@ function DashboardStat({ label, value }: { label: string; value: number }) {
 }
 
 function EventCard({ event }: { event: Event }) {
+  const revenue =
+    event.stats?.totalRevenue &&
+    `₦${event.stats.totalRevenue.toLocaleString()}`;
+
   return (
     <div className="bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition">
       <div className="flex items-start justify-between">
@@ -153,15 +172,28 @@ function EventCard({ event }: { event: Event }) {
         {new Date(event.endAt).toLocaleDateString()}
       </p>
 
-      <p className="text-sm text-gray-500 mt-1">
-        Ticket Types: {event.ticketTypes.length}
-      </p>
+      <div className="mt-3 text-sm text-gray-600">
+        <p>Ticket Types: {event.ticketTypes.length}</p>
+        <p className="mt-1">
+          Revenue:{" "}
+          <span className="font-medium">{revenue || "—"}</span>
+        </p>
+      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
         <ActionLink href={`/organizer/events/${event.id}/edit`} label="Edit" />
-        <ActionLink href={`/organizer/events/${event.id}/tickets`} label="Tickets" />
-        <ActionLink href={`/organizer/events/${event.id}/attendees`} label="Attendees" />
-        <ActionLink href={`/organizer/events/${event.id}/stats`} label="Stats" />
+        <ActionLink
+          href={`/organizer/events/${event.id}/tickets`}
+          label="Tickets"
+        />
+        <ActionLink
+          href={`/organizer/events/${event.id}/attendees`}
+          label="Attendees"
+        />
+        <ActionLink
+          href={`/organizer/events/${event.id}/stats`}
+          label="Stats"
+        />
       </div>
     </div>
   );
