@@ -11,12 +11,14 @@ type Goal = {
   targetAmount: number;
 };
 
-type WithdrawalModalProps = {
-  goal: Goal;
+type Props = {
+  open: boolean;
+  goal: SavingsGoal | null;
   onClose: () => void;
 };
 
 export default function WithdrawalModal({ goal, onClose }: WithdrawalModalProps) {
+  if (!open || !goal) return null;
   const [otp, setOtp] = useState<string>("");
 
   // Request OTP when modal mounts
