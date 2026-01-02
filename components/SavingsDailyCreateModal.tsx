@@ -27,6 +27,7 @@ const STORAGE_KEY = "savings-daily-draft";
 
 export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
   const [step, setStep] = useState(1);
+  const [toastVisible, setToastVisible] = useState(false);
 
   const [draft, setDraft] = useState<DailyDraft>({
     targetAmount: "",
@@ -94,7 +95,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
     if (!draft.primarySource || !totalTarget) return;
 
     try {
-      const res = await api.post("/savingsdaily/strict-daily", {
+      const res = await api.post("/savings/strict-daily", {
         targetAmount: totalTarget, // NAIRA
         startDate: draft.startDate,
         primarySource: "MANUAL",
@@ -108,10 +109,14 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
       const goal = res.data?.goal;
       if (goal) {
         onCreated(goal); // Notify parent
+        setToastVisible(true); // Show toast
+        setTimeout(() => {
+          setToastVisible(false);
+          onClose(); // Close modal after toast
+        }, 2000); // 2 seconds
       }
 
       localStorage.removeItem(STORAGE_KEY);
-      onClose();
     } catch (err) {
       console.error("Failed to create strict daily savings:", err);
       alert("Failed to create savings. Try again.");
@@ -126,7 +131,14 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-xl p-6">
+      <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-xl p-6 relative">
+
+        {/* ---------------- Toast ---------------- */}
+        {toastVisible && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in-out">
+            Savings Goal Created Successfully!
+          </div>
+        )}
 
         {/* STEP 1 */}
         {step === 1 && (
@@ -302,6 +314,20 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             </div>
           </Step>
         )}
-      </div>  
+      </div>
+
+      {/* ---------------- Toast Animation ---------------- */}
+      <style jsx>{`
+        @keyframes fade-in-out {
+          0% { opacity: 0; transform: translateY(-10px); }
+          10% { opacity: 1; transform: translateY(0); }
+          90% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-10px); }
+        }
+        .animate-fade-in-out {
+          animation: fade-in-out 2s ease forwards;
+        }
+      `}</style>
+    </div>
   );
 }
