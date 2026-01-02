@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import api from "@/lib/api";
+import OrganizerEventTopBar from "@/components/OrganizerEventTopBar";
 
 interface EventPayload {
   title: string;
@@ -15,19 +16,21 @@ interface EventPayload {
 export default function EventFormPage() {
   const params = useParams();
   const router = useRouter();
-  const eventId = params.id;
+  const eventId = params?.id as string | undefined;
 
   const [form, setForm] = useState<EventPayload>({
     title: "",
     description: "",
     startAt: "",
     endAt: "",
-    published: true,
+    published: false,
   });
 
-  const [status, setStatus] = useState<"saving" | "success" | "error" | null>(null);
+  const [status, setStatus] = useState<
+    "saving" | "success" | "error" | null
+  >(null);
 
-  // Fetch event if editing
+  /* ================= FETCH EVENT ================= */
   useEffect(() => {
     if (!eventId) return;
 
@@ -37,11 +40,12 @@ export default function EventFormPage() {
       .catch(console.error);
   }, [eventId]);
 
-  // Handle form input changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  /* ================= HANDLERS ================= */
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value, type } = e.target;
 
-    // Type narrowing for checkboxes
     if (type === "checkbox") {
       const target = e.target as HTMLInputElement;
       setForm((prev) => ({ ...prev, [name]: target.checked }));
@@ -60,6 +64,7 @@ export default function EventFormPage() {
       } else {
         await api.post("/organizer/events", form);
       }
+
       setStatus("success");
       router.push("/organizer/events");
     } catch (err) {
@@ -68,68 +73,117 @@ export default function EventFormPage() {
     }
   };
 
+  /* ================= RENDER ================= */
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{eventId ? "Edit Event" : "Create Event"}</h1>
+    <div className="min-h-screen">
+      {/* TOP BAR */}
+      <OrganizerEventTopBar
+        eventId={eventId}
+        published={form.published}
+        onTogglePublish={() =>
+          setForm((prev) => ({ ...prev, published: !prev.published }))
+        }
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          name="title"
-          value={form.title}
-          onChange={handleChange}
-          placeholder="Event Title"
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-        />
+      <main className="max-w-3xl mx-auto px-6 py-8">
+        {/* HEADER */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">
+            {eventId ? "Edit Event" : "Create Event"}
+          </h1>
+          <p className="text-gray-500 mt-1">
+            Fill in the details below to get your event ready.
+          </p>
+        </div>
 
-        <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Description"
-          rows={4}
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-        />
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* EVENT DETAILS */}
+          <section className="bg-white border rounded-xl p-6">
+            <h2 className="font-semibold mb-4">Event Details</h2>
 
-        <input
-          type="datetime-local"
-          name="startAt"
-          value={form.startAt}
-          onChange={handleChange}
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-        />
+            <div className="space-y-4">
+              <input
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+                placeholder="Event title"
+                required
+                className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring"
+              />
 
-        <input
-          type="datetime-local"
-          name="endAt"
-          value={form.endAt}
-          onChange={handleChange}
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
-        />
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                placeholder="Describe your event"
+                rows={5}
+                required
+                className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring"
+              />
+            </div>
+          </section>
 
-        <label className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            name="published"
-            checked={form.published}
-            onChange={handleChange}
-          />
-          <span>Published</span>
-        </label>
+          {/* SCHEDULE */}
+          <section className="bg-white border rounded-xl p-6">
+            <h2 className="font-semibold mb-4">Schedule</h2>
 
-        <button
-          type="submit"
-          disabled={status === "saving"}
-          className="w-full rounded-xl bg-black text-white py-2 font-medium hover:opacity-90"
-        >
-          {status === "saving" ? "Saving..." : "Save Event"}
-        </button>
-      </form>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm text-gray-500 mb-1">
+                  Start Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  name="startAt"
+                  value={form.startAt}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring"
+                />
+              </div>
 
-      {status === "error" && <p className="text-red-500 mt-2">Failed to save event.</p>}
+              <div>
+                <label className="block text-sm text-gray-500 mb-1">
+                  End Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  name="endAt"
+                  value={form.endAt}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* ACTIONS */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">
+              Status:{" "}
+              <strong>
+                {form.published ? "Published" : "Draft"}
+              </strong>
+            </span>
+
+            <button
+              type="submit"
+              disabled={status === "saving"}
+              className="rounded-xl bg-black text-white px-6 py-3 font-medium hover:opacity-90"
+            >
+              {status === "saving" ? "Saving..." : "Save Event"}
+            </button>
+          </div>
+
+          {status === "error" && (
+            <p className="text-red-500 text-sm">
+              Failed to save event. Please try again.
+            </p>
+          )}
+        </form>
+      </main>
     </div>
   );
 }
