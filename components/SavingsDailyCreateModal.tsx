@@ -20,7 +20,10 @@ type DailyDraft = {
 };
 
 export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
+  if (typeof window === "undefined") return null;
+  
   if (!open) return null;
+  
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [toastVisible, setToastVisible] = useState(false);
 
