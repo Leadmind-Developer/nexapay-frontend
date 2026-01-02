@@ -41,11 +41,10 @@ export interface VTpassTransaction {
   };
 }
 
-// Unified Transaction type
 export interface TransactionItem {
   type: "credit" | "debit" | "service";
   requestId: string;
-  serviceId?: string; // only for VTpass
+  serviceId?: string;
   status?: string;
   amount: number;
   createdAt: string;
@@ -76,7 +75,6 @@ function isValidWallet(tx: any): tx is WalletTransaction {
 }
 
 type SectionKey = "today" | "yesterday" | "older";
-
 const sections: SectionKey[] = ["today", "yesterday", "older"];
 
 /* ================= PAGE ================= */
@@ -93,7 +91,6 @@ export default function TransactionsPage() {
   const sseTransactions = useTransactionsSSE();
 
   /* ================= FETCH ================= */
-
   useEffect(() => {
     (async () => {
       try {
@@ -102,28 +99,30 @@ export default function TransactionsPage() {
           api.get("/transactions"),
         ]);
 
-        const walletTx: TransactionItem[] = (walletRes.data?.wallet?.transactions || [])
-          .filter(isValidWallet)
-          .map((tx: WalletTransaction) => ({
-            type: tx.type,
-            requestId: tx.id,
-            amount: tx.amount,
-            createdAt: tx.createdAt,
-            reference: tx.reference,
-          }));
+        const walletTx: TransactionItem[] =
+          (walletRes.data?.wallet?.transactions || [])
+            .filter(isValidWallet)
+            .map((tx: WalletTransaction) => ({
+              type: tx.type,
+              requestId: tx.id,
+              amount: tx.amount,
+              createdAt: tx.createdAt,
+              reference: tx.reference,
+            }));
 
-        const vtpassTx: TransactionItem[] = (vtpassRes.data || [])
-          .filter(isValidVTpass)
-          .map((tx: VTpassTransaction) => ({
-            type: "service",
-            requestId: tx.requestId,
-            serviceId: tx.serviceId,
-            status: tx.status,
-            amount: tx.amount,
-            createdAt: tx.createdAt,
-            apiResponse: tx.apiResponse,
-            meta: tx.meta,
-          }));
+        const vtpassTx: TransactionItem[] =
+          (vtpassRes.data || [])
+            .filter(isValidVTpass)
+            .map((tx: VTpassTransaction) => ({
+              type: "service",
+              requestId: tx.requestId,
+              serviceId: tx.serviceId,
+              status: tx.status,
+              amount: tx.amount,
+              createdAt: tx.createdAt,
+              apiResponse: tx.apiResponse,
+              meta: tx.meta,
+            }));
 
         setTransactions([...walletTx, ...vtpassTx].sort(sortByDateDesc));
       } catch (err) {
@@ -135,7 +134,6 @@ export default function TransactionsPage() {
   }, []);
 
   /* ================= REALTIME ================= */
-
   useEffect(() => {
     if (!Array.isArray(sseTransactions)) return;
 
@@ -150,7 +148,6 @@ export default function TransactionsPage() {
 
     setTransactions((prev) => {
       const nonProcessing = prev.filter((tx) => tx.status !== "PROCESSING");
-
       const newUpdates: TransactionItem[] = updates.map((tx: VTpassTransaction) => ({
         type: "service",
         requestId: tx.requestId,
@@ -175,9 +172,8 @@ export default function TransactionsPage() {
   }, [sseTransactions]);
 
   /* ================= FILTER ================= */
-
   const filtered = useMemo(() => {
-    return transactions.filter((tx: TransactionItem) => {
+    return transactions.filter((tx) => {
       const matchesSearch =
         tx.requestId.toLowerCase().includes(search.toLowerCase()) ||
         (tx.serviceId?.toLowerCase().includes(search.toLowerCase()) ?? false);
@@ -191,7 +187,6 @@ export default function TransactionsPage() {
   const grouped = useMemo(() => groupTransactionsByDate(filtered), [filtered]);
 
   /* ================= HELPERS ================= */
-
   function openModal(tx: TransactionItem) {
     setSelectedTx(tx);
     setPdfUrl(`${API_BASE}/transactions/${tx.requestId}/receipt.pdf`);
@@ -210,8 +205,19 @@ export default function TransactionsPage() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   }
 
-  /* ================= UI ================= */
+  function getTxColor(tx: TransactionItem) {
+    if (tx.type === "credit") return "text-green-700";
+    if (tx.type === "debit") return "text-red-700";
+    if (tx.type === "service") {
+      if (tx.status === "SUCCESS") return "text-green-700";
+      if (tx.status === "FAILED") return "text-red-700";
+      if (tx.status === "PROCESSING") return "text-yellow-600";
+      return "text-gray-900";
+    }
+    return "text-gray-900";
+  }
 
+  /* ================= UI ================= */
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
@@ -246,119 +252,40 @@ export default function TransactionsPage() {
       </div>
 
       {sections.map((section) => (
-  <TransactionSection
-    key={section}
-    title={section.toUpperCase()}
-    items={grouped[section]} // now TS knows this is safe
-    highlighted={highlighted}
-    onOpen={openModal}
-  />
-))}
+        <TransactionSection
+          key={section}
+          title={section.toUpperCase()}
+          items={grouped[section]}
+          highlighted={highlighted}
+          onOpen={openModal}
+          getTxColor={getTxColor}
+        />
+      ))}
 
       {selectedTx && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-          onClick={closeModal}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 max-w-xl w-full rounded-lg p-6 space-y-4 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold">Transaction Details</h2>
-
-            <div className="space-y-2 text-sm">
-              <p>
-                <b>Type:</b>{" "}
-                {selectedTx.type === "service"
-                  ? "Service Purchase"
-                  : selectedTx.type === "credit"
-                  ? "Credit"
-                  : "Debit"}
-              </p>
-              <p>
-                <b>Service/Category:</b> {getServiceName(selectedTx.serviceId)}
-              </p>
-              {selectedTx.reference && (
-                <p>
-                  <b>Reference:</b> {selectedTx.reference}
-                </p>
-              )}
-              <p>
-                <b>Amount:</b>{" "}
-                {selectedTx.type === "debit" ? "-" : selectedTx.type === "credit" ? "+" : ""}₦
-                {selectedTx.amount.toLocaleString()}
-              </p>
-              {selectedTx.status && (
-                <p>
-                  <b>Status:</b> {selectedTx.status}
-                </p>
-              )}
-              <p className="text-gray-500 dark:text-gray-400">
-                {formatTransactionTime(selectedTx.createdAt)}
-              </p>
-            </div>
-
-            {(selectedTx.apiResponse?.token || selectedTx.apiResponse?.pin) && (
-              <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded p-3 text-center">
-                <p className="text-xs uppercase text-green-700 dark:text-green-300 mb-1">
-                  Electricity Token
-                </p>
-                <p className="font-mono text-lg tracking-widest">
-                  {formatToken(selectedTx.apiResponse.token || selectedTx.apiResponse.pin!)}
-                </p>
-
-                {selectedTx.meta?.units && (
-                  <div className="pt-2 border-t border-green-200 dark:border-green-700">
-                    <p className="text-xs text-green-700 dark:text-green-300">Units</p>
-                    <p className="font-semibold">
-                      {selectedTx.meta.units} {selectedTx.meta.unitLabel || "kWh"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-2">
-              <button
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
-                onClick={() => window.open(pdfUrl!, "_blank")}
-              >
-                Download Receipt
-              </button>
-
-              <button
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
-                onClick={() => shareViaWhatsApp(selectedTx.requestId, pdfUrl!)}
-              >
-                Share WhatsApp
-              </button>
-
-              <button
-                className="flex-1 bg-gray-200 dark:bg-gray-700 dark:text-gray-100 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                onClick={closeModal}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <TransactionModal
+          tx={selectedTx}
+          pdfUrl={pdfUrl}
+          onClose={closeModal}
+        />
       )}
     </div>
   );
 }
 
 /* ================= SECTION ================= */
-
 function TransactionSection({
   title,
   items,
   highlighted,
   onOpen,
+  getTxColor,
 }: {
   title: string;
   items: TransactionItem[];
   highlighted: Set<string>;
   onOpen: (tx: TransactionItem) => void;
+  getTxColor: (tx: TransactionItem) => string;
 }) {
   if (!items.length) return null;
 
@@ -375,35 +302,135 @@ function TransactionSection({
           key={tx.requestId}
           onClick={() => onOpen(tx)}
           className={`p-4 border rounded-lg cursor-pointer transition
-            ${
-              highlighted.has(tx.requestId)
-                ? "bg-green-50 border-green-400"
-                : "hover:bg-gray-50 dark:hover:bg-gray-700"
-            }
+            ${highlighted.has(tx.requestId)
+              ? "bg-green-50 border-green-400"
+              : "hover:bg-gray-50 dark:hover:bg-gray-700"}
           `}
         >
           <div className="flex justify-between">
             <div>
               <p className="font-semibold capitalize">{getServiceName(tx.serviceId)}</p>
               <p className="text-xs text-gray-500">{formatTransactionTime(tx.createdAt)}</p>
-              {tx.status && <p className="text-xs uppercase">{tx.status}</p>}
+              {tx.status && (
+                <p className={`text-xs uppercase ${tx.type === "service" ? getTxColor(tx) : ""}`}>
+                  {tx.status}
+                </p>
+              )}
             </div>
 
-            <p
-              className={`font-semibold ${
-                tx.type === "credit"
-                  ? "text-green-700"
-                  : tx.type === "debit"
-                  ? "text-red-700"
-                  : "text-gray-900"
-              }`}
-            >
+            <p className={`font-semibold ${getTxColor(tx)}`}>
               {tx.type === "debit" ? "-" : tx.type === "credit" ? "+" : ""}₦
               {tx.amount.toLocaleString()}
             </p>
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ================= MODAL ================= */
+function TransactionModal({
+  tx,
+  pdfUrl,
+  onClose,
+}: {
+  tx: TransactionItem;
+  pdfUrl: string | null;
+  onClose: () => void;
+}) {
+  function getServiceName(serviceId?: string) {
+    return serviceId?.replace(/_/g, " ") ?? "Wallet Transaction";
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 max-w-xl w-full rounded-lg p-6 space-y-4 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-xl font-bold">Transaction Details</h2>
+
+        <div className="space-y-2 text-sm">
+          <p>
+            <b>Type:</b>{" "}
+            {tx.type === "service"
+              ? "Service Purchase"
+              : tx.type === "credit"
+              ? "Credit"
+              : "Debit"}
+          </p>
+          <p>
+            <b>Service/Category:</b> {getServiceName(tx.serviceId)}
+          </p>
+          {tx.reference && (
+            <p>
+              <b>Reference:</b> {tx.reference}
+            </p>
+          )}
+          <p>
+            <b>Amount:</b>{" "}
+            {tx.type === "debit" ? "-" : tx.type === "credit" ? "+" : ""}₦
+            {tx.amount.toLocaleString()}
+          </p>
+          {tx.status && (
+            <p className={`${tx.type === "service" ? getTxColor(tx) : ""}`}>
+              <b>Status:</b> {tx.status}
+            </p>
+          )}
+          <p className="text-gray-500 dark:text-gray-400">{formatTransactionTime(tx.createdAt)}</p>
+        </div>
+
+        {(tx.apiResponse?.token || tx.apiResponse?.pin) && (
+          <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded p-3 text-center">
+            <p className="text-xs uppercase text-green-700 dark:text-green-300 mb-1">
+              Electricity Token
+            </p>
+            <p className="font-mono text-lg tracking-widest">
+              {formatToken(tx.apiResponse.token || tx.apiResponse.pin!)}
+            </p>
+
+            {tx.meta?.units && (
+              <div className="pt-2 border-t border-green-200 dark:border-green-700">
+                <p className="text-xs text-green-700 dark:text-green-300">Units</p>
+                <p className="font-semibold">
+                  {tx.meta.units} {tx.meta.unitLabel || "kWh"}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-2">
+          {pdfUrl && (
+            <button
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
+              onClick={() => window.open(pdfUrl, "_blank")}
+            >
+              Download Receipt
+            </button>
+          )}
+
+          {pdfUrl && (
+            <button
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
+              onClick={() => shareViaWhatsApp(tx.requestId, pdfUrl)}
+            >
+              Share WhatsApp
+            </button>
+          )}
+
+          <button
+            className="flex-1 bg-gray-200 dark:bg-gray-700 dark:text-gray-100 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
