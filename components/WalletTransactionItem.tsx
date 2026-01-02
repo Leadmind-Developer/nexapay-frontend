@@ -1,17 +1,20 @@
 "use client";
 
 import React from "react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  AlertTriangle,
+} from "lucide-react";
 
 export interface WalletTransaction {
   id: number;
-  type: string;
+  type: "credit" | "debit" | "CREDIT" | "DEBIT";
   amount: number;
   status?: "success" | "pending" | "failed";
   reference?: string;
   createdAt: string;
   metadata?: {
-    senderAvatar?: string;
-    receiverAvatar?: string;
     externalBank?: {
       bankName: string;
       accountNumber: string;
@@ -25,16 +28,41 @@ type Props = {
 };
 
 export default function WalletTransactionItem({ tx, onClick }: Props) {
-  const isCredit = tx.amount >= 0;
+  const normalizedType =
+    tx.type.toLowerCase() === "credit" ? "credit" : "debit";
 
-  const color =
+  const isCredit = normalizedType === "credit";
+
+  /* ================= COLORS ================= */
+  const amountColor =
     tx.status === "failed"
-      ? "#D93030"
+      ? "text-red-600"
       : tx.status === "pending"
-      ? "#F5A623"
+      ? "text-yellow-600"
       : isCredit
-      ? "#12C060"
-      : "#E84E4E";
+      ? "text-green-600"
+      : "text-red-600";
+
+  const badgeClass =
+    tx.status === "failed"
+      ? "bg-red-100 text-red-600"
+      : tx.status === "pending"
+      ? "bg-yellow-100 text-yellow-600"
+      : "bg-green-100 text-green-600";
+
+  /* ================= ICON ================= */
+  const Icon = tx.status === "failed"
+    ? AlertTriangle
+    : isCredit
+    ? ArrowDownLeft
+    : ArrowUpRight;
+
+  const iconBg =
+    tx.status === "failed"
+      ? "bg-red-100 text-red-600"
+      : isCredit
+      ? "bg-green-100 text-green-600"
+      : "bg-red-100 text-red-600";
 
   const amountText = `${isCredit ? "+" : "-"}₦${Math.abs(tx.amount).toLocaleString(
     "en-NG",
@@ -44,31 +72,24 @@ export default function WalletTransactionItem({ tx, onClick }: Props) {
   return (
     <div
       onClick={() => onClick?.(tx)}
-      className="bg-white rounded-xl shadow p-4 flex items-center gap-3 cursor-pointer"
+      className="bg-white rounded-xl shadow-sm hover:shadow-md transition p-4 flex items-center gap-3 cursor-pointer"
     >
-      {/* Avatar */}
-      <img
-        src={
-          tx.metadata?.senderAvatar ||
-          tx.metadata?.receiverAvatar ||
-          "https://i.pravatar.cc/80?img=12"
-        }
-        alt="avatar"
-        className="w-10 h-10 rounded-full"
-      />
+      {/* Icon Avatar */}
+      <div
+        className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBg}`}
+      >
+        <Icon size={18} />
+      </div>
 
       {/* Info */}
       <div className="flex-1">
         <div className="flex justify-between items-center">
-          <p className="font-semibold capitalize">{tx.type}</p>
+          <p className="font-semibold capitalize">
+            {isCredit ? "Wallet Credit" : "Wallet Debit"}
+          </p>
+
           <span
-            className={`text-xs font-bold px-2 py-0.5 rounded ${
-              tx.status === "failed"
-                ? "bg-red-100 text-red-600"
-                : tx.status === "pending"
-                ? "bg-yellow-100 text-yellow-600"
-                : "bg-green-100 text-green-600"
-            }`}
+            className={`text-xs font-semibold px-2 py-0.5 rounded ${badgeClass}`}
           >
             {tx.status ?? "success"}
           </span>
@@ -91,7 +112,7 @@ export default function WalletTransactionItem({ tx, onClick }: Props) {
       </div>
 
       {/* Amount */}
-      <div className="font-bold text-right" style={{ color }}>
+      <div className={`font-bold text-right ${amountColor}`}>
         {amountText}
       </div>
     </div>
