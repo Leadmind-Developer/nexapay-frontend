@@ -19,14 +19,11 @@ interface RootLayoutProps {
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
-  // Example: server-side user detection
   const token = cookies().get("token")?.value;
-  const isLoggedIn = Boolean(token);
 
   return (
     <html lang="en">
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        {/* Wrap with client-side exceptions handler */}
         <LayoutExceptionsWrapper>
           <div className="min-h-screen flex flex-col md:flex-row">
             <NavBar />
