@@ -75,6 +75,10 @@ function isValidWallet(tx: any): tx is WalletTransaction {
   );
 }
 
+type SectionKey = "today" | "yesterday" | "older";
+
+const sections: SectionKey[] = ["today", "yesterday", "older"];
+
 /* ================= PAGE ================= */
 
 export default function TransactionsPage() {
@@ -241,15 +245,15 @@ export default function TransactionsPage() {
         </select>
       </div>
 
-      {["today", "yesterday", "older"].map((section) => (
-        <TransactionSection
-          key={section}
-          title={section.toUpperCase()}
-          items={grouped[section]}
-          highlighted={highlighted}
-          onOpen={openModal}
-        />
-      ))}
+      {sections.map((section) => (
+  <TransactionSection
+    key={section}
+    title={section.toUpperCase()}
+    items={grouped[section]} // now TS knows this is safe
+    highlighted={highlighted}
+    onOpen={openModal}
+  />
+))}
 
       {selectedTx && (
         <div
