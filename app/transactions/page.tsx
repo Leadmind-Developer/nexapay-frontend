@@ -205,17 +205,20 @@ export default function TransactionsPage() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   }
 
-  function getTxColor(tx: TransactionItem) {
-    if (tx.type === "credit") return "text-green-700";
-    if (tx.type === "debit") return "text-red-700";
-    if (tx.type === "service") {
-      if (tx.status === "SUCCESS") return "text-green-700";
-      if (tx.status === "FAILED") return "text-red-700";
-      if (tx.status === "PROCESSING") return "text-yellow-600";
-      return "text-gray-900";
-    }
+  /**
+ * Returns the Tailwind color class for a transaction
+ */
+export function getTxColor(tx: TransactionItem) {
+  if (tx.type === "credit") return "text-green-700";
+  if (tx.type === "debit") return "text-red-700";
+  if (tx.type === "service") {
+    if (tx.status === "SUCCESS") return "text-green-700";
+    if (tx.status === "FAILED") return "text-red-700";
+    if (tx.status === "PROCESSING") return "text-yellow-600";
     return "text-gray-900";
   }
+  return "text-gray-900";
+}
 
   /* ================= UI ================= */
   if (loading) {
