@@ -1,8 +1,5 @@
-"use client";
-
 import "./globals.css";
 import { ReactNode } from "react";
-import { usePathname } from "next/navigation";
 import NavBar from "@/components/NavBar";
 
 export const metadata = {
@@ -15,12 +12,16 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+interface RootLayoutProps {
+  children: ReactNode;
+  params: { [key: string]: string };
+  segment?: string; // Next.js provides current route segment
+}
 
-  // Routes that should NOT render the global NavBar
-  const isOrganizer = pathname.startsWith("/organizer");
-  const isLanding = pathname === "/"; // Landing page
+export default function RootLayout({ children, segment }: RootLayoutProps) {
+  // SERVER-SIDE ROUTE DETECTION
+  const isOrganizer = segment?.startsWith("organizer");
+  const isLanding = segment === undefined || segment === ""; // root "/"
 
   const skipGlobalLayout = isOrganizer || isLanding;
 
@@ -28,10 +29,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         {skipGlobalLayout ? (
-          // ORGANIZER OR LANDING PAGE CONTROL THEIR OWN LAYOUT
+          // Landing page or organizer controls its own layout
           children
         ) : (
-          // GLOBAL APP LAYOUT
+          // Global app layout
           <div className="min-h-screen flex flex-col md:flex-row">
             <NavBar />
 
