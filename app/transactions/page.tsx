@@ -100,7 +100,7 @@ export default function TransactionsPage() {
 
         const walletTx: TransactionItem[] = (walletRes.data?.wallet?.transactions || [])
           .filter(isValidWallet)
-          .map((tx) => ({
+          .map((tx: WalletTransaction) => ({
             type: tx.type,
             requestId: tx.id,
             amount: tx.amount,
@@ -110,8 +110,8 @@ export default function TransactionsPage() {
 
         const vtpassTx: TransactionItem[] = (vtpassRes.data || [])
           .filter(isValidVTpass)
-          .map((tx) => ({
-            type: "service", // services can't be credit/debit
+          .map((tx: VTpassTransaction) => ({
+            type: "service",
             requestId: tx.requestId,
             serviceId: tx.serviceId,
             status: tx.status,
@@ -135,7 +135,7 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (!Array.isArray(sseTransactions)) return;
 
-    const updates = sseTransactions.filter(isValidVTpass);
+    const updates: VTpassTransaction[] = sseTransactions.filter(isValidVTpass);
     if (!updates.length) return;
 
     setHighlighted((prev) => {
@@ -147,13 +147,13 @@ export default function TransactionsPage() {
     setTransactions((prev) => {
       const nonProcessing = prev.filter((tx) => tx.status !== "PROCESSING");
 
-      const newUpdates: TransactionItem[] = updates.map((tx) => ({
+      const newUpdates: TransactionItem[] = updates.map((tx: VTpassTransaction) => ({
+        type: "service",
         requestId: tx.requestId,
         serviceId: tx.serviceId,
         status: tx.status,
         amount: tx.amount,
         createdAt: tx.createdAt,
-        type: "service",
         apiResponse: tx.apiResponse,
         meta: tx.meta,
       }));
@@ -161,7 +161,6 @@ export default function TransactionsPage() {
       return [...nonProcessing, ...newUpdates].sort(sortByDateDesc);
     });
 
-    // auto-remove highlight after 6s
     setTimeout(() => {
       setHighlighted((prev) => {
         const next = new Set(prev);
@@ -174,13 +173,13 @@ export default function TransactionsPage() {
   /* ================= FILTER ================= */
 
   const filtered = useMemo(() => {
-    return transactions.filter((tx) => {
+    return transactions.filter((tx: TransactionItem) => {
       const matchesSearch =
         tx.requestId.toLowerCase().includes(search.toLowerCase()) ||
         (tx.serviceId?.toLowerCase().includes(search.toLowerCase()) ?? false);
 
       const matchesStatus =
-        !statusFilter || tx.status?.toLowerCase() === statusFilter.toLowerCase();
+        !statusFilter || (tx.status?.toLowerCase() === statusFilter.toLowerCase());
       return matchesSearch && matchesStatus;
     });
   }, [transactions, search, statusFilter]);
@@ -223,7 +222,6 @@ export default function TransactionsPage() {
     <div className="max-w-4xl mx-auto p-5 space-y-4">
       <h1 className="text-2xl font-bold">Transactions</h1>
 
-      {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row gap-2">
         <input
           className="flex-1 p-2 border rounded"
@@ -243,7 +241,6 @@ export default function TransactionsPage() {
         </select>
       </div>
 
-      {/* Transaction Sections */}
       {["today", "yesterday", "older"].map((section) => (
         <TransactionSection
           key={section}
@@ -254,7 +251,6 @@ export default function TransactionsPage() {
         />
       ))}
 
-      {/* Transaction Modal */}
       {selectedTx && (
         <div
           className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
@@ -285,7 +281,7 @@ export default function TransactionsPage() {
               )}
               <p>
                 <b>Amount:</b>{" "}
-                {selectedTx.type === "debit" ? "-" : "+"}₦
+                {selectedTx.type === "debit" ? "-" : selectedTx.type === "credit" ? "+" : ""}₦
                 {selectedTx.amount.toLocaleString()}
               </p>
               {selectedTx.status && (
@@ -362,11 +358,15 @@ function TransactionSection({
 }) {
   if (!items.length) return null;
 
+  function getServiceName(serviceId?: string) {
+    return serviceId?.replace(/_/g, " ") ?? "Wallet Transaction";
+  }
+
   return (
     <div className="space-y-2">
       <h3 className="text-xs font-semibold uppercase text-gray-500">{title}</h3>
 
-      {items.map((tx) => (
+      {items.map((tx: TransactionItem) => (
         <div
           key={tx.requestId}
           onClick={() => onOpen(tx)}
