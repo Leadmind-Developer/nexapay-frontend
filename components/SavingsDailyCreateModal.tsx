@@ -1,146 +1,118 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
-type Props = {
-  open: boolean;
-  onClose: () => void;
-  onCreated: (goal: any) => void;
-};
-
-type FundingSource = "MANUAL" | "AUTO" | "";
+type Props = { onClose: () => void };
 
 type DailyDraft = {
-  targetAmount: number;
+  targetAmount: string; // NAIRA
   startDate: string;
-  primarySource: FundingSource;
+  primarySource: "MANUAL" | "";
   vaAccount?: string;
   vaBank?: string;
 };
 
-export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
-  if (typeof window === "undefined") return null;
-  
-  if (!open) return null;
-  
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [toastVisible, setToastVisible] = useState(false);
+type DailyScheduleItem = {
+  day: number;
+  date: string;
+  amount: number; // KOBO
+  type: "PLATFORM" | "USER";
+};
 
-  /* ---------------- Local input buffer (NO re-render storm) ---------------- */
-  const [amountInput, setAmountInput] = useState("");
+const STORAGE_KEY = "savings-daily-draft";
 
-  /* ---------------- Draft (committed values only) ---------------- */
+export default function SavingsDailyCreateModal({
+  onClose,
+  onCreated,
+  }: {
+  onClose: () => void;
+  onCreated: (goal: any) => void;
+  })
+
+  const [step, setStep] = useState(1);
+
   const [draft, setDraft] = useState<DailyDraft>({
-    targetAmount: 0,
+    targetAmount: "",
     startDate: new Date().toISOString().split("T")[0],
     primarySource: "",
+    vaAccount: undefined,
+    vaBank: undefined,
   });
 
-  /* ---------------- Virtual account state ---------------- */
   const [vaLoading, setVaLoading] = useState(false);
   const [vaExists, setVaExists] = useState(false);
+  const [schedule, setSchedule] = useState<DailyScheduleItem[]>([]);
 
-  /* ---------------- Derived values (memoized) ---------------- */
-  const dailyAmount = useMemo(() => {
-    if (draft.targetAmount <= 0) return 0;
-    return Math.round(draft.targetAmount / 30);
-  }, [draft.targetAmount]);
+  const totalTarget = Number(draft.targetAmount) || 0;
+  const dailyAmount = totalTarget / 30;
 
-  /* ---------------- VA check (MANUAL only, stable) ---------------- */
+  /* ---------------- Draft persistence ---------------- */
   useEffect(() => {
-    if (draft.primarySource !== "MANUAL") return;
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) setDraft(JSON.parse(saved));
+  }, []);
 
-    let cancelled = false;
+  useEffect(() => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  }, [draft]);
 
-    const fetchVA = async () => {
-      setVaLoading(true);
-      try {
-        const res = await api.get("/wallet");
-        if (cancelled) return;
+  /* ---------------- Clear schedule when leaving review ---------------- */
+  useEffect(() => {
+    if (step !== 3) setSchedule([]);
+  }, [step]);
 
-        const va = res.data?.virtualAccount;
-        if (va?.accountNumber) {
-          setVaExists(true);
-          setDraft((d) => ({
-            ...d,
-            vaAccount: va.accountNumber,
-            vaBank: va.bankName,
-          }));
-        } else {
-          setVaExists(false);
-        }
-      } catch {
-        if (!cancelled) setVaExists(false);
-      } finally {
-        if (!cancelled) setVaLoading(false);
-      }
-    };
+  /* ---------------- Virtual account check ---------------- */
+  useEffect(() => {
+  if (draft.primarySource !== "MANUAL") return;
 
-    fetchVA();
-    return () => {
-      cancelled = true;
-    };
-  }, [draft.primarySource]);
-
-  /* ---------------- Step transitions ---------------- */
-  const goToStep2 = () => {
-    const amount = Number(amountInput);
-    if (!amount || amount <= 0) return;
-
-    setDraft((d) => ({
-      ...d,
-      targetAmount: amount,
-    }));
-    setStep(2);
-  };
-
-  const goToStep3 = () => {
-    if (!draft.primarySource) return;
-    setStep(3);
-  };
-
-  /* ---------------- Submit ---------------- */
-  const submit = async () => {
-    if (!draft.primarySource || draft.targetAmount <= 0) return;
-
+  const fetchVA = async () => {
+    setVaLoading(true);
     try {
-      const res = await api.post("/strict-daily", {
-        targetAmount: draft.targetAmount,
-        startDate: draft.startDate,
-        primarySource: draft.primarySource,
-        vaAccount: draft.primarySource === "MANUAL" ? draft.vaAccount : undefined,
-        vaBank: draft.primarySource === "MANUAL" ? draft.vaBank : undefined,
-        durationDays: 30,
-        frequency: "daily",
-        planType: "STRICT_DAILY",
-      });
+      const res = await api.get("/wallet");
 
-      const goal = res.data?.data;
-      if (!goal) throw new Error("No plan returned");
+      const va = res.data?.virtualAccount;
 
-      if (draft.primarySource === "AUTO") {
-        await api.post("/wallet/debit", {
-          userId: goal.userId,
-          amount: draft.targetAmount,
-          reference: `SAVINGS-STRICT-${goal.id}`,
-        });
+      if (va?.accountNumber) {
+        setVaExists(true);
+        setDraft(d => ({
+          ...d,
+          vaAccount: va.accountNumber,
+          vaBank: va.bankName,
+        }));
+      } else {
+        setVaExists(false);
       }
-
-      onCreated(goal);
-      setToastVisible(true);
-
-      setTimeout(() => {
-        setToastVisible(false);
-        onClose();
-      }, 1800);
     } catch (err) {
-      console.error(err);
-      alert("Failed to create savings plan. Please try again.");
+      console.error("Failed to fetch virtual account:", err);
+      setVaExists(false);
+    } finally {
+      setVaLoading(false);
     }
   };
 
-  /* ---------------- UI helpers ---------------- */
+  fetchVA();
+}, [draft.primarySource]);
+
+  /* ---------------- Submit ---------------- */
+  const submit = async () => {
+    if (!draft.primarySource || !totalTarget) return;
+
+    await api.post("/savings/strict-daily", {
+      targetAmount: totalTarget, // NAIRA
+      startDate: draft.startDate,
+      primarySource: "MANUAL",
+      vaAccount: draft.vaAccount,
+      vaBank: draft.vaBank,
+      durationDays: 30,
+      frequency: "daily",
+      planType: "STRICT_DAILY",
+    });
+
+    localStorage.removeItem(STORAGE_KEY);
+    onClose();
+  };
+
   const Step = ({ children }: { children: React.ReactNode }) => (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-6">
       {children}
@@ -149,29 +121,24 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-xl p-6 relative">
+      <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-xl p-6">
 
-        {toastVisible && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg">
-            Savings Goal Created Successfully!
-          </div>
-        )}
-
-        {/* ---------------- STEP 1 ---------------- */}
+        {/* STEP 1 */}
         {step === 1 && (
           <Step>
             <h2 className="text-lg font-semibold">Strict Daily Contributions</h2>
+            <p className="text-sm text-gray-500">
+              Save daily for 30 days. No interest. Manual transfer only.
+            </p>
 
             <input
-              type="text"
-              inputMode="numeric"
+              type="number"
               placeholder="Total amount (₦)"
               className="input w-full"
-              value={amountInput}
-              onChange={(e) => {
-                const v = e.target.value.replace(/\D/g, "");
-                setAmountInput(v);
-              }}
+              value={draft.targetAmount}
+              onChange={e =>
+                setDraft(d => ({ ...d, targetAmount: e.target.value }))
+              }
             />
 
             <label className="text-sm text-gray-500">Start Date</label>
@@ -179,14 +146,14 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
               type="date"
               className="input w-full"
               value={draft.startDate}
-              onChange={(e) =>
-                setDraft((d) => ({ ...d, startDate: e.target.value }))
+              onChange={e =>
+                setDraft(d => ({ ...d, startDate: e.target.value }))
               }
             />
 
-            {Number(amountInput) > 0 && (
+            {dailyAmount > 0 && (
               <p className="text-sm text-gray-500">
-                ₦{Math.round(Number(amountInput) / 30).toLocaleString()} per day
+                ₦{dailyAmount.toLocaleString()} will be paid daily.
               </p>
             )}
 
@@ -195,8 +162,8 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
                 Cancel
               </button>
               <button
-                disabled={!Number(amountInput)}
-                onClick={goToStep2}
+                disabled={!totalTarget}
+                onClick={() => setStep(2)}
                 className="btn-primary w-full"
               >
                 Continue
@@ -205,37 +172,43 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           </Step>
         )}
 
-        {/* ---------------- STEP 2 ---------------- */}
+        {/* STEP 2 */}
         {step === 2 && (
           <Step>
             <h2 className="text-lg font-semibold">Funding Source</h2>
+            <p className="text-sm text-gray-500">
+              Contributions are made via manual bank transfer.
+            </p>
 
             <select
               className="input w-full"
               value={draft.primarySource}
-              onChange={(e) =>
-                setDraft((d) => ({
+              onChange={e =>
+                setDraft(d => ({
                   ...d,
-                  primarySource: e.target.value as FundingSource,
+                  primarySource: e.target.value as DailyDraft["primarySource"],
                 }))
               }
             >
               <option value="">Select source</option>
               <option value="MANUAL">Manual Bank Transfer</option>
-              <option value="AUTO">Wallet Debit (Auto)</option>
             </select>
 
             {draft.primarySource === "MANUAL" && (
-              <div className="text-sm">
-                {vaLoading && <p>Checking virtual account…</p>}
+              <div className="space-y-1">
+                {vaLoading && (
+                  <p className="text-sm text-gray-500">
+                    Checking virtual account…
+                  </p>
+                )}
                 {!vaLoading && vaExists && (
-                  <p className="text-green-600">
-                    VA: {draft.vaAccount} ({draft.vaBank})
+                  <p className="text-sm text-green-600">
+                    Virtual Account: {draft.vaAccount} ({draft.vaBank})
                   </p>
                 )}
                 {!vaLoading && !vaExists && (
-                  <p className="text-red-500">
-                    Virtual account will be created
+                  <p className="text-sm text-red-500">
+                    A virtual account will be created after confirmation.
                   </p>
                 )}
               </div>
@@ -247,7 +220,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
               </button>
               <button
                 disabled={!draft.primarySource}
-                onClick={goToStep3}
+                onClick={() => setStep(3)}
                 className="btn-primary w-full"
               >
                 Continue
@@ -256,22 +229,53 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           </Step>
         )}
 
-        {/* ---------------- STEP 3 ---------------- */}
+        {/* STEP 3 */}
         {step === 3 && (
           <Step>
-            <h2 className="text-lg font-semibold">Review</h2>
+            <h2 className="text-lg font-semibold">Review & Schedule</h2>
 
             <div className="text-sm space-y-1">
-              <p><b>Total:</b> ₦{draft.targetAmount.toLocaleString()}</p>
+              <p><b>Total:</b> ₦{totalTarget.toLocaleString()}</p>
+              <p><b>Duration:</b> 30 days</p>
               <p><b>Daily:</b> ₦{dailyAmount.toLocaleString()}</p>
               <p><b>Start:</b> {draft.startDate}</p>
-              <p>
-                <b>Source:</b>{" "}
-                {draft.primarySource === "AUTO"
-                  ? "Wallet Debit"
-                  : "Manual Transfer"}
-              </p>
+              <p><b>Source:</b> Manual Transfer</p>
             </div>
+
+            {schedule.length > 0 && (
+              <div className="max-h-64 overflow-x-auto rounded border
+                              border-gray-200 dark:border-zinc-700
+                              bg-gray-50 dark:bg-zinc-800 p-2">
+                <table className="w-full text-sm text-gray-700 dark:text-gray-200">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-zinc-700">
+                      <th>Day</th>
+                      <th>Date</th>
+                      <th>Amount (₦)</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedule.map(item => (
+                      <tr key={item.day} className="border-b last:border-0">
+                        <td>{item.day}</td>
+                        <td>{item.date}</td>
+                        <td>{(item.amount / 100).toLocaleString()}</td>
+                        <td
+                          className={
+                            item.type === "PLATFORM"
+                              ? "text-red-600 dark:text-red-400 font-medium"
+                              : "text-green-600 dark:text-green-400 font-medium"
+                          }
+                        >
+                          {item.type}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button onClick={() => setStep(2)} className="btn-secondary w-full">
@@ -283,6 +287,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             </div>
           </Step>
         )}
+
       </div>
     </div>
   );
