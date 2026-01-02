@@ -129,7 +129,7 @@ if (res.data.success) {
       if (!goal) throw new Error("No plan returned");
 
       if (draft.primarySource === "AUTO") {
-        await api.post("/wallet/debit", {
+        await api.post("/wallet/transfer", {
           userId: goal.userId,
           amount: draft.targetAmount,
           reference: `SAVINGS-STRICT-${goal.id}`,
