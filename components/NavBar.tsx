@@ -65,7 +65,7 @@ export default function NavBar() {
 
   const dashboardLinks: NavLink[] = [
     { name: "Dashboard", href: "/dashboard", icon: <IoHomeOutline /> },
-    { name: "Wallet", href: "/dashboard/addmoney", icon: <IoWalletOutline /> },
+    { name: "Wallet", href: "/dashboard/wallethistory", icon: <IoWalletOutline /> },
     { name: "Savings", href: "/dashboard/savings", icon: <IoCashOutline /> },
     { name: "Loans", href: "/dashboard/loans", icon: <IoBriefcaseOutline /> },
     { name: "Funds", href: "/dashboard/funds", icon: <IoCashOutline /> },
@@ -80,10 +80,9 @@ export default function NavBar() {
         { name: "Reward", href: "/dashboard/reward" },
         { name: "Saved Beneficiaries", href: "/dashboard/savedbeneficiaries" },
         { name: "FAQ", href: "/dashboard/faq" },
-        { name: "Setup Naira Account", href: "/dashboard/setupnairaaccount" },
+        { name: "My Naira Account", href: "/dashboard/setupnairaaccount" },
         { name: "Set Username", href: "/dashboard/setusername" },
-        { name: "Virtual Account", href: "/dashboard/va" },
-        { name: "Wallet History", href: "/dashboard/wallethistory" },
+        { name: "Virtual Account", href: "/dashboard/va" },        
         { name: "Withdraw", href: "/dashboard/withdraw" },
       ],
     },
