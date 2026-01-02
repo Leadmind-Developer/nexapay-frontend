@@ -94,7 +94,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
     if (!draft.primarySource || !totalTarget) return;
 
     try {
-      const res = await api.post("/savings/strict-daily", {
+      const res = await api.post("/savingsdaily/strict-daily", {
         targetAmount: totalTarget, // NAIRA
         startDate: draft.startDate,
         primarySource: "MANUAL",
@@ -303,6 +303,18 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           </Step>
         )}
       </div>
+   {/* ---------------- Toast Animation ---------------- */}
+      <style jsx>{`
+        @keyframes fade-in-out {
+          0% { opacity: 0; transform: translateY(-10px); }
+          10% { opacity: 1; transform: translateY(0); }
+          90% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-10px); }
+        }
+        .animate-fade-in-out {
+          animation: fade-in-out 2s ease forwards;
+        }
+      `}</style>
     </div>
   );
 }
