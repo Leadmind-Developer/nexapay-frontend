@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 
 type Props = {
+  open: boolean;
   onClose: () => void;
   onCreated: (goal: any) => void;
 };
@@ -19,6 +20,7 @@ type DailyDraft = {
 };
 
 export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
+  if (!open) return null;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [toastVisible, setToastVisible] = useState(false);
 
