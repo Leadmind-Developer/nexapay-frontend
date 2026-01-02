@@ -75,12 +75,16 @@ export default function SavingsCreateModal({ onClose }: Props) {
       return;
     }
 
+    let cancelled = false;
+
     const t = setTimeout(async () => {
       try {
         setVerifying(true);
         const res = await api.get(
           `/paystack/resolve-account?account_number=${draft.accountNumber}&bank_code=${draft.bankCode}`
         );
+
+        if (!cancelled) {
 
         if (res.data?.success) {
           setDraft(d => ({
@@ -92,13 +96,17 @@ export default function SavingsCreateModal({ onClose }: Props) {
           setIsValidAccount(false);
         }
       } catch {
+        if (!cancelled) setIsValidAccount(false);
         setIsValidAccount(false);
       } finally {
-        setVerifying(false);
+        if (!cancelled) setVerifying(false);
       }
-    }, 600);
+    }, 300);
 
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [draft.accountNumber, draft.bankCode]);
 
   /* ---------------- Derived values ---------------- */
