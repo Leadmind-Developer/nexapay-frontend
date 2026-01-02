@@ -7,7 +7,6 @@ import { API_BASE } from "@/lib/constants";
 import {
   formatTransactionTime,
   formatToken,
-  shareViaWhatsApp,
   groupTransactionsByDate,
 } from "@/lib/utils/transactions";
 
@@ -18,8 +17,8 @@ export interface TransactionItem {
   serviceId: string;
   status: "SUCCESS" | "FAILED" | "PROCESSING" | string;
   amount: number;
-  type?: "credit" | "debit"; // new
   createdAt: string;
+  type: "credit" | "debit";
 
   apiResponse?: {
     token?: string;
@@ -54,7 +53,6 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
 
   const sseTransactions = useTransactionsSSE();
@@ -64,28 +62,29 @@ export default function TransactionsPage() {
   useEffect(() => {
     (async () => {
       try {
-        // Fetch VTpass/service transactions
-        const res = await api.get("/transactions");
-        const vtpassTxs = Array.isArray(res.data)
-          ? res.data.filter(isValidTransaction)
+        // Fetch VTpass transactions
+        const vtpassRes = await api.get("/transactions");
+        const vtpassTxs: TransactionItem[] = Array.isArray(vtpassRes.data)
+          ? vtpassRes.data.filter(isValidTransaction).map((tx) => ({
+              ...tx,
+              type: "debit", // service purchase is always debit
+            }))
           : [];
 
         // Fetch wallet transactions
         const walletRes = await api.get("/wallet");
-        const walletTxsRaw = walletRes.data.wallet?.transactions || [];
-
-        const walletTxs: TransactionItem[] = walletTxsRaw.map((tx: any) => ({
-          requestId: tx.id,
-          serviceId: "wallet_transaction",
+        const walletTxs: TransactionItem[] = (walletRes.data?.wallet?.transactions || []).map((tx: any) => ({
+          requestId: tx.id.toString(),
+          serviceId: tx.type === "credit" ? "wallet_credit" : "wallet_debit",
           status: tx.status || "SUCCESS",
           amount: tx.amount,
-          type: tx.amount >= 0 ? "credit" : "debit",
           createdAt: tx.createdAt,
+          type: tx.type,
         }));
 
-        // Merge & sort all transactions
-        const allTxs = [...walletTxs, ...vtpassTxs].sort(sortByDateDesc);
-        setTransactions(allTxs);
+        // Merge both
+        const merged = [...walletTxs, ...vtpassTxs].sort(sortByDateDesc);
+        setTransactions(merged);
       } catch (err) {
         console.error("Failed to fetch transactions", err);
       } finally {
@@ -98,7 +97,6 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     if (!Array.isArray(sseTransactions)) return;
-
     const updates = sseTransactions.filter(isValidTransaction);
     if (!updates.length) return;
 
@@ -110,7 +108,8 @@ export default function TransactionsPage() {
 
     setTransactions((prev) => {
       const nonProcessing = prev.filter((tx) => tx.status !== "PROCESSING");
-      return [...nonProcessing, ...updates].sort(sortByDateDesc);
+      const newUpdates = updates.map((tx) => ({ ...tx, type: "debit" }));
+      return [...nonProcessing, ...newUpdates].sort(sortByDateDesc);
     });
 
     setTimeout(() => {
@@ -141,23 +140,20 @@ export default function TransactionsPage() {
 
   function openModal(tx: TransactionItem) {
     setSelectedTx(tx);
-    setPdfUrl(`${API_BASE}/transactions/${tx.requestId}/receipt.pdf`);
   }
 
   function closeModal() {
     setSelectedTx(null);
-    setPdfUrl(null);
-  }
-
-  function getServiceName(tx: TransactionItem) {
-    if (tx.serviceId === "wallet_transaction") {
-      return tx.type === "credit" ? "Wallet Credit" : "Wallet Debit";
-    }
-    return tx.serviceId.replace(/_/g, " ");
   }
 
   function sortByDateDesc(a: TransactionItem, b: TransactionItem) {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  }
+
+  function getServiceLabel(tx: TransactionItem) {
+    if (tx.serviceId === "wallet_credit") return "Wallet Credit";
+    if (tx.serviceId === "wallet_debit") return "Wallet Debit";
+    return tx.serviceId.replace(/_/g, " ");
   }
 
   /* ================= UI ================= */
@@ -190,108 +186,24 @@ export default function TransactionsPage() {
         <p>Loading transactions…</p>
       ) : (
         <>
-          <TransactionSection
-            title="Today"
-            items={grouped.today}
-            highlighted={highlighted}
-            onOpen={openModal}
-          />
-          <TransactionSection
-            title="Yesterday"
-            items={grouped.yesterday}
-            highlighted={highlighted}
-            onOpen={openModal}
-          />
-          <TransactionSection
-            title="Older"
-            items={grouped.older}
-            highlighted={highlighted}
-            onOpen={openModal}
-          />
+          {(["today", "yesterday", "older"] as const).map((key) =>
+            grouped[key] && grouped[key].length > 0 ? (
+              <TransactionSection
+                key={key}
+                title={key.toUpperCase()}
+                items={grouped[key]}
+                highlighted={highlighted}
+                onOpen={openModal}
+                getLabel={getServiceLabel}
+              />
+            ) : null
+          )}
         </>
       )}
 
       {/* ================= MODAL ================= */}
       {selectedTx && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-          onClick={closeModal}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 max-w-xl w-full rounded-lg p-6 space-y-4 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold">Transaction Details</h2>
-
-            <div className="space-y-2 text-sm">
-              <p>
-                <b>Service:</b> {getServiceName(selectedTx)}
-              </p>
-              <p>
-                <b>Reference:</b> {selectedTx.requestId}
-              </p>
-              <p>
-                <b>Amount:</b>{" "}
-                {selectedTx.type === "debit" ? "-" : "+"}₦{selectedTx.amount}
-              </p>
-              <p>
-                <b>Status:</b> {selectedTx.status}
-              </p>
-              <p className="text-gray-500 dark:text-gray-400">
-                {formatTransactionTime(selectedTx.createdAt)}
-              </p>
-            </div>
-
-            {(selectedTx.apiResponse?.token ||
-              selectedTx.apiResponse?.pin) && (
-              <div className="bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded p-3 text-center">
-                <p className="text-xs uppercase text-green-700 dark:text-green-300 mb-1">
-                  Electricity Token
-                </p>
-                <p className="font-mono text-lg tracking-widest">
-                  {formatToken(
-                    selectedTx.apiResponse.token || selectedTx.apiResponse.pin!
-                  )}
-                </p>
-
-                {selectedTx.meta?.units && (
-                  <div className="pt-2 border-t border-green-200 dark:border-green-700">
-                    <p className="text-xs text-green-700 dark:text-green-300">
-                      Units
-                    </p>
-                    <p className="font-semibold">
-                      {selectedTx.meta.units}{" "}
-                      {selectedTx.meta.unitLabel || "kWh"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-2">
-              <button
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
-                onClick={() => window.open(pdfUrl!, "_blank")}
-              >
-                Download Receipt
-              </button>
-
-              <button
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded"
-                onClick={() => shareViaWhatsApp(selectedTx.requestId, pdfUrl!)}
-              >
-                Share WhatsApp
-              </button>
-
-              <button
-                className="flex-1 bg-gray-200 dark:bg-gray-700 dark:text-gray-100 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-                onClick={closeModal}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <TransactionModal tx={selectedTx} onClose={closeModal} />
       )}
     </div>
   );
@@ -304,61 +216,93 @@ function TransactionSection({
   items,
   highlighted,
   onOpen,
+  getLabel,
 }: {
   title: string;
   items: TransactionItem[];
   highlighted: Set<string>;
   onOpen: (tx: TransactionItem) => void;
+  getLabel: (tx: TransactionItem) => string;
 }) {
-  if (!items.length) return null;
-
   return (
     <div className="space-y-2">
       <h3 className="text-xs font-semibold uppercase text-gray-500">{title}</h3>
 
       {items.map((tx) => (
-        <div
+        <button
           key={tx.requestId}
           onClick={() => onOpen(tx)}
-          className={`p-4 border rounded-lg cursor-pointer transition
-            ${
-              highlighted.has(tx.requestId)
-                ? "bg-green-50 border-green-400"
-                : "hover:bg-gray-50"
-            }
+          className={`w-full flex justify-between items-center p-3 rounded-lg mb-2 transition
+            ${tx.type === "credit" ? "bg-green-50 dark:bg-green-900" : "bg-red-50 dark:bg-red-900"}
+            ${highlighted.has(tx.requestId) ? "ring-2 ring-green-400" : ""}
           `}
         >
-          <div className="flex justify-between">
-            <div>
-              <p className="font-semibold capitalize">{tx.serviceId === "wallet_transaction"
-                  ? tx.type === "credit"
-                    ? "Wallet Credit"
-                    : "Wallet Debit"
-                  : tx.serviceId.replace(/_/g, " ")}</p>
-              <p className="text-xs text-gray-500">
-                {formatTransactionTime(tx.createdAt)}
-              </p>
-            </div>
-
-            <span
-              className={`px-2 py-1 text-xs rounded font-semibold
-                ${
-                  tx.status === "SUCCESS" && "bg-green-100 text-green-700"
-                }
-                ${tx.status === "FAILED" && "bg-red-100 text-red-700"}
-                ${tx.status === "PROCESSING" && "bg-yellow-100 text-yellow-700"}
-              `}
-            >
-              {tx.status}
-            </span>
+          <div className="text-left">
+            <p className="font-semibold text-gray-900 dark:text-gray-100">{getLabel(tx)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{formatTransactionTime(tx.createdAt)}</p>
+            <p className="text-xs capitalize opacity-70">{tx.status}</p>
           </div>
 
-          <p className="text-sm mt-1">
-            {tx.type === "debit" ? "-" : tx.type === "credit" ? "+" : ""}
-            ₦{tx.amount.toLocaleString()}
+          <p className="font-semibold text-gray-900 dark:text-gray-100">
+            {tx.type === "credit" ? "+" : "-"}₦{tx.amount.toLocaleString()}
           </p>
-        </div>
+        </button>
       ))}
+    </div>
+  );
+}
+
+/* ================= MODAL COMPONENT ================= */
+
+function TransactionModal({
+  tx,
+  onClose,
+}: {
+  tx: TransactionItem;
+  onClose: () => void;
+}) {
+  const pdfUrl = `${API_BASE}/transactions/${tx.requestId}/receipt.pdf`;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-900 w-[90%] max-w-md p-6 rounded-xl space-y-4">
+        <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">Transaction Receipt</h3>
+
+        <div className="text-sm space-y-1 text-gray-700 dark:text-gray-300">
+          <p><b>Status:</b> {tx.status}</p>
+          <p><b>Service:</b> {tx.serviceId}</p>
+          <p><b>Amount:</b> ₦{tx.amount}</p>
+          <p><b>Date:</b> {formatTransactionTime(tx.createdAt)}</p>
+          <p className="break-all"><b>Reference:</b> {tx.requestId}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-4">
+          <button
+            onClick={() => window.open(pdfUrl, "_blank")}
+            className="bg-blue-600 text-white py-2 rounded-lg"
+          >
+            Download
+          </button>
+
+          <button
+            onClick={() =>
+              window.open(`https://wa.me/?text=${encodeURIComponent(
+                `Nexa Transaction Receipt\nReference: ${tx.requestId}\nDownload Receipt: ${pdfUrl}`
+              )}`, "_blank")
+            }
+            className="bg-green-600 text-white py-2 rounded-lg"
+          >
+            WhatsApp
+          </button>
+
+          <button
+            onClick={onClose}
+            className="col-span-2 bg-gray-200 dark:bg-gray-700 py-2 rounded-lg"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
