@@ -11,7 +11,7 @@ type Props = {
 type DailyDraft = {
   targetAmount: string; // NAIRA
   startDate: string;
-  primarySource: "MANUAL" | "WALLET" | "";
+  primarySource: "MANUAL" | "AUTO" | "";
   vaAccount?: string;
   vaBank?: string;
 };
@@ -110,7 +110,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
       if (!goal) throw new Error("No plan returned");
 
       /* Wallet debit flow */
-      if (draft.primarySource === "WALLET") {
+      if (draft.primarySource === "AUTO") {
         try {
           await api.post("/wallet/debit", {
             userId: goal.userId,
@@ -223,7 +223,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             >
               <option value="">Select source</option>
               <option value="MANUAL">Manual Bank Transfer</option>
-              <option value="WALLET">Wallet Debit</option>
+              <option value="AUTO">Wallet Debit (Auto)</option>
             </select>
 
             {draft.primarySource === "MANUAL" && (
