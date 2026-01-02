@@ -1,7 +1,7 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import NavBar from "@/components/NavBar";
-import { cookies } from "next/headers"; // optional for server-side detection
+import { cookies } from "next/headers";
 
 export const metadata = {
   title: "NexaApp",
@@ -18,13 +18,11 @@ interface RootLayoutProps {
   params: { [key: string]: string }; // dynamic segments
 }
 
-export default async function RootLayout({ children, params }: RootLayoutProps) {
+export default function RootLayout({ children, params }: RootLayoutProps) {
   /**
    * ----------------------------
    * Server-side route detection
    * ----------------------------
-   * Landing page: root '/'
-   * Organizer pages: /organizer/...
    */
   const isLanding = Object.keys(params).length === 0;
   const isOrganizer = "organizer" in params;
