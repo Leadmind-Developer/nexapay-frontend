@@ -7,11 +7,16 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+/* ================= TYPES ================= */
+
+export type WalletTxType = "credit" | "debit";
+export type WalletTxStatus = "success" | "pending" | "failed";
+
 export interface WalletTransaction {
   id: number;
-  type: "credit" | "debit" | "CREDIT" | "DEBIT";
+  type: WalletTxType | "CREDIT" | "DEBIT"; // legacy-safe
   amount: number;
-  status?: "success" | "pending" | "failed";
+  status?: WalletTxStatus;
   reference?: string;
   createdAt: string;
   metadata?: {
@@ -27,38 +32,43 @@ type Props = {
   onClick?: (tx: WalletTransaction) => void;
 };
 
-export default function WalletTransactionItem({ tx, onClick }: Props) {
-  const normalizedType =
-    tx.type.toLowerCase() === "credit" ? "credit" : "debit";
+/* ================= COMPONENT ================= */
 
+export default function WalletTransactionItem({ tx, onClick }: Props) {
+  /* ================= NORMALIZATION ================= */
+  const normalizedType: WalletTxType =
+    String(tx.type).toLowerCase() === "credit" ? "credit" : "debit";
+
+  const status: WalletTxStatus = tx.status ?? "success";
   const isCredit = normalizedType === "credit";
 
   /* ================= COLORS ================= */
   const amountColor =
-    tx.status === "failed"
+    status === "failed"
       ? "text-red-600"
-      : tx.status === "pending"
+      : status === "pending"
       ? "text-yellow-600"
       : isCredit
       ? "text-green-600"
       : "text-red-600";
 
   const badgeClass =
-    tx.status === "failed"
+    status === "failed"
       ? "bg-red-100 text-red-600"
-      : tx.status === "pending"
+      : status === "pending"
       ? "bg-yellow-100 text-yellow-600"
       : "bg-green-100 text-green-600";
 
   /* ================= ICON ================= */
-  const Icon = tx.status === "failed"
-    ? AlertTriangle
-    : isCredit
-    ? ArrowDownLeft
-    : ArrowUpRight;
+  const Icon =
+    status === "failed"
+      ? AlertTriangle
+      : isCredit
+      ? ArrowDownLeft
+      : ArrowUpRight;
 
   const iconBg =
-    tx.status === "failed"
+    status === "failed"
       ? "bg-red-100 text-red-600"
       : isCredit
       ? "bg-green-100 text-green-600"
@@ -72,7 +82,7 @@ export default function WalletTransactionItem({ tx, onClick }: Props) {
   return (
     <div
       onClick={() => onClick?.(tx)}
-      className="bg-white rounded-xl shadow-sm hover:shadow-md transition p-4 flex items-center gap-3 cursor-pointer"
+      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition p-4 flex items-center gap-3 cursor-pointer"
     >
       {/* Icon Avatar */}
       <div
@@ -91,7 +101,7 @@ export default function WalletTransactionItem({ tx, onClick }: Props) {
           <span
             className={`text-xs font-semibold px-2 py-0.5 rounded ${badgeClass}`}
           >
-            {tx.status ?? "success"}
+            {status}
           </span>
         </div>
 
