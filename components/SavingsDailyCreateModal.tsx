@@ -11,7 +11,7 @@ type Props = {
 type DailyDraft = {
   targetAmount: string; // NAIRA
   startDate: string;
-  primarySource: "MANUAL" | "";
+  primarySource: "MANUAL" | "WALLET" | "";
   vaAccount?: string;
   vaBank?: string;
 };
@@ -66,7 +66,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
     const fetchVA = async () => {
       setVaLoading(true);
       try {
-        const res = await api.get("/wallet");
+        const res = await api.get("/wallet"); // Fetch user wallet/VA
         const va = res.data?.virtualAccount;
 
         if (va?.accountNumber) {
@@ -96,9 +96,9 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
 
     try {
       const res = await api.post("/savingsdaily/strict-daily", {
-        targetAmount: totalTarget, // NAIRA
+        targetAmount: totalTarget,
         startDate: draft.startDate,
-        primarySource: "MANUAL",
+        primarySource: draft.primarySource,
         vaAccount: draft.vaAccount,
         vaBank: draft.vaBank,
         durationDays: 30,
@@ -106,15 +106,31 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
         planType: "STRICT_DAILY",
       });
 
-      const goal = res.data?.goal;
-      if (goal) {
-        onCreated(goal); // Notify parent
-        setToastVisible(true); // Show toast
-        setTimeout(() => {
-          setToastVisible(false);
-          onClose(); // Close modal after toast
-        }, 2000); // 2 seconds
+      const goal = res.data?.data; // backend returns { success: true, data: plan }
+      if (!goal) throw new Error("No plan returned");
+
+      /* Wallet debit flow */
+      if (draft.primarySource === "WALLET") {
+        try {
+          await api.post("/wallet/debit", {
+            userId: goal.userId,
+            amount: totalTarget,
+            reference: `SAVINGS-STRICT-${goal.id}`,
+          });
+          console.log("Wallet debited successfully");
+        } catch (walletErr) {
+          console.error("Wallet debit failed:", walletErr);
+          alert("Failed to debit wallet. Please fund your wallet.");
+          return;
+        }
       }
+
+      onCreated(goal);
+      setToastVisible(true);
+      setTimeout(() => {
+        setToastVisible(false);
+        onClose();
+      }, 2000);
 
       localStorage.removeItem(STORAGE_KEY);
     } catch (err) {
@@ -145,7 +161,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           <Step>
             <h2 className="text-lg font-semibold">Strict Daily Contributions</h2>
             <p className="text-sm text-gray-500">
-              Save daily for 30 days. No interest. Manual transfer only.
+              Save daily for 30 days. Manual transfer or wallet debit.
             </p>
 
             <input
@@ -175,9 +191,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             )}
 
             <div className="flex gap-3">
-              <button onClick={onClose} className="btn-secondary w-full">
-                Cancel
-              </button>
+              <button onClick={onClose} className="btn-secondary w-full">Cancel</button>
               <button
                 disabled={!totalTarget}
                 onClick={() => setStep(2)}
@@ -194,7 +208,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
           <Step>
             <h2 className="text-lg font-semibold">Funding Source</h2>
             <p className="text-sm text-gray-500">
-              Contributions are made via manual bank transfer.
+              Choose how contributions are made.
             </p>
 
             <select
@@ -209,6 +223,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             >
               <option value="">Select source</option>
               <option value="MANUAL">Manual Bank Transfer</option>
+              <option value="WALLET">Wallet Debit</option>
             </select>
 
             {draft.primarySource === "MANUAL" && (
@@ -230,9 +245,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             )}
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="btn-secondary w-full">
-                Back
-              </button>
+              <button onClick={() => setStep(1)} className="btn-secondary w-full">Back</button>
               <button
                 disabled={!draft.primarySource}
                 onClick={() => setStep(3)}
@@ -250,27 +263,15 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             <h2 className="text-lg font-semibold">Review & Schedule</h2>
 
             <div className="text-sm space-y-1">
-              <p>
-                <b>Total:</b> ₦{totalTarget.toLocaleString()}
-              </p>
-              <p>
-                <b>Duration:</b> 30 days
-              </p>
-              <p>
-                <b>Daily:</b> ₦{dailyAmount.toLocaleString()}
-              </p>
-              <p>
-                <b>Start:</b> {draft.startDate}
-              </p>
-              <p>
-                <b>Source:</b> Manual Transfer
-              </p>
+              <p><b>Total:</b> ₦{totalTarget.toLocaleString()}</p>
+              <p><b>Duration:</b> 30 days</p>
+              <p><b>Daily:</b> ₦{dailyAmount.toLocaleString()}</p>
+              <p><b>Start:</b> {draft.startDate}</p>
+              <p><b>Source:</b> {draft.primarySource === "WALLET" ? "Wallet Debit" : "Manual Transfer"}</p>
             </div>
 
             {schedule.length > 0 && (
-              <div
-                className="max-h-64 overflow-x-auto rounded border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 p-2"
-              >
+              <div className="max-h-64 overflow-x-auto rounded border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 p-2">
                 <table className="w-full text-sm text-gray-700 dark:text-gray-200">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-zinc-700">
@@ -303,12 +304,8 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             )}
 
             <div className="flex gap-3">
-              <button onClick={() => setStep(2)} className="btn-secondary w-full">
-                Back
-              </button>
-              <button onClick={submit} className="btn-primary w-full">
-                Confirm & Save
-              </button>
+              <button onClick={() => setStep(2)} className="btn-secondary w-full">Back</button>
+              <button onClick={submit} className="btn-primary w-full">Confirm & Save</button>
             </div>
           </Step>
         )}
