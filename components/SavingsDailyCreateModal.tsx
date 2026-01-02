@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 
 type Props = {
-  open: boolean;
   onClose: () => void;
   onCreated: (goal: any) => void;
 };
@@ -20,7 +19,6 @@ type DailyDraft = {
 };
 
 export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
-  if (!open) return null;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [toastVisible, setToastVisible] = useState(false);
 
@@ -160,15 +158,11 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
             <h2 className="text-lg font-semibold">Strict Daily Contributions</h2>
 
             <input
-              type="text"
-              inputMode="numeric"
+              type="number"
               placeholder="Total amount (₦)"
               className="input w-full"
               value={amountInput}
-              onChange={(e) => {
-                const v = e.target.value.replace(/\D/g, "");
-                setAmountInput(v);
-              }}
+              onChange={(e) => setAmountInput(e.target.value)}
             />
 
             <label className="text-sm text-gray-500">Start Date</label>
