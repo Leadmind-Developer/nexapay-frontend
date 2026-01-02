@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
+
 import SavingsCreateModal from "./SavingsCreateModal";
+import SavingsDailyCreateModal from "./SavingsDailyCreateModal";
 import WithdrawalModal from "./WithdrawalModal";
 import SavingsAI from "./SavingsAI";
-import SavingsDailyCreateModal from "./SavingsDailyCreateModal";
+
+/* ---------------- Types ---------------- */
 
 type GoalStatus = "ACTIVE" | "MATURED" | "BROKEN";
 
@@ -27,18 +30,28 @@ type SavingsTip = {
   message: string;
 };
 
+/* ---------------- Component ---------------- */
+
 export default function Savings() {
+  /* -------- View state -------- */
   const [tab, setTab] = useState<GoalStatus>("ACTIVE");
+  const [loading, setLoading] = useState(true);
+
+  /* -------- Data -------- */
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [summary, setSummary] = useState<SavingsSummary | null>(null);
   const [tips, setTips] = useState<SavingsTip[]>([]);
-  const [loading, setLoading] = useState(true);
 
+  /* -------- Modals (OPEN STATE ONLY) -------- */
   const [createOpen, setCreateOpen] = useState(false);
-  const [withdrawGoal, setWithdrawGoal] = useState<SavingsGoal | null>(null);
   const [dailyCreateOpen, setDailyCreateOpen] = useState(false);
+  const [withdrawGoal, setWithdrawGoal] = useState<SavingsGoal | null>(null);
+
+  /* ---------------- Load savings data ---------------- */
 
   useEffect(() => {
+    let mounted = true;
+
     const load = async () => {
       try {
         setLoading(true);
@@ -49,32 +62,39 @@ export default function Savings() {
           api.get("/savings/ai/recommendations"),
         ]);
 
+        if (!mounted) return;
+
         setSummary(analyticsRes.data?.summary ?? null);
         setGoals(goalsRes.data?.goals ?? []);
         setTips(aiRes.data?.tips ?? []);
       } catch (err) {
         console.error("Savings load error:", err);
       } finally {
-        setLoading(false);
+        mounted && setLoading(false);
       }
     };
 
     load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
+  /* ---------------- Derived ---------------- */
+
   const filteredGoals = useMemo(
-    () =>
-      goals.filter(
-        (g) => g.status?.toUpperCase() === tab
-    ),
+    () => goals.filter((g) => g.status === tab),
     [goals, tab]
   );
 
   const formatMoney = (v = 0) => `₦${Number(v).toLocaleString()}`;
 
+  /* ---------------- Render ---------------- */
+
   return (
     <div className="p-6 space-y-6">
-      {/* SUMMARY */}
+
+      {/* ================= SUMMARY ================= */}
       <div className="bg-white rounded-xl p-4 shadow">
         <div className="flex flex-wrap justify-between gap-4">
           <div>
@@ -91,16 +111,16 @@ export default function Savings() {
             </p>
           </div>
 
-          <span className="self-start rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
+          <span className="rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
             Up to 23% p.a
           </span>
         </div>
       </div>
 
-      {/* AI RECOMMENDATIONS */}
+      {/* ================= AI TIPS ================= */}
       {tips.length > 0 && <SavingsAI tips={tips} />}
 
-      {/* TABS */}
+      {/* ================= TABS ================= */}
       <div className="flex gap-6 border-b">
         {(["ACTIVE", "MATURED", "BROKEN"] as GoalStatus[]).map((status) => (
           <button
@@ -117,7 +137,7 @@ export default function Savings() {
         ))}
       </div>
 
-      {/* GOALS */}
+      {/* ================= GOALS ================= */}
       {loading ? (
         <p className="text-sm text-gray-500">Loading savings…</p>
       ) : filteredGoals.length === 0 ? (
@@ -152,11 +172,10 @@ export default function Savings() {
                   {formatMoney(goal.targetAmount)}
                 </p>
 
-                {/* ANIMATED PROGRESS BAR */}
                 <div>
                   <div className="h-2 bg-gray-200 rounded overflow-hidden">
                     <div
-                      className="h-2 bg-green-500 rounded transition-all duration-700 ease-out"
+                      className="h-2 bg-green-500 transition-all duration-700"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -179,54 +198,44 @@ export default function Savings() {
         </div>
       )}
 
-      {/* FLOATING CTA */}
-<div className="fixed bottom-6 right-6 flex flex-col gap-2 z-40">
-  {/* Regular Savings */}
-  <button
-    onClick={() => setCreateOpen(true)}
-    className="
-      px-5 py-3 rounded-full shadow-lg transition-transform hover:scale-105
-      bg-green-600 text-white
-      dark:bg-green-500 dark:text-black
-    "
-  >
-    Create Savings Goal
-  </button>
+      {/* ================= FLOATING CTA ================= */}
+      <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-40">
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="px-5 py-3 rounded-full shadow-lg bg-green-600 text-white hover:scale-105 transition"
+        >
+          Create Savings Goal
+        </button>
 
-  {/* Strict Daily */}
-  <button
-    onClick={() => setDailyCreateOpen(true)}
-    className="
-      px-5 py-3 rounded-full shadow transition
-      bg-white text-black border border-gray-200
-      hover:bg-gray-100
-      dark:bg-zinc-900 dark:text-white dark:border-zinc-700 dark:hover:bg-zinc-800
-    "
-  >
-    Strict Daily Savings
-  </button>
-</div>
+        <button
+          onClick={() => setDailyCreateOpen(true)}
+          className="px-5 py-3 rounded-full shadow bg-white border hover:bg-gray-100"
+        >
+          Strict Daily Savings
+        </button>
+      </div>
 
-      {/* MODALS (Headless-UI-free) */}
-      {createOpen && (
-        <SavingsCreateModal onClose={() => setCreateOpen(false)} />
-      )}
+      {/* ================= MODALS (ALWAYS MOUNTED) ================= */}
 
-      {dailyCreateOpen && (
-  <SavingsDailyCreateModal
-    onClose={() => setDailyCreateOpen(false)}
-    onCreated={(goal) => {
-      setGoals((prev) => [goal, ...prev]);
-      setTab("ACTIVE"); // ensure visible
-      }}
-  />
-)}
-      {withdrawGoal && (
-        <WithdrawalModal
-          goal={withdrawGoal}
-          onClose={() => setWithdrawGoal(null)}
-        />
-      )}
+      <SavingsCreateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
+
+      <SavingsDailyCreateModal
+        open={dailyCreateOpen}
+        onClose={() => setDailyCreateOpen(false)}
+        onCreated={(goal) => {
+          setGoals((prev) => [goal, ...prev]);
+          setTab("ACTIVE");
+        }}
+      />
+
+      <WithdrawalModal
+        open={!!withdrawGoal}
+        goal={withdrawGoal}
+        onClose={() => setWithdrawGoal(null)}
+      />
     </div>
   );
 }
