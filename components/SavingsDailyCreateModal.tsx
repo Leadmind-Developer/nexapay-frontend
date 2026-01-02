@@ -51,7 +51,21 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
     const fetchVA = async () => {
       setVaLoading(true);
       try {
-        const res = await api.get("/wallet");
+        const res = await api.get("/wallet/me");
+if (res.data.success) {
+  const va = res.data.virtualAccount;
+  if (va?.accountNumber) {
+    setVaExists(true);
+    setDraft((d) => ({
+      ...d,
+      vaAccount: va.accountNumber,
+      vaBank: va.bankName,
+    }));
+  } else {
+    setVaExists(false);
+  }
+}
+
         if (cancelled) return;
 
         const va = res.data?.virtualAccount;
