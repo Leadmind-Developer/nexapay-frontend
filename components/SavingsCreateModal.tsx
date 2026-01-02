@@ -44,6 +44,8 @@ type Props = {
 };
 
 export default function SavingsCreateModal({ open, onClose }: Props) {
+  if (typeof window === "undefined") return null;
+  
   if (!open) return null;
   
   const [step, setStep] = useState(1);
