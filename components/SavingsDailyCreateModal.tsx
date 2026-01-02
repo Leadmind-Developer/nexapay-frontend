@@ -95,7 +95,7 @@ export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
     if (!draft.primarySource || !totalTarget) return;
 
     try {
-      const res = await api.post("/savings/strict-daily", {
+      const res = await api.post("/savingsdaily/strict-daily", {
         targetAmount: totalTarget, // NAIRA
         startDate: draft.startDate,
         primarySource: "MANUAL",
