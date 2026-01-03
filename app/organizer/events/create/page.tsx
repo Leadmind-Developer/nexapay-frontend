@@ -10,6 +10,7 @@ interface EventPayload {
   startAt: string;
   endAt: string;
   published: boolean;
+  email: string;
 }
 
 export default function EventFormPage() {
@@ -22,10 +23,17 @@ export default function EventFormPage() {
     description: "",
     startAt: "",
     endAt: "",
-    published: false, // SAFER DEFAULT
+    published: false,
+    email: "",
   });
 
   const [status, setStatus] = useState<"saving" | "error" | null>(null);
+
+  useEffect(() => {
+    api.get("/auth/me").then(res => {
+      setForm(prev => ({ ...prev, email: res.data.email }));
+    });
+  }, []);
 
   useEffect(() => {
     if (!eventId) return;
@@ -40,11 +48,13 @@ export default function EventFormPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value, type } = e.target;
-    if (type === "checkbox") {
-      setForm(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-    } else {
-      setForm(prev => ({ ...prev, [name]: value }));
-    }
+    setForm(prev => ({
+      ...prev,
+      [name]:
+        type === "checkbox"
+          ? (e.target as HTMLInputElement).checked
+          : value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent, redirect?: string) => {
@@ -61,26 +71,35 @@ export default function EventFormPage() {
           return;
         }
       }
-
       router.push("/organizer/events");
-    } catch (err) {
-      console.error(err);
+    } catch {
       setStatus("error");
     }
   };
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-8">
+    <main className="max-w-4xl mx-auto px-6 py-8 text-gray-900 dark:text-gray-100">
       <h1 className="text-3xl font-bold mb-2">
         {eventId ? "Edit Event" : "Create New Event"}
       </h1>
-      <p className="text-gray-500 mb-8">
+      <p className="text-gray-600 dark:text-gray-400 mb-8">
         Basic information about your event. You’ll add tickets next.
       </p>
 
       <form className="space-y-10">
+        {/* ORGANIZER */}
+        <section className="bg-white dark:bg-neutral-900 border dark:border-neutral-800 rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-4">Organizer</h2>
+
+          <input
+            value={form.email}
+            readOnly
+            className="w-full rounded-xl border px-4 py-3 bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-gray-400 cursor-not-allowed"
+          />
+        </section>
+
         {/* EVENT DETAILS */}
-        <section className="bg-white border rounded-xl p-6">
+        <section className="bg-white dark:bg-neutral-900 border dark:border-neutral-800 rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4">Event Details</h2>
 
           <div className="space-y-4">
@@ -88,52 +107,60 @@ export default function EventFormPage() {
               name="title"
               value={form.title}
               onChange={handleChange}
-              placeholder="Event title (e.g. Lagos Tech Meetup)"
               required
-              className="w-full rounded-xl border px-4 py-3"
+              className="w-full rounded-xl border px-4 py-3 bg-white dark:bg-neutral-900 dark:border-neutral-700"
             />
 
             <textarea
               name="description"
               value={form.description}
               onChange={handleChange}
-              placeholder="Describe your event"
               rows={4}
               required
-              className="w-full rounded-xl border px-4 py-3"
+              className="w-full rounded-xl border px-4 py-3 bg-white dark:bg-neutral-900 dark:border-neutral-700"
             />
           </div>
         </section>
 
         {/* SCHEDULE */}
-        <section className="bg-white border rounded-xl p-6">
+        <section className="bg-white dark:bg-neutral-900 border dark:border-neutral-800 rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-4">Schedule</h2>
 
           <div className="grid md:grid-cols-2 gap-4">
-            <input
-              type="datetime-local"
-              name="startAt"
-              value={form.startAt}
-              onChange={handleChange}
-              required
-              className="rounded-xl border px-4 py-3"
-            />
+            <div>
+              <label className="text-sm text-gray-600 dark:text-gray-400">
+                Start date
+              </label>
+              <input
+                type="datetime-local"
+                name="startAt"
+                value={form.startAt}
+                onChange={handleChange}
+                required
+                className="w-full rounded-xl border px-4 py-3 bg-white dark:bg-neutral-900 dark:border-neutral-700"
+              />
+            </div>
 
-            <input
-              type="datetime-local"
-              name="endAt"
-              value={form.endAt}
-              onChange={handleChange}
-              required
-              className="rounded-xl border px-4 py-3"
-            />
+            <div>
+              <label className="text-sm text-gray-600 dark:text-gray-400">
+                End date
+              </label>
+              <input
+                type="datetime-local"
+                name="endAt"
+                value={form.endAt}
+                onChange={handleChange}
+                required
+                className="w-full rounded-xl border px-4 py-3 bg-white dark:bg-neutral-900 dark:border-neutral-700"
+              />
+            </div>
           </div>
         </section>
 
         {/* VISIBILITY */}
-        <section className="bg-white border rounded-xl p-6">
+        <section className="bg-white dark:bg-neutral-900 border dark:border-neutral-800 rounded-xl p-6">
           <h2 className="text-lg font-semibold mb-2">Visibility</h2>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Draft events are hidden from the public.
           </p>
 
@@ -151,9 +178,9 @@ export default function EventFormPage() {
         {/* ACTIONS */}
         <div className="flex flex-col md:flex-row gap-3">
           <button
-            onClick={(e) => handleSubmit(e)}
+            onClick={handleSubmit}
             disabled={status === "saving"}
-            className="flex-1 rounded-xl bg-black text-white py-3 font-medium"
+            className="flex-1 rounded-xl bg-black dark:bg-white text-white dark:text-black py-3 font-medium"
           >
             Save Event
           </button>
@@ -162,7 +189,7 @@ export default function EventFormPage() {
             <button
               onClick={(e) => handleSubmit(e, "tickets")}
               disabled={status === "saving"}
-              className="flex-1 rounded-xl border py-3 font-medium"
+              className="flex-1 rounded-xl border dark:border-neutral-700 py-3 font-medium"
             >
               Save & Add Tickets →
             </button>
