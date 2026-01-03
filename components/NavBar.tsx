@@ -69,7 +69,7 @@ export default function NavBar() {
     { name: "Savings", href: "/dashboard/savings", icon: <IoCashOutline /> },
     { name: "Loans", href: "/dashboard/loans", icon: <IoBriefcaseOutline /> },
     { name: "Funds", href: "/dashboard/funds", icon: <IoCashOutline /> },
-    { name: "Internal Transfer", href: "/dashboard/internaltransfer", icon: <IoCashOutline /> },
+    { name: "Event", href: "/events", icon: <IoCashOutline /> },
     {
       name: "More",
       href: "#",
@@ -82,8 +82,8 @@ export default function NavBar() {
         { name: "FAQ", href: "/dashboard/faq" },
         { name: "My Naira Account", href: "/dashboard/setupnairaaccount" },
         { name: "Set Username", href: "/dashboard/setusername" },
-        { name: "Virtual Account", href: "/dashboard/va" },        
-        { name: "Withdraw", href: "/dashboard/withdraw" },
+        { name: "View Account", href: "/dashboard/va" },        
+        { name: "My Expenses", href: "/expenses" },
       ],
     },
   ];
