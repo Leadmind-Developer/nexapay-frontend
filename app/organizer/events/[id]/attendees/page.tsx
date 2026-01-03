@@ -23,7 +23,7 @@ export default function AttendeesPage() {
 
   useEffect(() => {
     api
-      .get<Ticket[]>(`/organizer/events/${eventId}/attendees`)
+      .get<Ticket[]>(`/events/organizer/events/${eventId}/attendees`)
       .then((res) => setAttendees(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
