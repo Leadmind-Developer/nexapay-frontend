@@ -60,9 +60,9 @@ export default function EventFormPage() {
 
     try {
       if (eventId) {
-        await api.patch(`/organizer/events/${eventId}`, form);
+        await api.patch(`/events/organizer/events/${eventId}`, form);
       } else {
-        await api.post("/organizer/events", form);
+        await api.post("/events/organizer/events", form);
       }
 
       setStatus("success");
