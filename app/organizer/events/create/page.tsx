@@ -31,7 +31,7 @@ export default function EventFormPage() {
     if (!eventId) return;
 
     api
-      .get<EventPayload>(`/organizer/events/${eventId}`)
+      .get<EventPayload>(`/events/organizer/events/${eventId}`)
       .then(res => setForm(res.data))
       .catch(console.error);
   }, [eventId]);
@@ -53,9 +53,9 @@ export default function EventFormPage() {
 
     try {
       if (eventId) {
-        await api.patch(`/organizer/events/${eventId}`, form);
+        await api.patch(`/events/organizer/events/${eventId}`, form);
       } else {
-        const res = await api.post("/organizer/events", form);
+        const res = await api.post("/events/organizer/events", form);
         if (redirect) {
           router.push(`/organizer/events/${res.data.id}/${redirect}`);
           return;
