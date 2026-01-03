@@ -26,7 +26,7 @@ const mainItems = [
 
 const moreItems = [
   { title: "Education", href: "/education", icon: School },
-  { title: "Events", href: "/event-ticket", icon: Ticket },
+  { title: "Events Tickets", href: "/events", icon: Ticket },
   { title: "Insurance", href: "/insurance", icon: Car },
   { title: "Partner", href: "/partner", icon: Users },
   { title: "Contact", href: "/contact", icon: Mail },
