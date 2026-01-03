@@ -22,7 +22,7 @@ export default function StatsPage() {
 
     setLoading(true);
     api
-      .get<EventStats>(`/organizer/events/${eventId}/stats`)
+      .get<EventStats>(`/events/organizer/events/${eventId}/stats`)
       .then((res) => setStats(res.data))
       .catch((err) => {
         console.error(err);
