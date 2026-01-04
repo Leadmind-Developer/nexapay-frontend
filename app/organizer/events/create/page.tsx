@@ -91,47 +91,38 @@ export default function EventCreatePage() {
 
         {/* Organizer Section */}
         <Card title="Organizer">
-          <input
-            readOnly
-            value={form.email}
-            className="input input-disabled w-full"
-          />
+          <Input value={form.email} readOnly />
         </Card>
 
         {/* Event Details */}
         <Card title="Event Details">
-          <input
-            className="input w-full"
+          <Input
             placeholder="Event title"
             value={form.title}
             onChange={e => update("title", e.target.value)}
             required
           />
-          <textarea
-            className="input w-full"
-            rows={4}
+          <Textarea
             placeholder="Describe your event"
             value={form.description}
             onChange={e => update("description", e.target.value)}
           />
-          <select
-            className="input w-full"
+          <Select
             value={form.type}
             onChange={e => update("type", e.target.value as EventType)}
-          >
-            <option value="PHYSICAL">Physical Event</option>
-            <option value="VIRTUAL">Virtual Event</option>
-          </select>
+            options={[
+              { label: "Physical Event", value: "PHYSICAL" },
+              { label: "Virtual Event", value: "VIRTUAL" },
+            ]}
+          />
           {form.type === "PHYSICAL" && (
             <>
-              <input
-                className="input w-full"
+              <Input
                 placeholder="Venue name"
                 value={form.venue}
                 onChange={e => update("venue", e.target.value)}
               />
-              <input
-                className="input w-full"
+              <Input
                 placeholder="Venue address"
                 value={form.address}
                 onChange={e => update("address", e.target.value)}
@@ -142,11 +133,9 @@ export default function EventCreatePage() {
 
         {/* Image */}
         <Card title="Event Image">
-          <input
-            type="file"
+          <FileInput
             accept="image/*"
             onChange={e => update("image", e.target.files?.[0] ?? null)}
-            className="file-input w-full"
           />
           <p className="text-gray-400 text-sm mt-1">Recommended size: 1200×630</p>
         </Card>
@@ -154,15 +143,13 @@ export default function EventCreatePage() {
         {/* Schedule */}
         <Card title="Schedule">
           <div className="grid md:grid-cols-2 gap-4">
-            <input
+            <Input
               type="datetime-local"
-              className="input w-full"
               value={form.startAt}
               onChange={e => update("startAt", e.target.value)}
             />
-            <input
+            <Input
               type="datetime-local"
-              className="input w-full"
               value={form.endAt}
               onChange={e => update("endAt", e.target.value)}
             />
@@ -170,29 +157,31 @@ export default function EventCreatePage() {
         </Card>
 
         {/* Actions */}
-        <div className="flex flex-col md:flex-row gap-3 mt-6">
-          <button
-            disabled={status === "saving"}
-            onClick={() => handleSubmit(false)}
-            className="btn-secondary"
-          >
-            Save Draft
-          </button>
-          <button
-            disabled={status === "saving"}
-            onClick={() => handleSubmit(true)}
-            className="btn-primary"
-          >
-            Save & Publish
-          </button>
-          <button
-            disabled={status === "saving"}
-            onClick={() => handleSubmit(false, "tickets")}
-            className="btn-outline"
-          >
-            Save & Add Tickets →
-          </button>
-        </div>
+        <Card title="Actions">
+          <div className="flex flex-col md:flex-row gap-3">
+            <Button
+              onClick={() => handleSubmit(false)}
+              disabled={status === "saving"}
+              variant="secondary"
+            >
+              Save Draft
+            </Button>
+            <Button
+              onClick={() => handleSubmit(true)}
+              disabled={status === "saving"}
+              variant="primary"
+            >
+              Save & Publish
+            </Button>
+            <Button
+              onClick={() => handleSubmit(false, "tickets")}
+              disabled={status === "saving"}
+              variant="outline"
+            >
+              Save & Add Tickets →
+            </Button>
+          </div>
+        </Card>
 
         {status === "error" && (
           <p className="text-red-500 mt-4">
@@ -204,9 +193,7 @@ export default function EventCreatePage() {
   );
 }
 
-/* ===================== */
-/* ===== COMPONENTS ==== */
-/* ===================== */
+/* ---------------- COMPONENTS ---------------- */
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -217,14 +204,68 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-/* ===================== */
-/* ===== INPUT STYLES === */
-/* ===================== */
+function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className="border rounded-xl px-4 py-2 focus:outline-none focus:ring w-full bg-white dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+    />
+  );
+}
 
-const baseInput = "border rounded-xl px-4 py-2 focus:outline-none focus:ring w-full dark:bg-neutral-800 dark:text-white dark:border-neutral-700";
+function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className="border rounded-xl px-4 py-2 focus:outline-none focus:ring w-full bg-white dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+    />
+  );
+}
 
-const input = `${baseInput} bg-white text-gray-800`;
-const disabled = `${baseInput} bg-gray-100 cursor-not-allowed`;
-const fileInput = `${baseInput} cursor-pointer`;
+function Select({
+  options,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { options: { label: string; value: string }[] }) {
+  return (
+    <select
+      {...props}
+      className="border rounded-xl px-4 py-2 focus:outline-none focus:ring w-full bg-white dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+}
 
-export const classNames = { input, disabled, fileInput };
+function FileInput({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      type="file"
+      className="border rounded-xl px-4 py-2 focus:outline-none focus:ring w-full bg-white dark:bg-neutral-800 dark:text-white dark:border-neutral-700 cursor-pointer"
+    />
+  );
+}
+
+function Button({
+  children,
+  variant = "primary",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "outline" }) {
+  const base = "rounded-xl px-5 py-2 font-medium transition w-full md:w-auto";
+  const colors =
+    variant === "primary"
+      ? "bg-black text-white hover:opacity-90"
+      : variant === "secondary"
+      ? "bg-gray-200 dark:bg-neutral-700 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-neutral-600"
+      : "border border-gray-400 dark:border-neutral-600 text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-neutral-700";
+
+  return (
+    <button {...props} className={`${base} ${colors}`}>
+      {children}
+    </button>
+  );
+}
