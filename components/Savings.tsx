@@ -65,8 +65,7 @@ export default function Savings() {
       } finally {
         setLoading(false);
       }
-    };
-    setSummary({
+    };    
 
     load();
   }, []);
