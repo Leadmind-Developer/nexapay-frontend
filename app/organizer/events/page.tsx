@@ -12,11 +12,6 @@ interface TicketType {
   price: number;
 }
 
-interface EventStats {
-  totalRevenue?: number;
-  ticketsSold?: number;
-}
-
 interface Event {
   id: string;
   title: string;
@@ -25,7 +20,6 @@ interface Event {
   endAt: string;
   published: boolean;
   ticketTypes: TicketType[];
-  stats?: EventStats; // optional – safe for now
 }
 
 /* ================= PAGE ================= */
@@ -43,24 +37,11 @@ export default function OrganizerEventsPage() {
   }, []);
 
   const stats = useMemo(() => {
-    let revenue = 0;
-    let ticketsSold = 0;
-
-    events.forEach((event) => {
-      if (event.stats?.totalRevenue) {
-        revenue += event.stats.totalRevenue;
-      }
-      if (event.stats?.ticketsSold) {
-        ticketsSold += event.stats.ticketsSold;
-      }
-    });
-
     return {
       totalEvents: events.length,
       published: events.filter((e) => e.published).length,
       drafts: events.filter((e) => !e.published).length,
-      revenue,
-      ticketsSold,
+      needsTickets: events.filter((e) => e.ticketTypes.length === 0).length,
     };
   }, [events]);
 
@@ -73,42 +54,26 @@ export default function OrganizerEventsPage() {
         <div>
           <h1 className="text-3xl font-bold">Organizer Dashboard</h1>
           <p className="text-gray-500 mt-1">
-            Manage events, revenue, and payouts.
+            Create events, add tickets, then publish.
           </p>
         </div>
 
-        <div className="flex gap-3">
-          <Link
-            href="/organizer/payouts"
-            className="rounded-xl border px-4 py-2 font-medium hover:bg-gray-50"
-          >
-            Payouts
-          </Link>
-
-          <Link
-            href="/organizer/events/create"
-            className="rounded-xl bg-black text-white px-5 py-2 font-medium hover:opacity-90"
-          >
-            + Create Event
-          </Link>
-        </div>
+        <Link
+          href="/organizer/events/create"
+          className="rounded-xl bg-black text-white px-5 py-2 font-medium hover:opacity-90"
+        >
+          + Create Event
+        </Link>
       </div>
 
       {/* ================= STATS ================= */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         <DashboardStat label="Total Events" value={stats.totalEvents} />
-        <DashboardStat label="Published Events" value={stats.published} />
+        <DashboardStat label="Published" value={stats.published} />
+        <DashboardStat label="Drafts" value={stats.drafts} />
         <DashboardStat
-          label="Tickets Sold"
-          value={stats.ticketsSold || "—"}
-        />
-        <DashboardStat
-          label="Revenue"
-          value={
-            stats.revenue > 0
-              ? `₦${stats.revenue.toLocaleString()}`
-              : "—"
-          }
+          label="Needs Tickets"
+          value={stats.needsTickets}
         />
       </section>
 
@@ -148,9 +113,7 @@ function DashboardStat({
 }
 
 function EventCard({ event }: { event: Event }) {
-  const revenue =
-    event.stats?.totalRevenue &&
-    `₦${event.stats.totalRevenue.toLocaleString()}`;
+  const hasTickets = event.ticketTypes.length > 0;
 
   return (
     <div className="bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition">
@@ -174,10 +137,11 @@ function EventCard({ event }: { event: Event }) {
 
       <div className="mt-3 text-sm text-gray-600">
         <p>Ticket Types: {event.ticketTypes.length}</p>
-        <p className="mt-1">
-          Revenue:{" "}
-          <span className="font-medium">{revenue || "—"}</span>
-        </p>
+        {!hasTickets && (
+          <p className="mt-1 text-red-500 font-medium">
+            Setup required: add tickets
+          </p>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
@@ -215,7 +179,7 @@ function EmptyState() {
     <div className="border border-dashed rounded-xl p-10 text-center">
       <h3 className="text-lg font-semibold mb-2">No events yet</h3>
       <p className="text-gray-500 mb-4">
-        Get started by creating your first event.
+        Create an event, then add ticket types before publishing.
       </p>
       <Link
         href="/organizer/events/create"
