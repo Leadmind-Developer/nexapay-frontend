@@ -49,7 +49,12 @@ export default function Savings() {
           api.get("/savings/ai/recommendations"),
         ]);
 
-        setSummary(analyticsRes.data ?? null);
+        // <-- FIX: convert Prisma Decimal to number here
+      setSummary({
+        totalSaved: Number(analyticsRes.data.totalSaved ?? 0),
+        totalInterest: Number(analyticsRes.data.totalInterest ?? 0),
+      });
+
         setGoals(goalsRes.data?.goals ?? []);
         setTips(aiRes.data?.tips ?? []);
       } catch (err) {
@@ -58,6 +63,7 @@ export default function Savings() {
         setLoading(false);
       }
     };
+    setSummary({
 
     load();
   }, []);
