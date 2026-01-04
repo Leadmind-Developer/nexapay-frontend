@@ -50,10 +50,13 @@ export default function Savings() {
         ]);
 
         // <-- FIX: convert Prisma Decimal to number here
-      setSummary({
-        totalSaved: Number(analyticsRes.data.totalSaved ?? 0),
-        totalInterest: Number(analyticsRes.data.totalInterest ?? 0),
-      });
+       const summaryData = analyticsRes.data?.data;
+
+       setSummary({
+         totalSaved: Number(summaryData?.totalSaved ?? 0),
+         totalInterest: Number(summaryData?.totalInterest ?? 0),
+     });
+
 
         setGoals(goalsRes.data?.goals ?? []);
         setTips(aiRes.data?.tips ?? []);
