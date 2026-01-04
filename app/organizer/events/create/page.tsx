@@ -86,8 +86,9 @@ export default function EventFormPage() {
         res = await api.patch(`/events/organizer/events/${eventId}`, payload);
       } else {
         res = await api.post("/events/organizer/events", payload);
-        if (redirect) {
-          router.push(`/organizer/events/${res.data.id}/${redirect}`);
+        if (!eventId && redirect) {
+          const newEventId = res.data.id;
+          router.push(`/organizer/events/${newEventId}/${redirect}`);
           return;
         }
       }
