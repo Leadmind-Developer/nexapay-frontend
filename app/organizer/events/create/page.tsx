@@ -28,17 +28,18 @@ export default function EventFormPage() {
   });
 
   const [status, setStatus] = useState<"saving" | "error" | null>(null);
+  const [newEventId, setNewEventId] = useState<string | null>(null);
 
   /* ---------------- FETCH USER EMAIL ---------------- */
   useEffect(() => {
     api
       .get("/user/me")
-      .then(res => {
+      .then(res =>
         setForm(prev => ({
           ...prev,
           email: res.data.user.email,
-        }));
-      })
+        }))
+      )
       .catch(console.error);
   }, []);
 
@@ -48,24 +49,23 @@ export default function EventFormPage() {
 
     api
       .get<EventPayload>(`/events/organizer/events/${eventId}`)
-      .then(res => setForm({
-        ...res.data,
-        startAt: new Date(res.data.startAt).toISOString().slice(0, 16),
-        endAt: new Date(res.data.endAt).toISOString().slice(0, 16),
-      }))
+      .then(res =>
+        setForm({
+          ...res.data,
+          startAt: new Date(res.data.startAt).toISOString().slice(0, 16),
+          endAt: new Date(res.data.endAt).toISOString().slice(0, 16),
+        })
+      )
       .catch(console.error);
   }, [eventId]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value, type } = e.target;
+    const { name, value, type, checked } = e.target;
     setForm(prev => ({
       ...prev,
-      [name]:
-        type === "checkbox"
-          ? (e.target as HTMLInputElement).checked
-          : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -74,7 +74,6 @@ export default function EventFormPage() {
     setStatus("saving");
 
     try {
-      // Convert datetime-local to full ISO string for Prisma
       const payload = {
         ...form,
         startAt: new Date(form.startAt).toISOString(),
@@ -84,27 +83,35 @@ export default function EventFormPage() {
       let res;
       if (eventId) {
         res = await api.patch(`/events/organizer/events/${eventId}`, payload);
+        if (redirect) router.push(`/organizer/events/${eventId}/${redirect}`);
+        else router.push("/organizer/events");
       } else {
         res = await api.post("/events/organizer/events", payload);
-        if (!eventId && redirect) {
-          const newEventId = res.data.id;
-          router.push(`/organizer/events/${newEventId}/${redirect}`);
+        const createdId = res.data.id;
+        setNewEventId(createdId);
+
+        if (redirect) {
+          // redirect to tickets page immediately after creation
+          router.push(`/organizer/events/${createdId}/${redirect}`);
           return;
         }
-      }
 
-      router.push("/organizer/events");
+        router.push("/organizer/events");
+      }
     } catch (err) {
       console.error("Failed to save event:", err);
       setStatus("error");
     }
   };
 
+  /* ---------------- Determine Effective Event ID ---------------- */
+  const effectiveEventId = eventId || newEventId;
+
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-neutral-950">
       <div className="max-w-4xl mx-auto px-6 py-10 text-gray-900 dark:text-gray-100">
         <h1 className="text-3xl font-bold mb-2">
-          {eventId ? "Edit Event" : "Create New Event"}
+          {effectiveEventId ? "Edit Event" : "Create New Event"}
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mb-8">
           Basic information about your event. You’ll add tickets next.
@@ -114,7 +121,6 @@ export default function EventFormPage() {
           {/* ORGANIZER */}
           <section className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Organizer</h2>
-
             <input
               value={form.email}
               readOnly
@@ -131,7 +137,6 @@ export default function EventFormPage() {
           {/* EVENT DETAILS */}
           <section className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Event Details</h2>
-
             <div className="space-y-4">
               <input
                 name="title"
@@ -145,7 +150,6 @@ export default function EventFormPage() {
                   dark:bg-neutral-800 dark:border-neutral-700
                 "
               />
-
               <textarea
                 name="description"
                 value={form.description}
@@ -165,7 +169,6 @@ export default function EventFormPage() {
           {/* SCHEDULE */}
           <section className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Schedule</h2>
-
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm text-gray-600 dark:text-gray-400">
@@ -184,7 +187,6 @@ export default function EventFormPage() {
                   "
                 />
               </div>
-
               <div className="space-y-1">
                 <label className="text-sm text-gray-600 dark:text-gray-400">
                   End date
@@ -211,7 +213,6 @@ export default function EventFormPage() {
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Draft events are hidden from the public.
             </p>
-
             <label className="flex items-center gap-3">
               <input
                 type="checkbox"
