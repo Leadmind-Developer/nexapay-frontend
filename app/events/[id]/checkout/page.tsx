@@ -1,27 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useParams } from "next/navigation";
 import api from "@/lib/api";
 
 type PaymentMethod = "wallet" | "paystack";
 
 export default function CheckoutPage() {
+  const params = useParams();
   const searchParams = useSearchParams();
+
+  const eventId = params.id as string;
   const ticketTypeId = searchParams.get("ticketTypeId");
 
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wallet");
-  const [status, setStatus] = useState<"sending" | "success" | "error" | null>(null);
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>("wallet");
+
+  const [status, setStatus] =
+    useState<"idle" | "sending" | "success" | "error">("idle");
+
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [ticketCode, setTicketCode] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  /* ---------------- SUBMIT ---------------- */
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticketTypeId) return;
+
+    if (!ticketTypeId) {
+      setErrorMessage("Ticket type not specified.");
+      setStatus("error");
+      return;
+    }
 
     setStatus("sending");
     setErrorMessage(null);
@@ -29,7 +43,7 @@ export default function CheckoutPage() {
     setTicketCode(null);
 
     try {
-      const res = await api.post(`/events/${ticketTypeId}/checkout`, {
+      const res = await api.post("/events/checkout", {
         ticketTypeId,
         buyerName,
         buyerEmail,
@@ -37,12 +51,12 @@ export default function CheckoutPage() {
         paymentMethod,
       });
 
-      // Wallet payment → show ticket immediately
+      // Wallet → ticket issued immediately
       if (paymentMethod === "wallet" && res.data.ticket) {
         setTicketCode(res.data.ticket.code);
       }
 
-      // Paystack payment → redirect link
+      // Paystack → redirect user
       if (paymentMethod === "paystack" && res.data.paymentUrl) {
         setPaymentUrl(res.data.paymentUrl);
       }
@@ -50,47 +64,62 @@ export default function CheckoutPage() {
       setStatus("success");
     } catch (err: any) {
       console.error(err);
-      setErrorMessage(err.response?.data?.error || "Payment failed. Try again.");
+      setErrorMessage(
+        err.response?.data?.error || "Checkout failed. Please try again."
+      );
       setStatus("error");
     }
   };
 
+  /* ---------------- GUARDS ---------------- */
+
   if (!ticketTypeId) {
-    return <p className="p-4 text-red-500">Ticket type not specified.</p>;
+    return (
+      <main className="max-w-md mx-auto p-6">
+        <p className="text-red-500 font-medium">
+          Ticket type not specified.
+        </p>
+      </main>
+    );
   }
 
+  /* ---------------- RENDER ---------------- */
+
   return (
-    <div className="max-w-md mx-auto p-4">
+    <main className="max-w-md mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
-          placeholder="Full Name"
+          placeholder="Full name"
           value={buyerName}
           onChange={(e) => setBuyerName(e.target.value)}
           required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
+          className="w-full rounded-xl border px-4 py-2"
         />
+
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Email address"
           value={buyerEmail}
           onChange={(e) => setBuyerEmail(e.target.value)}
           required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
+          className="w-full rounded-xl border px-4 py-2"
         />
+
         <input
-          placeholder="Phone Number"
+          placeholder="Phone number"
           value={buyerPhone}
           onChange={(e) => setBuyerPhone(e.target.value)}
-          required
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
+          className="w-full rounded-xl border px-4 py-2"
         />
 
         <select
           value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-          className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
+          onChange={(e) =>
+            setPaymentMethod(e.target.value as PaymentMethod)
+          }
+          className="w-full rounded-xl border px-4 py-2"
         >
           <option value="wallet">Wallet</option>
           <option value="paystack">Paystack</option>
@@ -99,40 +128,46 @@ export default function CheckoutPage() {
         <button
           type="submit"
           disabled={status === "sending"}
-          className="w-full rounded-xl bg-black text-white py-2 font-medium hover:opacity-90"
+          className="w-full rounded-xl bg-black text-white py-2 font-medium hover:opacity-90 disabled:opacity-60"
         >
           {status === "sending" ? "Processing..." : "Pay"}
         </button>
       </form>
 
-      {/* Success messages */}
+      {/* ---------------- SUCCESS ---------------- */}
       {status === "success" && (
-        <div className="mt-4 space-y-2">
-          {/* Wallet ticket */}
+        <div className="mt-6 space-y-3">
           {ticketCode && (
-            <p className="text-green-600 font-medium">
-              Payment successful! Your ticket code: <span className="font-bold">{ticketCode}</span>
-            </p>
+            <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+              <p className="text-green-700 font-medium">
+                Payment successful 🎉
+              </p>
+              <p className="mt-1 text-sm">
+                Ticket Code:
+                <span className="ml-2 font-mono font-semibold">
+                  {ticketCode}
+                </span>
+              </p>
+            </div>
           )}
 
-          {/* Paystack redirect */}
           {paymentUrl && (
             <a
               href={paymentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-blue-600 hover:underline font-medium"
+              className="block text-center rounded-xl bg-blue-600 text-white py-2 font-medium hover:opacity-90"
             >
-              Complete Payment
+              Complete Payment on Paystack →
             </a>
           )}
         </div>
       )}
 
-      {/* Error */}
+      {/* ---------------- ERROR ---------------- */}
       {status === "error" && errorMessage && (
         <p className="mt-4 text-red-500">{errorMessage}</p>
       )}
-    </div>
+    </main>
   );
 }
