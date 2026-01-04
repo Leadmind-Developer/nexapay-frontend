@@ -49,7 +49,7 @@ export default function Savings() {
           api.get("/savings/ai/recommendations"),
         ]);
 
-        setSummary(analyticsRes.data?.summary ?? null);
+        setSummary(analyticsRes.data ?? null);
         setGoals(goalsRes.data?.goals ?? []);
         setTips(aiRes.data?.tips ?? []);
       } catch (err) {
