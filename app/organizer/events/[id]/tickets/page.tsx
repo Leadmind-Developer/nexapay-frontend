@@ -15,7 +15,7 @@ interface TicketType {
 }
 
 interface Props {
-  eventId: string;
+  eventId?: string;
 }
 
 export default function TicketTypesPage({ eventId }: Props) {
@@ -28,11 +28,13 @@ export default function TicketTypesPage({ eventId }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  /* ---------------- FETCH TICKETS ---------------- */
   const fetchTicketTypes = async () => {
+    if (!eventId) return; // guard
+
     try {
-      const res: AxiosResponse<{ ticketTypes: TicketType[] }> = await api.get(
-        `/organizer/events/${eventId}/tickets`
-      );
+      const res: AxiosResponse<{ ticketTypes: TicketType[] }> =
+        await api.get(`/organizer/events/${eventId}/tickets`);
       setTicketTypes(res.data.ticketTypes || []);
     } catch (err: any) {
       console.error(err);
@@ -44,12 +46,23 @@ export default function TicketTypesPage({ eventId }: Props) {
     fetchTicketTypes();
   }, [eventId]);
 
+  /* ---------------- FORM HANDLERS ---------------- */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value, type } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: type === "number" ? Number(value) : value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!eventId) {
+      toast.error("Cannot save ticket: event ID missing.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -83,6 +96,7 @@ export default function TicketTypesPage({ eventId }: Props) {
 
   const handleDelete = async () => {
     if (!deletingId) return;
+
     try {
       await api.delete(`/ticket-types/${deletingId}`);
       toast.success("Ticket type deleted");
@@ -96,13 +110,29 @@ export default function TicketTypesPage({ eventId }: Props) {
     }
   };
 
+  /* ---------------- RENDER ---------------- */
+  if (!eventId) {
+    return (
+      <main className="min-h-screen p-8 bg-gray-50">
+        <p className="text-red-500 text-lg">
+          Event must be created before adding tickets.
+        </p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen p-8 bg-gray-50">
       <h1 className="text-2xl font-semibold mb-6">Manage Ticket Types</h1>
 
       {/* Ticket Form */}
-      <form onSubmit={handleSubmit} className="mb-6 space-y-4 bg-white p-6 rounded-xl shadow-md">
-        <h2 className="text-lg font-medium">{editingId ? "Edit Ticket Type" : "Create Ticket Type"}</h2>
+      <form
+        onSubmit={handleSubmit}
+        className="mb-6 space-y-4 bg-white p-6 rounded-xl shadow-md"
+      >
+        <h2 className="text-lg font-medium">
+          {editingId ? "Edit Ticket Type" : "Create Ticket Type"}
+        </h2>
 
         <div>
           <label className="block text-sm font-medium">Name</label>
@@ -120,7 +150,7 @@ export default function TicketTypesPage({ eventId }: Props) {
           <input
             name="price"
             type="number"
-            value={form.price || ""}
+            value={form.price ?? ""}
             onChange={handleChange}
             required
             className="mt-1 w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
@@ -132,7 +162,7 @@ export default function TicketTypesPage({ eventId }: Props) {
           <input
             name="quantity"
             type="number"
-            value={form.quantity || ""}
+            value={form.quantity ?? ""}
             onChange={handleChange}
             required
             className="mt-1 w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring"
@@ -144,7 +174,11 @@ export default function TicketTypesPage({ eventId }: Props) {
           disabled={loading}
           className="w-full rounded-xl bg-black text-white py-2 font-medium hover:opacity-90"
         >
-          {loading ? "Saving..." : editingId ? "Update Ticket Type" : "Create Ticket Type"}
+          {loading
+            ? "Saving..."
+            : editingId
+            ? "Update Ticket Type"
+            : "Create Ticket Type"}
         </button>
       </form>
 
@@ -164,7 +198,7 @@ export default function TicketTypesPage({ eventId }: Props) {
               </tr>
             </thead>
             <tbody>
-              {ticketTypes.map((tt) => (
+              {ticketTypes.map(tt => (
                 <tr key={tt.id} className="hover:bg-gray-50">
                   <td className="border px-4 py-2">{tt.name}</td>
                   <td className="border px-4 py-2">${tt.price}</td>
@@ -196,7 +230,10 @@ export default function TicketTypesPage({ eventId }: Props) {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white rounded-xl p-6 w-96 space-y-4">
             <h3 className="text-lg font-semibold">Confirm Deletion</h3>
-            <p>Are you sure you want to delete this ticket type? This action cannot be undone.</p>
+            <p>
+              Are you sure you want to delete this ticket type? This action
+              cannot be undone.
+            </p>
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setShowDeleteModal(false)}
