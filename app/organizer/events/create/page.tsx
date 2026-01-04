@@ -48,7 +48,11 @@ export default function EventFormPage() {
 
     api
       .get<EventPayload>(`/events/organizer/events/${eventId}`)
-      .then(res => setForm(res.data))
+      .then(res => setForm({
+        ...res.data,
+        startAt: new Date(res.data.startAt).toISOString().slice(0, 16),
+        endAt: new Date(res.data.endAt).toISOString().slice(0, 16),
+      }))
       .catch(console.error);
   }, [eventId]);
 
@@ -70,17 +74,27 @@ export default function EventFormPage() {
     setStatus("saving");
 
     try {
+      // Convert datetime-local to full ISO string for Prisma
+      const payload = {
+        ...form,
+        startAt: new Date(form.startAt).toISOString(),
+        endAt: new Date(form.endAt).toISOString(),
+      };
+
+      let res;
       if (eventId) {
-        await api.patch(`/events/organizer/events/${eventId}`, form);
+        res = await api.patch(`/events/organizer/events/${eventId}`, payload);
       } else {
-        const res = await api.post("/events/organizer/events", form);
+        res = await api.post("/events/organizer/events", payload);
         if (redirect) {
           router.push(`/organizer/events/${res.data.id}/${redirect}`);
           return;
         }
       }
+
       router.push("/organizer/events");
-    } catch {
+    } catch (err) {
+      console.error("Failed to save event:", err);
       setStatus("error");
     }
   };
