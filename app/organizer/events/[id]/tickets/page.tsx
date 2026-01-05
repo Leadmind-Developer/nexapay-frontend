@@ -70,10 +70,10 @@ export default function TicketTypesPage() {
 
     try {
       if (editingId) {
-        await api.patch(`/organizer/events/${eventId}/tickets/${editingId}`, form);
+        await api.patch(`/events/organizer/events/${eventId}/tickets/${editingId}`, form);
         toast.success("Ticket type updated");
       } else {
-        await api.post(`/organizer/events/${eventId}/tickets`, form);
+        await api.post(`/events/organizer/events/${eventId}/tickets`, form);
         toast.success("Ticket type created");
       }
       resetForm();
@@ -105,7 +105,7 @@ export default function TicketTypesPage() {
     if (!deletingId) return;
 
     try {
-      await api.delete(`/organizer/events/${eventId}/tickets/${deletingId}`);
+      await api.delete(`/events/organizer/events/${eventId}/tickets/${deletingId}`);
       toast.success("Ticket type deleted");
       fetchTicketTypes();
     } catch (err: any) {
