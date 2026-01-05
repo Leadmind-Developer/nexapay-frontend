@@ -23,6 +23,7 @@
     "recharts": "^2.7.0",
     "jspdf": "2.5.1",
     "eventsource": "^4.1.0",
+    "zod": "^4.3.5",
     "swr": "^2.3.6"
   },
   "devDependencies": {
