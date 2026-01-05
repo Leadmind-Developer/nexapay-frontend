@@ -24,7 +24,7 @@ export default function TicketTypesPage() {
 
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [editingRow, setEditingRow] = useState<string | null>(null);
-  const [rowEdits, setRowEdits] = useState<Record<string, Partial<TicketType>>>({});
+  const [rowEdits, setRowEdits] = useState<Partial<TicketType>>({});
   const [loadingRow, setLoadingRow] = useState<string | null>(null);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -47,16 +47,19 @@ export default function TicketTypesPage() {
   }, [eventId]);
 
   /* ---------------- INLINE EDIT HANDLERS ---------------- */
-  const handleRowChange = (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
-    const { name, value, type } = e.target;
-    setRowEdits(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        [name]: type === "number" ? Number(value) : value,
-      },
-    }));
-  };
+const [rowEdits, setRowEdits] = useState<Record<string, Partial<TicketType>>>({});
+
+const handleRowChange = (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
+  const { name, value, type } = e.target;
+  setRowEdits(prev => ({
+    ...prev,
+    [id]: {
+      ...prev[id],
+      [name]: type === "number" ? Number(value) : value,
+    },
+  }));
+};
+
 
   const startEditingRow = (tt: TicketType) => {
     if (tt.sold > 0) return toast.error("Cannot edit ticket after sales have started");
