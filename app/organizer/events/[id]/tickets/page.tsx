@@ -23,9 +23,9 @@ export default function TicketTypesPage() {
   const eventId = params?.id as string;
 
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
-  const [editingRow, setEditingRow] = useState<string | null>(null);
-  const [rowEdits, setRowEdits] = useState<Partial<TicketType>>({});
-  const [loadingRow, setLoadingRow] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<TicketType>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -46,50 +46,56 @@ export default function TicketTypesPage() {
     fetchTicketTypes();
   }, [eventId]);
 
-  /* ---------------- INLINE EDIT HANDLERS ---------------- */
-const [rowEdits, setRowEdits] = useState<Record<string, Partial<TicketType>>>({});
-
-const handleRowChange = (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
-  const { name, value, type } = e.target;
-  setRowEdits(prev => ({
-    ...prev,
-    [id]: {
-      ...prev[id],
+  /* ---------------- FORM HANDLERS ---------------- */
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value, type } = e.target;
+    setForm(prev => ({
+      ...prev,
       [name]: type === "number" ? Number(value) : value,
-    },
-  }));
-};
-
-
-  const startEditingRow = (tt: TicketType) => {
-    if (tt.sold > 0) return toast.error("Cannot edit ticket after sales have started");
-    setEditingRow(tt.id);
-    setRowEdits({ [tt.id]: { price: tt.price, quantity: tt.quantity } });
+    }));
   };
 
-  const cancelRowEdit = () => {
-    setEditingRow(null);
-    setRowEdits({});
+  const resetForm = () => {
+    setForm({});
+    setEditingId(null);
   };
 
-  const saveRowEdit = async (id: string) => {
-    if (!rowEdits[id]) return;
-    setLoadingRow(id);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!eventId) return toast.error("Event not found");
+    setLoading(true);
 
     try {
-      await api.patch(`/organizer/events/${eventId}/tickets/${id}`, rowEdits[id]);
-      toast.success("Ticket updated");
+      if (editingId) {
+        await api.patch(`/organizer/events/${eventId}/tickets/${editingId}`, form);
+        toast.success("Ticket type updated");
+      } else {
+        await api.post(`/organizer/events/${eventId}/tickets`, form);
+        toast.success("Ticket type created");
+      }
+      resetForm();
       fetchTicketTypes();
-      cancelRowEdit();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Failed to update ticket");
+      toast.error(err.message || "Failed to save ticket type");
     } finally {
-      setLoadingRow(null);
+      setLoading(false);
     }
   };
 
-  /* ---------------- DELETE ---------------- */
+  /* ---------------- EDIT / DELETE ---------------- */
+  const handleEdit = (tt: TicketType) => {
+    if (tt.sold > 0) {
+      toast.error("Cannot edit ticket after sales have started");
+      return;
+    }
+    setForm(tt);
+    setEditingId(tt.id);
+  };
+
   const confirmDelete = (id: string) => {
     setDeletingId(id);
     setShowDeleteModal(true);
@@ -139,6 +145,84 @@ const handleRowChange = (e: React.ChangeEvent<HTMLInputElement>, id: string) => 
           </button>
         </div>
 
+        {/* FORM */}
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm space-y-4"
+        >
+          <h2 className="font-medium text-gray-800 dark:text-gray-200">
+            {editingId ? "Edit Ticket Type" : "Create Ticket Type"}
+          </h2>
+
+          <input
+            name="name"
+            placeholder="Ticket name (e.g. Regular, VIP)"
+            value={form.name || ""}
+            onChange={handleChange}
+            required
+            className="w-full rounded-lg border border-gray-300 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+
+          <textarea
+            name="description"
+            placeholder="Description (optional)"
+            value={form.description || ""}
+            onChange={handleChange}
+            rows={2}
+            className="w-full rounded-lg border border-gray-300 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+
+          <div className="grid md:grid-cols-3 gap-4">
+            <input
+              name="price"
+              type="number"
+              placeholder="Price"
+              value={form.price ?? ""}
+              onChange={handleChange}
+              required
+              className="rounded-lg border border-gray-300 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            <input
+              name="quantity"
+              type="number"
+              placeholder="Quantity"
+              value={form.quantity ?? ""}
+              onChange={handleChange}
+              required
+              className="rounded-lg border border-gray-300 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            <input
+              name="currency"
+              placeholder="Currency"
+              value={form.currency || "NGN"}
+              onChange={handleChange}
+              className="rounded-lg border border-gray-300 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 font-medium transition"
+            >
+              {loading ? "Saving..." : editingId ? "Update Ticket" : "Create Ticket"}
+            </button>
+
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg border border-gray-400 dark:border-neutral-600 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+
         {/* TABLE */}
         <div className="bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm overflow-x-auto">
           {ticketTypes.length === 0 ? (
@@ -155,86 +239,30 @@ const handleRowChange = (e: React.ChangeEvent<HTMLInputElement>, id: string) => 
                 </tr>
               </thead>
               <tbody>
-                {ticketTypes.map(tt => {
-                  const isEditing = editingRow === tt.id;
-                  return (
-                    <tr
-                      key={tt.id}
-                      className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
-                    >
-                      <td className="p-3 text-gray-900 dark:text-gray-100">{tt.name}</td>
-
-                      {/* INLINE EDIT PRICE */}
-                      <td className="p-3 text-gray-900 dark:text-gray-100">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            name="price"
-                            value={rowEdits[tt.id]?.price ?? tt.price}
-                            onChange={e => handleRowChange(e, tt.id)}
-                            className="w-24 rounded-lg border border-gray-300 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 px-2 py-1 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        ) : (
-                          `${tt.currency} ${tt.price}`
-                        )}
-                      </td>
-
-                      {/* INLINE EDIT QUANTITY */}
-                      <td className="p-3 text-gray-900 dark:text-gray-100">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            name="quantity"
-                            value={rowEdits[tt.id]?.quantity ?? tt.quantity}
-                            onChange={e => handleRowChange(e, tt.id)}
-                            className="w-20 rounded-lg border border-gray-300 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 px-2 py-1 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        ) : (
-                          tt.quantity
-                        )}
-                      </td>
-
-                      <td className="p-3 text-gray-900 dark:text-gray-100">{tt.sold}</td>
-
-                      <td className="p-3 space-x-2 flex items-center">
-                        {isEditing ? (
-                          <>
-                            <button
-                              onClick={() => saveRowEdit(tt.id)}
-                              disabled={loadingRow === tt.id}
-                              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-sm transition disabled:opacity-50"
-                            >
-                              {loadingRow === tt.id ? "Saving..." : "Save"}
-                            </button>
-                            <button
-                              onClick={cancelRowEdit}
-                              className="rounded-lg border border-gray-400 dark:border-neutral-600 px-3 py-1 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800 transition"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => startEditingRow(tt)}
-                              disabled={tt.sold > 0}
-                              className="rounded-lg border px-3 py-1 text-sm bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 transition disabled:opacity-50"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => confirmDelete(tt.id)}
-                              disabled={tt.sold > 0}
-                              className="rounded-lg border px-3 py-1 text-sm bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50"
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {ticketTypes.map(tt => (
+                  <tr key={tt.id} className="border-t border-gray-200 dark:border-neutral-700">
+                    <td className="p-3 text-gray-900 dark:text-gray-100">{tt.name}</td>
+                    <td className="p-3 text-gray-900 dark:text-gray-100">{tt.currency} {tt.price}</td>
+                    <td className="p-3 text-gray-900 dark:text-gray-100">{tt.quantity}</td>
+                    <td className="p-3 text-gray-900 dark:text-gray-100">{tt.sold}</td>
+                    <td className="p-3 space-x-2">
+                      <button
+                        onClick={() => handleEdit(tt)}
+                        disabled={tt.sold > 0}
+                        className="rounded-lg border px-3 py-1 text-sm bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 transition disabled:opacity-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => confirmDelete(tt.id)}
+                        disabled={tt.sold > 0}
+                        className="rounded-lg border px-3 py-1 text-sm bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
