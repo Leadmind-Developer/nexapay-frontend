@@ -30,7 +30,7 @@ export default function OrganizerEventsPage() {
 
   useEffect(() => {
     api
-      .get<Event[]>("/organizer/events")
+      .get<Event[]>("/events/organizer/events")
       .then((res) => setEvents(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
