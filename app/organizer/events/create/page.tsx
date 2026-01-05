@@ -3,21 +3,54 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { z } from "zod";
+
+/* =====================================================
+   Types
+===================================================== */
 
 type EventType = "PHYSICAL" | "VIRTUAL";
 type UploadState = "idle" | "uploading" | "success" | "error";
 
-interface EventFormState {
-  title: string;
-  description: string;
-  email: string;
-  type: EventType;
-  venue: string;
-  address: string;
-  category: string;
-  startAt: string;
-  endAt: string;
-}
+/* =====================================================
+   Zod Schema (Single Source of Truth)
+===================================================== */
+
+const eventSchema = z
+  .object({
+    title: z.string().min(3, "Event title is required"),
+    description: z.string().optional(),
+    email: z.string().email("Organizer email is missing"),
+    type: z.enum(["PHYSICAL", "VIRTUAL"]),
+    venue: z.string().optional(),
+    address: z.string().optional(),
+    category: z.string().optional(),
+    startAt: z.string().min(1, "Start date is required"),
+    endAt: z.string().min(1, "End date is required"),
+  })
+  .refine(
+    data => new Date(data.endAt) > new Date(data.startAt),
+    {
+      message: "End date must be after start date",
+      path: ["endAt"],
+    }
+  )
+  .refine(
+    data =>
+      data.type === "VIRTUAL" ||
+      (!!data.venue?.trim() && !!data.address?.trim()),
+    {
+      message: "Venue and address are required for physical events",
+      path: ["venue"],
+    }
+  );
+
+type EventFormState = z.infer<typeof eventSchema>;
+type FormErrors = Partial<Record<keyof EventFormState, string>>;
+
+/* =====================================================
+   Page
+===================================================== */
 
 export default function EventCreatePage() {
   const router = useRouter();
@@ -34,15 +67,18 @@ export default function EventCreatePage() {
     endAt: "",
   });
 
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+
   const [image, setImage] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [preview, setPreview] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   /* --------------------------------
-     Fetch user email
+     Fetch organizer email
   -------------------------------- */
   useEffect(() => {
     api.get("/user/me").then(res => {
@@ -50,28 +86,46 @@ export default function EventCreatePage() {
     });
   }, []);
 
-  const update = (key: keyof EventFormState, value: string) => {
-    setForm(prev => ({ ...prev, [key]: value }));
-  };
+  /* --------------------------------
+     Image preview lifecycle
+  -------------------------------- */
+  useEffect(() => {
+    if (!image) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(image);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [image]);
 
   /* --------------------------------
-     Validation
+     Helpers
   -------------------------------- */
-  const validationError = useMemo(() => {
-    if (!form.title.trim()) return "Event title is required";
-    if (!form.email) return "Organizer email missing";
-    if (!form.startAt || !form.endAt) return "Start and end date are required";
+  const update = (key: keyof EventFormState, value: string) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setErrors(prev => ({ ...prev, [key]: undefined }));
+  };
 
-    if (new Date(form.endAt) <= new Date(form.startAt))
-      return "End date must be after start date";
+  const validate = (): boolean => {
+    const result = eventSchema.safeParse(form);
 
-    if (form.type === "PHYSICAL") {
-      if (!form.venue.trim()) return "Venue is required for physical events";
-      if (!form.address.trim()) return "Address is required for physical events";
+    if (result.success) {
+      setErrors({});
+      setFormError(null);
+      return true;
     }
 
-    return null;
-  }, [form]);
+    const fieldErrors: FormErrors = {};
+    result.error.issues.forEach(issue => {
+      const key = issue.path[0] as keyof EventFormState;
+      fieldErrors[key] = issue.message;
+    });
+
+    setErrors(fieldErrors);
+    setFormError("Please fix the errors below.");
+    return false;
+  };
 
   /* --------------------------------
      Submit
@@ -80,24 +134,15 @@ export default function EventCreatePage() {
     publish: boolean,
     redirect?: "tickets"
   ) => {
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (!validate()) return;
 
     setSaving(true);
-    setError(null);
+    setFormError(null);
 
     try {
-      /* -------------------------------
-         1️⃣ Create event (JSON)
-      ------------------------------- */
+      /* 1️⃣ Create event */
       const res = await api.post("/events/organizer/events", {
-        title: form.title,
-        description: form.description,
-        email: form.email,
-        type: form.type,
-        category: form.category || null,
+        ...form,
         venue: form.type === "PHYSICAL" ? form.venue : null,
         address: form.type === "PHYSICAL" ? form.address : null,
         startAt: new Date(form.startAt).toISOString(),
@@ -107,9 +152,7 @@ export default function EventCreatePage() {
 
       const eventId = res.data.id;
 
-      /* -------------------------------
-         2️⃣ Upload image (optional)
-      ------------------------------- */
+      /* 2️⃣ Upload image */
       if (image) {
         setUploadState("uploading");
 
@@ -134,22 +177,24 @@ export default function EventCreatePage() {
         setUploadState("success");
       }
 
-      /* -------------------------------
-         Redirect
-      ------------------------------- */
-      if (redirect === "tickets") {
-        router.push(`/organizer/events/${eventId}/tickets`);
-      } else {
-        router.push("/organizer/events");
-      }
-    } catch (err: any) {
+      /* 3️⃣ Redirect */
+      router.push(
+        redirect === "tickets"
+          ? `/organizer/events/${eventId}/tickets`
+          : "/organizer/events"
+      );
+    } catch (err) {
       console.error(err);
       setUploadState("error");
-      setError("Failed to create event. Please review your inputs.");
+      setFormError("Failed to create event. Please try again.");
     } finally {
       setSaving(false);
     }
   };
+
+  /* =====================================================
+     Render
+  ===================================================== */
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-neutral-950 py-10">
@@ -158,6 +203,12 @@ export default function EventCreatePage() {
         <p className="text-gray-500 mb-8">
           Events are saved as drafts by default.
         </p>
+
+        {formError && (
+          <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+            {formError}
+          </div>
+        )}
 
         <Card title="Organizer">
           <Input value={form.email} readOnly />
@@ -168,6 +219,7 @@ export default function EventCreatePage() {
             placeholder="Event title"
             value={form.title}
             onChange={e => update("title", e.target.value)}
+            error={errors.title}
           />
 
           <Textarea
@@ -191,39 +243,45 @@ export default function EventCreatePage() {
                 placeholder="Venue name"
                 value={form.venue}
                 onChange={e => update("venue", e.target.value)}
+                error={errors.venue}
               />
               <Input
                 placeholder="Venue address"
                 value={form.address}
                 onChange={e => update("address", e.target.value)}
+                error={errors.address}
               />
             </>
           )}
         </Card>
 
         <Card title="Event Image">
-          <FileInput
-            accept="image/*"
-            onChange={e => setImage(e.target.files?.[0] ?? null)}
-          />
-
-          {uploadState !== "idle" && (
-            <div className="flex items-center gap-3 mt-2">
-              <div
-                className={`h-2 w-2 rounded-full ${
-                  uploadState === "uploading"
-                    ? "bg-amber-400"
-                    : uploadState === "success"
-                    ? "bg-green-500"
-                    : "bg-red-500"
-                }`}
+          {!preview ? (
+            <FileInput
+              accept="image/*"
+              onChange={e =>
+                setImage(e.target.files?.[0] ?? null)
+              }
+            />
+          ) : (
+            <div className="flex items-center gap-4">
+              <img
+                src={preview}
+                className="h-20 w-20 rounded-lg object-cover border"
               />
-              <span className="text-sm text-gray-500">
-                {uploadState === "uploading" && `Uploading ${uploadProgress}%`}
-                {uploadState === "success" && "Image uploaded"}
-                {uploadState === "error" && "Upload failed"}
-              </span>
+              <Button
+                variant="outline"
+                onClick={() => setImage(null)}
+              >
+                Remove
+              </Button>
             </div>
+          )}
+
+          {uploadState === "uploading" && (
+            <p className="text-sm text-gray-500">
+              Uploading… {uploadProgress}%
+            </p>
           )}
         </Card>
 
@@ -233,11 +291,13 @@ export default function EventCreatePage() {
               type="datetime-local"
               value={form.startAt}
               onChange={e => update("startAt", e.target.value)}
+              error={errors.startAt}
             />
             <Input
               type="datetime-local"
               value={form.endAt}
               onChange={e => update("endAt", e.target.value)}
+              error={errors.endAt}
             />
           </div>
         </Card>
@@ -266,18 +326,22 @@ export default function EventCreatePage() {
             </Button>
           </div>
         </Card>
-
-        {error && (
-          <p className="text-red-500 mt-4 text-sm">{error}</p>
-        )}
       </div>
     </main>
   );
 }
 
-/* ---------------- UI COMPONENTS ---------------- */
+/* =====================================================
+   UI Components (Fixed & Typed)
+===================================================== */
 
-function Card({ title, children }: any) {
+function Card({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="bg-white dark:bg-neutral-900 rounded-2xl p-6 mb-6 shadow border">
       <h2 className="text-lg font-semibold mb-4">{title}</h2>
@@ -286,31 +350,50 @@ function Card({ title, children }: any) {
   );
 }
 
-function Input(props: any) {
+function Input({
+  error,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  error?: string;
+}) {
   return (
-    <input
-      {...props}
-      className="border rounded-xl px-4 py-2 w-full bg-white dark:bg-neutral-800"
-    />
+    <div>
+      <input
+        {...props}
+        className={`w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800 ${
+          error ? "border-red-400" : ""
+        }`}
+      />
+      {error && (
+        <p className="text-xs text-red-500 mt-1">{error}</p>
+      )}
+    </div>
   );
 }
 
-function Textarea(props: any) {
+function Textarea(
+  props: React.TextareaHTMLAttributes<HTMLTextAreaElement>
+) {
   return (
     <textarea
       {...props}
-      className="border rounded-xl px-4 py-2 w-full bg-white dark:bg-neutral-800"
+      className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800"
     />
   );
 }
 
-function Select({ options, ...props }: any) {
+function Select({
+  options,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement> & {
+  options: { label: string; value: string }[];
+}) {
   return (
     <select
       {...props}
-      className="border rounded-xl px-4 py-2 w-full bg-white dark:bg-neutral-800"
+      className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800"
     >
-      {options.map((o: any) => (
+      {options.map(o => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
@@ -319,17 +402,24 @@ function Select({ options, ...props }: any) {
   );
 }
 
-function FileInput(props: any) {
+function FileInput(
+  props: React.InputHTMLAttributes<HTMLInputElement>
+) {
   return (
     <input
       {...props}
       type="file"
-      className="border rounded-xl px-4 py-2 w-full cursor-pointer"
+      className="w-full cursor-pointer rounded-xl border px-4 py-2"
     />
   );
 }
 
-function Button({ variant = "primary", ...props }: any) {
+function Button({
+  variant = "primary",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "outline";
+}) {
   const styles =
     variant === "primary"
       ? "bg-black text-white"
