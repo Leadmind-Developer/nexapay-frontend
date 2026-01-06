@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { z } from "zod";
 import OrganizerEventTopBar from "@/components/OrganizerEventTopBar";
+import { z } from "zod";
 
 /* =====================================================
    Types
@@ -14,110 +14,93 @@ type EventType = "PHYSICAL" | "VIRTUAL";
 type UploadState = "idle" | "uploading" | "success" | "error";
 
 /* =====================================================
-   Zod Schema
+   Shared Schema (SAME AS CREATE)
 ===================================================== */
 
 const eventSchema = z
   .object({
-    title: z.string().min(3, "Event title is required"),
+    title: z.string().min(3),
     description: z.string().optional(),
-    email: z.string().email("Organizer email is missing"),
+    email: z.string().email(),
     type: z.enum(["PHYSICAL", "VIRTUAL"]),
     venue: z.string().optional(),
     address: z.string().optional(),
     category: z.string().optional(),
-    startAt: z.string().min(1, "Start date is required"),
-    endAt: z.string().min(1, "End date is required"),
+    startAt: z.string().min(1),
+    endAt: z.string().min(1),
+    published: z.boolean(),
   })
   .refine(
     data => new Date(data.endAt) > new Date(data.startAt),
-    { message: "End date must be after start date", path: ["endAt"] }
+    { path: ["endAt"], message: "End date must be after start date" }
   )
   .refine(
     data =>
       data.type === "VIRTUAL" ||
       (!!data.venue?.trim() && !!data.address?.trim()),
-    { message: "Venue and address are required for physical events", path: ["venue"] }
+    {
+      path: ["venue"],
+      message: "Venue and address are required for physical events",
+    }
   );
 
 type EventFormState = z.infer<typeof eventSchema>;
 type FormErrors = Partial<Record<keyof EventFormState, string>>;
 
 /* =====================================================
-   Edit Page
+   Page
 ===================================================== */
 
 export default function EventEditPage() {
   const router = useRouter();
   const params = useParams();
-  const eventId = params?.id as string | undefined;
+  const eventId = params?.id as string;
 
-  const [form, setForm] = useState<EventFormState & { published: boolean }>({
-    title: "",
-    description: "",
-    email: "",
-    type: "PHYSICAL",
-    venue: "",
-    address: "",
-    category: "",
-    startAt: "",
-    endAt: "",
-    published: false, // add this
-});
-
-
+  const [form, setForm] = useState<EventFormState | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
-
-  const [image, setImage] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [uploadState, setUploadState] = useState<UploadState>("idle");
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  /* ------------------------------
-     Fetch existing event
-  ------------------------------ */
+  const [image, setImage] = useState<File | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
+
+  /* =====================================================
+     Fetch Event (NORMALIZED)
+  ===================================================== */
+
   useEffect(() => {
     if (!eventId) return;
 
     api.get(`/events/organizer/events/${eventId}`).then(res => {
-      const data = res.data;
+      const e = res.data;
+
       setForm({
-        title: data.title,
-        description: data.description,
-        email: data.email,
-        type: data.type,
-        venue: data.venue ?? "",
-        address: data.address ?? "",
-        category: data.category ?? "",
-        startAt: data.startAt?.slice(0, 16) || "",
-        endAt: data.endAt?.slice(0, 16) || "",
-        published: data.published ?? false,
+        title: e.title,
+        description: e.description ?? "",
+        email: e.email,
+        type: e.type,
+        venue: e.venue ?? "",
+        address: e.address ?? "",
+        category: e.category ?? "",
+        startAt: e.startAt.slice(0, 16),
+        endAt: e.endAt.slice(0, 16),
+        published: Boolean(e.published),
       });
-      if (data.imageUrl) setPreview(data.imageUrl);
     });
   }, [eventId]);
 
-  /* ------------------------------
-     Image preview lifecycle
-  ------------------------------ */
-  useEffect(() => {
-    if (!image) return;
-    const url = URL.createObjectURL(image);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [image]);
+  /* =====================================================
+     Helpers
+  ===================================================== */
 
-  /* ------------------------------
-     Form helpers
-  ------------------------------ */
-  const update = (key: keyof EventFormState, value: string) => {
-    setForm(prev => ({ ...prev, [key]: value }));
+  const update = (key: keyof EventFormState, value: any) => {
+    setForm(prev => prev && { ...prev, [key]: value });
     setErrors(prev => ({ ...prev, [key]: undefined }));
   };
 
-  const validate = (): boolean => {
+  const validate = () => {
+    if (!form) return false;
+
     const result = eventSchema.safeParse(form);
     if (result.success) {
       setErrors({});
@@ -130,193 +113,121 @@ export default function EventEditPage() {
       const key = issue.path[0] as keyof EventFormState;
       fieldErrors[key] = issue.message;
     });
+
     setErrors(fieldErrors);
     setFormError("Please fix the errors below.");
     return false;
   };
 
-  /* ------------------------------
-   Save / Publish
------------------------------- */
-const saveEvent = async (publish: boolean) => {
-  if (!validate()) return;
-  if (!eventId) return;
+  /* =====================================================
+     Save / Publish (REAL)
+  ===================================================== */
 
-  setSaving(true);
-  setFormError(null);
+  const saveEvent = async (publish?: boolean) => {
+    if (!form || !validate()) return;
 
-  try {
-    // 1️⃣ Update event
-    await api.patch(`/events/organizer/events/${eventId}`, {
-      ...form,
-      venue: form.type === "PHYSICAL" ? form.venue : null,
-      address: form.type === "PHYSICAL" ? form.address : null,
-      startAt: new Date(form.startAt).toISOString(),
-      endAt: new Date(form.endAt).toISOString(),
-      published: publish,
-    });
+    setSaving(true);
+    setFormError(null);
 
-    // 2️⃣ Upload image if changed
-    if (image) {
-      setUploadState("uploading");
-      const fd = new FormData();
-      fd.append("images", image);
+    try {
+      await api.patch(`/events/organizer/events/${eventId}`, {
+        ...form,
+        published: publish ?? form.published,
+        venue: form.type === "PHYSICAL" ? form.venue : null,
+        address: form.type === "PHYSICAL" ? form.address : null,
+        startAt: new Date(form.startAt).toISOString(),
+        endAt: new Date(form.endAt).toISOString(),
+      });
 
-      await api.post(
-        `/events/organizer/events/${eventId}/images`,
-        fd,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-          onUploadProgress: (e) => {
-            if (e.total) {
-              setUploadProgress(
-                Math.round((e.loaded / e.total) * 100)
-              );
-            }
-          },
-        }
-      );
+      if (image) {
+        setUploadState("uploading");
+        const fd = new FormData();
+        fd.append("images", image);
+        await api.post(
+          `/events/organizer/events/${eventId}/images`,
+          fd
+        );
+        setUploadState("success");
+      }
 
-      setUploadState("success");
-    }
-
-    setSaving(false);
-    router.push("/organizer/events");
-  } catch (err: any) {
-    if (err?.response?.status === 304) {
       router.push("/organizer/events");
-      return;
+    } catch (err) {
+      console.error(err);
+      setFormError("Failed to save event.");
+      setUploadState("error");
+    } finally {
+      setSaving(false);
     }
-
-    console.error(err);
-    setFormError("Failed to save event. Please try again.");
-    setUploadState("error");
-  }
-};
-
-  
-
-  /* ------------------------------
-     Toggle published
-  ------------------------------ */
-  const togglePublish = () => saveEvent(!form.published);
+  };
 
   /* =====================================================
      Render
   ===================================================== */
-  if (!eventId) return <p className="text-red-500">Invalid Event</p>;
+
+  if (!form) return null;
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-neutral-950 py-10">
-      <div className="max-w-4xl mx-auto px-6">
-        <h1 className="text-3xl font-bold mb-2">Edit Event</h1>
-        <p className="text-gray-500 mb-8">
-          Events are saved as drafts by default.
-        </p>
+    <div className="min-h-screen bg-gray-50">
+      <OrganizerEventTopBar
+        eventId={eventId}
+        published={form.published}
+        onTogglePublish={() => saveEvent(!form.published)}
+      />
+
+      <main className="max-w-4xl mx-auto px-6 py-10">
+        <h1 className="text-3xl font-bold mb-6">Edit Event</h1>
 
         {formError && (
-          <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mb-6 border border-red-300 bg-red-50 p-4 text-red-700">
             {formError}
           </div>
         )}
 
-        {/* Top-bar (pass toggle) */}
-        <OrganizerEventTopBar eventId={eventId} published={form.published} onTogglePublish={togglePublish} />
-
         {/* Event Details */}
-        <Card title="Event Details">
-          <Input placeholder="Event title" value={form.title} onChange={e => update("title", e.target.value)} error={errors.title} />
-          <Textarea placeholder="Describe your event" value={form.description} onChange={e => update("description", e.target.value)} />
-          <Select
-            value={form.type}
-            onChange={e => update("type", e.target.value as EventType)}
-            options={[
-              { label: "Physical Event", value: "PHYSICAL" },
-              { label: "Virtual Event", value: "VIRTUAL" },
-            ]}
+        <section className="bg-white p-6 rounded-xl space-y-4 mb-6">
+          <input
+            value={form.title}
+            onChange={e => update("title", e.target.value)}
+            placeholder="Event title"
           />
-          {form.type === "PHYSICAL" && (
-            <>
-              <Input placeholder="Venue name" value={form.venue} onChange={e => update("venue", e.target.value)} error={errors.venue} />
-              <Input placeholder="Venue address" value={form.address} onChange={e => update("address", e.target.value)} error={errors.address} />
-            </>
-          )}
-        </Card>
 
-        {/* Event Image */}
-        <Card title="Event Image">
-          {!preview ? (
-            <FileInput accept="image/*" onChange={e => setImage(e.target.files?.[0] ?? null)} />
-          ) : (
-            <div className="flex items-center gap-4">
-              <img src={preview} className="h-20 w-20 rounded-lg object-cover border" />
-              <Button variant="outline" onClick={() => setImage(null)}>Remove</Button>
-            </div>
-          )}
-          {uploadState === "uploading" && (
-            <p className="text-sm text-gray-500">Uploading… {uploadProgress}%</p>
-          )}
-        </Card>
+          <textarea
+            value={form.description}
+            onChange={e => update("description", e.target.value)}
+          />
+        </section>
 
         {/* Schedule */}
-        <Card title="Schedule">
-          <div className="grid md:grid-cols-2 gap-4">
-            <Input type="datetime-local" value={form.startAt} onChange={e => update("startAt", e.target.value)} error={errors.startAt} />
-            <Input type="datetime-local" value={form.endAt} onChange={e => update("endAt", e.target.value)} error={errors.endAt} />
-          </div>
-        </Card>
+        <section className="bg-white p-6 rounded-xl mb-6 grid md:grid-cols-2 gap-4">
+          <input
+            type="datetime-local"
+            value={form.startAt}
+            onChange={e => update("startAt", e.target.value)}
+          />
+          <input
+            type="datetime-local"
+            value={form.endAt}
+            onChange={e => update("endAt", e.target.value)}
+          />
+        </section>
 
         {/* Actions */}
-        <Card title="Actions">
-          <div className="flex flex-col md:flex-row gap-3">
-            <Button variant="secondary" disabled={saving} onClick={() => saveEvent(false)}>Save Draft</Button>
-            <Button disabled={saving} onClick={() => saveEvent(true)}>Save & Publish</Button>
-          </div>
-        </Card>
-      </div>
-    </main>
-  );
-}
+        <div className="flex gap-3">
+          <button
+            disabled={saving}
+            onClick={() => saveEvent(false)}
+          >
+            Save Draft
+          </button>
 
-/* =====================================================
-   UI Components
-===================================================== */
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="bg-white dark:bg-neutral-900 rounded-2xl p-6 mb-6 shadow border">
-      <h2 className="text-lg font-semibold mb-4">{title}</h2>
-      <div className="flex flex-col gap-4">{children}</div>
-    </section>
-  );
-}
-
-function Input({ error, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { error?: string }) {
-  return (
-    <div>
-      <input {...props} className={`w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800 ${error ? "border-red-400" : ""}`} />
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          <button
+            disabled={saving}
+            onClick={() => saveEvent(true)}
+          >
+            Save & Publish
+          </button>
+        </div>
+      </main>
     </div>
   );
-}
-
-function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800" />;
-}
-
-function Select({ options, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { options: { label: string; value: string }[] }) {
-  return (
-    <select {...props} className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800">
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
-  );
-}
-
-function FileInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} type="file" className="w-full cursor-pointer rounded-xl border px-4 py-2" />;
-}
-
-function Button({ variant = "primary", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "outline" }) {
-  const styles = variant === "primary" ? "bg-black text-white" : variant === "secondary" ? "bg-gray-200" : "border";
-  return <button {...props} className={`rounded-xl px-5 py-2 ${styles}`} />;
 }
