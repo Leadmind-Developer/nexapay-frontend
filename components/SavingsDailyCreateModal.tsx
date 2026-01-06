@@ -5,7 +5,7 @@ import api from "@/lib/api";
 
 type Props = {
   onClose: () => void;
-  onCreated: (goal: any) => void;
+  onCreated: () => void;
 };
 
 type FundingSource = "MANUAL" | "AUTO" | "";
@@ -18,65 +18,53 @@ type DailyDraft = {
   vaBank?: string;
 };
 
-export default function SavingsDailyCreateModal({ onClose, onCreated }: Props) {
+export default function SavingsDailyCreateModal({
+  onClose,
+  onCreated,
+}: Props) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [toastVisible, setToastVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  /* ---------------- Local input buffer (NO re-render storm) ---------------- */
+  /* ---------------- Input buffer ---------------- */
   const [amountInput, setAmountInput] = useState("");
 
-  /* ---------------- Draft (committed values only) ---------------- */
+  /* ---------------- Draft ---------------- */
   const [draft, setDraft] = useState<DailyDraft>({
     targetAmount: 0,
     startDate: new Date().toISOString().split("T")[0],
     primarySource: "",
   });
 
-  /* ---------------- Virtual account state ---------------- */
+  /* ---------------- Virtual Account ---------------- */
   const [vaLoading, setVaLoading] = useState(false);
   const [vaExists, setVaExists] = useState(false);
 
-  /* ---------------- Derived values (memoized) ---------------- */
+  /* ---------------- Derived ---------------- */
   const dailyAmount = useMemo(() => {
-    if (draft.targetAmount <= 0) return 0;
+    if (!draft.targetAmount) return 0;
     return Math.round(draft.targetAmount / 30);
   }, [draft.targetAmount]);
 
-  /* ---------------- VA check (MANUAL only, stable) ---------------- */
+  /* ---------------- VA check (manual funding) ---------------- */
   useEffect(() => {
     if (draft.primarySource !== "MANUAL") return;
 
     let cancelled = false;
 
-    const fetchVA = async () => {
+    async function checkVA() {
       setVaLoading(true);
       try {
         const res = await api.get("/wallet/me");
-if (res.data.success) {
-  const va = res.data.virtualAccount;
-  if (va?.accountNumber) {
-    setVaExists(true);
-    setDraft((d) => ({
-      ...d,
-      vaAccount: va.accountNumber,
-      vaBank: va.bankName,
-    }));
-  } else {
-    setVaExists(false);
-  }
-}
-
-        if (cancelled) return;
-
         const va = res.data?.virtualAccount;
-        if (va?.accountNumber) {
+
+        if (!cancelled && va?.accountNumber) {
           setVaExists(true);
           setDraft((d) => ({
             ...d,
             vaAccount: va.accountNumber,
             vaBank: va.bankName,
           }));
-        } else {
+        } else if (!cancelled) {
           setVaExists(false);
         }
       } catch {
@@ -84,91 +72,64 @@ if (res.data.success) {
       } finally {
         if (!cancelled) setVaLoading(false);
       }
-    };
+    }
 
-    fetchVA();
+    checkVA();
     return () => {
       cancelled = true;
     };
   }, [draft.primarySource]);
 
-  /* ---------------- Step transitions ---------------- */
-  const goToStep2 = () => {
+  /* ---------------- Navigation ---------------- */
+  const nextFromAmount = () => {
     const amount = Number(amountInput);
     if (!amount || amount <= 0) return;
 
-    setDraft((d) => ({
-      ...d,
-      targetAmount: amount,
-    }));
+    setDraft((d) => ({ ...d, targetAmount: amount }));
     setStep(2);
   };
 
-  const goToStep3 = () => {
-    if (!draft.primarySource) return;
-    setStep(3);
-  };
-
-  /* ---------------- Submit ---------------- */
   const submit = async () => {
-    if (!draft.primarySource || draft.targetAmount <= 0) return;
+    if (!draft.primarySource || submitting) return;
 
     try {
-      const res = await api.post("/strict-daily", {
+      setSubmitting(true);
+
+      await api.post("/strict-daily", {
         targetAmount: draft.targetAmount,
         startDate: draft.startDate,
-        primarySource: draft.primarySource,
-        vaAccount: draft.primarySource === "MANUAL" ? draft.vaAccount : undefined,
-        vaBank: draft.primarySource === "MANUAL" ? draft.vaBank : undefined,
         durationDays: 30,
-        frequency: "daily",
-        planType: "STRICT_DAILY",
+        primarySource: draft.primarySource,
+        vaAccount:
+          draft.primarySource === "MANUAL" ? draft.vaAccount : undefined,
+        vaBank: draft.primarySource === "MANUAL" ? draft.vaBank : undefined,
       });
 
-      const goal = res.data?.data;
-      if (!goal) throw new Error("No plan returned");
-
-      if (draft.primarySource === "AUTO") {
-        await api.post("/wallet/transfer", {
-          toUserId: goal.userId,
-          amount: Number(draft.targetAmount)          
-        });
-      }
-
-      onCreated(goal);
-      setToastVisible(true);
-
-      setTimeout(() => {
-        setToastVisible(false);
-        onClose();
-      }, 1800);
+      onCreated();
+      onClose();
     } catch (err) {
       console.error(err);
-      alert("Failed to create savings plan. Please try again.");
+      alert("Failed to create Strict Daily plan");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  /* ---------------- UI helpers ---------------- */
+  /* ---------------- UI wrapper ---------------- */
   const Step = ({ children }: { children: React.ReactNode }) => (
-    <div className="animate-in fade-in slide-in-from-right-5 duration-300 space-y-6">
+    <div className="space-y-5 animate-in fade-in slide-in-from-right-5">
       {children}
     </div>
   );
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-xl p-6 relative">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+      <div className="bg-white w-full max-w-lg rounded-xl p-6 relative">
 
-        {toastVisible && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg">
-            Savings Goal Created Successfully!
-          </div>
-        )}
-
-        {/* ---------------- STEP 1 ---------------- */}
+        {/* STEP 1 */}
         {step === 1 && (
           <Step>
-            <h2 className="text-lg font-semibold">Strict Daily Contributions</h2>
+            <h2 className="text-lg font-semibold">Strict Daily Savings</h2>
 
             <input
               type="number"
@@ -189,9 +150,12 @@ if (res.data.success) {
             />
 
             {Number(amountInput) > 0 && (
-              <p className="text-sm text-gray-500">
-                ₦{Math.round(Number(amountInput) / 30).toLocaleString()} per day
-              </p>
+              <div className="text-sm text-gray-600">
+                ₦{dailyAmount.toLocaleString()} daily
+                <div className="text-xs text-red-500 mt-1">
+                  First day fee applies • No interest
+                </div>
+              </div>
             )}
 
             <div className="flex gap-3">
@@ -199,8 +163,8 @@ if (res.data.success) {
                 Cancel
               </button>
               <button
+                onClick={nextFromAmount}
                 disabled={!Number(amountInput)}
-                onClick={goToStep2}
                 className="btn-primary w-full"
               >
                 Continue
@@ -209,7 +173,7 @@ if (res.data.success) {
           </Step>
         )}
 
-        {/* ---------------- STEP 2 ---------------- */}
+        {/* STEP 2 */}
         {step === 2 && (
           <Step>
             <h2 className="text-lg font-semibold">Funding Source</h2>
@@ -224,9 +188,9 @@ if (res.data.success) {
                 }))
               }
             >
-              <option value="">Select source</option>
-              <option value="MANUAL">Manual Bank Transfer</option>
-              <option value="AUTO">Wallet Debit (Auto)</option>
+              <option value="">Select funding source</option>
+              <option value="AUTO">Wallet (Auto Debit)</option>
+              <option value="MANUAL">Bank Transfer</option>
             </select>
 
             {draft.primarySource === "MANUAL" && (
@@ -238,7 +202,7 @@ if (res.data.success) {
                   </p>
                 )}
                 {!vaLoading && !vaExists && (
-                  <p className="text-red-500">
+                  <p className="text-gray-500">
                     Virtual account will be created
                   </p>
                 )}
@@ -250,8 +214,8 @@ if (res.data.success) {
                 Back
               </button>
               <button
+                onClick={() => setStep(3)}
                 disabled={!draft.primarySource}
-                onClick={goToStep3}
                 className="btn-primary w-full"
               >
                 Continue
@@ -260,7 +224,7 @@ if (res.data.success) {
           </Step>
         )}
 
-        {/* ---------------- STEP 3 ---------------- */}
+        {/* STEP 3 */}
         {step === 3 && (
           <Step>
             <h2 className="text-lg font-semibold">Review</h2>
@@ -270,10 +234,13 @@ if (res.data.success) {
               <p><b>Daily:</b> ₦{dailyAmount.toLocaleString()}</p>
               <p><b>Start:</b> {draft.startDate}</p>
               <p>
-                <b>Source:</b>{" "}
+                <b>Funding:</b>{" "}
                 {draft.primarySource === "AUTO"
-                  ? "Wallet Debit"
-                  : "Manual Transfer"}
+                  ? "Wallet Auto Debit"
+                  : "Manual Bank Transfer"}
+              </p>
+              <p className="text-red-500 text-xs mt-2">
+                No interest • First day fee applies
               </p>
             </div>
 
@@ -281,8 +248,12 @@ if (res.data.success) {
               <button onClick={() => setStep(2)} className="btn-secondary w-full">
                 Back
               </button>
-              <button onClick={submit} className="btn-primary w-full">
-                Confirm & Save
+              <button
+                onClick={submit}
+                disabled={submitting}
+                className="btn-primary w-full"
+              >
+                {submitting ? "Saving…" : "Confirm & Start"}
               </button>
             </div>
           </Step>
