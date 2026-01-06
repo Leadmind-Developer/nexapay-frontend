@@ -51,7 +51,7 @@ export default function EventEditPage() {
   const params = useParams();
   const eventId = params?.id as string | undefined;
 
-  const [form, setForm] = useState<EventFormState>({
+  const [form, setForm] = useState<EventFormState & { published: boolean }>({
     title: "",
     description: "",
     email: "",
@@ -61,7 +61,9 @@ export default function EventEditPage() {
     category: "",
     startAt: "",
     endAt: "",
-  });
+    published: false, // add this
+});
+
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export default function EventEditPage() {
         category: data.category ?? "",
         startAt: data.startAt?.slice(0, 16) || "",
         endAt: data.endAt?.slice(0, 16) || "",
+        published: data.published ?? false,
       });
       if (data.imageUrl) setPreview(data.imageUrl);
     });
