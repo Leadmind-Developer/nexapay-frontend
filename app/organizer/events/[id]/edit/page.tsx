@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import api from "@/lib/api";
 import { z } from "zod";
+import OrganizerEventTopBar from "@/components/OrganizerEventTopBar";
 
 /* =====================================================
    Types
