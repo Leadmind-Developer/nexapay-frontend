@@ -31,7 +31,7 @@ export default function StrictDailyPage() {
     setLoading(true);
     try {
       const res = await api.get("/strict-daily");
-      setPlans(res.data);
+      setPlans(res.data.data ?? []);
     } catch (err) {
       console.error("Failed to fetch strict daily plans", err);
     } finally {
