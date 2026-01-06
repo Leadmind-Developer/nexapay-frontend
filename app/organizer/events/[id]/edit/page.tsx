@@ -35,7 +35,7 @@ export default function EventFormPage() {
     if (!eventId) return;
 
     api
-      .get<EventPayload>(`/events/organizer/events/:id`)
+      .get<EventPayload>(`/events/organizer/events/${eventId}`)
       .then((res) => setForm(res.data))
       .catch(console.error);
   }, [eventId]);
