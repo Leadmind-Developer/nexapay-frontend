@@ -1,204 +1,302 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import api from "@/lib/api";
-import OrganizerEventTopBar from "@/components/OrganizerEventTopBar";
+import { z } from "zod";
 
-interface EventPayload {
-  title: string;
-  description: string;
-  startAt: string;
-  endAt: string;
-  published: boolean;
-}
+/* =====================================================
+   Types
+===================================================== */
+
+type EventType = "PHYSICAL" | "VIRTUAL";
+type UploadState = "idle" | "uploading" | "success" | "error";
+
+/* =====================================================
+   Zod Schema
+===================================================== */
+
+const eventSchema = z
+  .object({
+    title: z.string().min(3, "Event title is required"),
+    description: z.string().optional(),
+    email: z.string().email("Organizer email is missing"),
+    type: z.enum(["PHYSICAL", "VIRTUAL"]),
+    venue: z.string().optional(),
+    address: z.string().optional(),
+    category: z.string().optional(),
+    startAt: z.string().min(1, "Start date is required"),
+    endAt: z.string().min(1, "End date is required"),
+  })
+  .refine(
+    data => new Date(data.endAt) > new Date(data.startAt),
+    { message: "End date must be after start date", path: ["endAt"] }
+  )
+  .refine(
+    data =>
+      data.type === "VIRTUAL" ||
+      (!!data.venue?.trim() && !!data.address?.trim()),
+    { message: "Venue and address are required for physical events", path: ["venue"] }
+  );
+
+type EventFormState = z.infer<typeof eventSchema>;
+type FormErrors = Partial<Record<keyof EventFormState, string>>;
+
+/* =====================================================
+   Edit Page
+===================================================== */
 
 export default function EventEditPage() {
-  const params = useParams();
   const router = useRouter();
+  const params = useParams();
   const eventId = params?.id as string | undefined;
 
-  const [form, setForm] = useState<EventPayload>({
+  const [form, setForm] = useState<EventFormState>({
     title: "",
     description: "",
+    email: "",
+    type: "PHYSICAL",
+    venue: "",
+    address: "",
+    category: "",
     startAt: "",
     endAt: "",
-    published: false,
   });
 
-  const [status, setStatus] = useState<"saving" | "error" | null>(null);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
-  /* ================= FETCH EVENT ================= */
+  const [image, setImage] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  /* ------------------------------
+     Fetch existing event
+  ------------------------------ */
   useEffect(() => {
     if (!eventId) return;
 
-    api
-      .get<EventPayload>(`/events/organizer/events/${eventId}`)
-      .then((res) => setForm(res.data))
-      .catch(console.error);
+    api.get(`/events/organizer/events/${eventId}`).then(res => {
+      const data = res.data;
+      setForm({
+        title: data.title,
+        description: data.description,
+        email: data.email,
+        type: data.type,
+        venue: data.venue ?? "",
+        address: data.address ?? "",
+        category: data.category ?? "",
+        startAt: data.startAt?.slice(0, 16) || "",
+        endAt: data.endAt?.slice(0, 16) || "",
+      });
+      if (data.imageUrl) setPreview(data.imageUrl);
+    });
   }, [eventId]);
 
-  /* ================= HANDLERS ================= */
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+  /* ------------------------------
+     Image preview lifecycle
+  ------------------------------ */
+  useEffect(() => {
+    if (!image) return;
+    const url = URL.createObjectURL(image);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [image]);
+
+  /* ------------------------------
+     Form helpers
+  ------------------------------ */
+  const update = (key: keyof EventFormState, value: string) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setErrors(prev => ({ ...prev, [key]: undefined }));
   };
 
-  /**
-   * Save event with explicit published state
-   */
+  const validate = (): boolean => {
+    const result = eventSchema.safeParse(form);
+    if (result.success) {
+      setErrors({});
+      setFormError(null);
+      return true;
+    }
+
+    const fieldErrors: FormErrors = {};
+    result.error.issues.forEach(issue => {
+      const key = issue.path[0] as keyof EventFormState;
+      fieldErrors[key] = issue.message;
+    });
+    setErrors(fieldErrors);
+    setFormError("Please fix the errors below.");
+    return false;
+  };
+
+  /* ------------------------------
+     Save / Publish
+  ------------------------------ */
   const saveEvent = async (publish: boolean) => {
+    if (!validate()) return;
     if (!eventId) return;
-    setStatus("saving");
+
+    setSaving(true);
+    setFormError(null);
 
     try {
-      // Only send necessary fields in correct format
+      // 1️⃣ Update event
       await api.patch(`/events/organizer/events/${eventId}`, {
-        title: form.title,
-        description: form.description,
-        startAt: form.startAt ? new Date(form.startAt).toISOString() : null,
-        endAt: form.endAt ? new Date(form.endAt).toISOString() : null,
+        ...form,
+        venue: form.type === "PHYSICAL" ? form.venue : null,
+        address: form.type === "PHYSICAL" ? form.address : null,
+        startAt: new Date(form.startAt).toISOString(),
+        endAt: new Date(form.endAt).toISOString(),
         published: publish,
       });
 
-      setForm((prev) => ({ ...prev, published: publish }));
-      setStatus(null);
+      // 2️⃣ Upload image if changed
+      if (image) {
+        setUploadState("uploading");
+        const fd = new FormData();
+        fd.append("images", image);
+        await api.post(`/events/organizer/events/${eventId}/images`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: e => {
+            if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          },
+        });
+        setUploadState("success");
+      }
+
+      setSaving(false);
       router.push("/organizer/events");
     } catch (err) {
       console.error(err);
-      setStatus("error");
+      setFormError("Failed to save event. Please try again.");
+      setUploadState("error");
+      setSaving(false);
     }
   };
 
-  /**
-   * Toggle published from top-bar
-   */
-  const togglePublish = async () => {
-    if (!eventId) return;
-    try {
-      const newPublished = !form.published;
-      await api.patch(`/events/organizer/events/${eventId}`, {
-        published: newPublished,
-      });
-      setForm((prev) => ({ ...prev, published: newPublished }));
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  /* ------------------------------
+     Toggle published
+  ------------------------------ */
+  const togglePublish = () => saveEvent(!form.published);
 
-  /* ================= RENDER ================= */
+  /* =====================================================
+     Render
+  ===================================================== */
   if (!eventId) return <p className="text-red-500">Invalid Event</p>;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-neutral-950">
-      {/* TOP BAR */}
-      <OrganizerEventTopBar
-        eventId={eventId}
-        published={form.published}
-        onTogglePublish={togglePublish}
-      />
+    <main className="min-h-screen bg-gray-50 dark:bg-neutral-950 py-10">
+      <div className="max-w-4xl mx-auto px-6">
+        <h1 className="text-3xl font-bold mb-2">Edit Event</h1>
+        <p className="text-gray-500 mb-8">
+          Events are saved as drafts by default.
+        </p>
 
-      <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-        {/* HEADER */}
-        <div>
-          <h1 className="text-3xl font-bold">Edit Event</h1>
-          <p className="text-gray-500 mt-1">
-            Update your event details below.
-          </p>
-        </div>
-
-        {/* FORM */}
-        <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-          {/* EVENT DETAILS */}
-          <section className="bg-white dark:bg-neutral-900 border rounded-xl p-6 space-y-4">
-            <h2 className="font-semibold">Event Details</h2>
-            <input
-              name="title"
-              value={form.title}
-              onChange={handleChange}
-              placeholder="Event title"
-              required
-              className="w-full rounded-xl border px-4 py-3 dark:bg-neutral-800 focus:outline-none focus:ring"
-            />
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Describe your event"
-              rows={5}
-              required
-              className="w-full rounded-xl border px-4 py-3 dark:bg-neutral-800 focus:outline-none focus:ring"
-            />
-          </section>
-
-          {/* SCHEDULE */}
-          <section className="bg-white dark:bg-neutral-900 border rounded-xl p-6 space-y-4">
-            <h2 className="font-semibold">Schedule</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-500 mb-1">
-                  Start Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  name="startAt"
-                  value={form.startAt}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-xl border px-4 py-3 dark:bg-neutral-800 focus:outline-none focus:ring"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-500 mb-1">
-                  End Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  name="endAt"
-                  value={form.endAt}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-xl border px-4 py-3 dark:bg-neutral-800 focus:outline-none focus:ring"
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* ACTIONS */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <span className="text-sm text-gray-500">
-              Status: <strong>{form.published ? "Published" : "Draft"}</strong>
-            </span>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                disabled={status === "saving"}
-                onClick={() => saveEvent(false)}
-                className="rounded-xl bg-gray-200 px-5 py-3 font-medium dark:bg-neutral-800"
-              >
-                Save Draft
-              </button>
-              <button
-                type="button"
-                disabled={status === "saving"}
-                onClick={() => saveEvent(true)}
-                className="rounded-xl bg-black text-white px-5 py-3 font-medium hover:opacity-90"
-              >
-                Save & Publish
-              </button>
-            </div>
+        {formError && (
+          <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+            {formError}
           </div>
+        )}
 
-          {status === "error" && (
-            <p className="text-red-500 text-sm">
-              Failed to save event. Please try again.
-            </p>
+        {/* Top-bar (pass toggle) */}
+        <OrganizerEventTopBar eventId={eventId} published={form.published} onTogglePublish={togglePublish} />
+
+        {/* Event Details */}
+        <Card title="Event Details">
+          <Input placeholder="Event title" value={form.title} onChange={e => update("title", e.target.value)} error={errors.title} />
+          <Textarea placeholder="Describe your event" value={form.description} onChange={e => update("description", e.target.value)} />
+          <Select
+            value={form.type}
+            onChange={e => update("type", e.target.value as EventType)}
+            options={[
+              { label: "Physical Event", value: "PHYSICAL" },
+              { label: "Virtual Event", value: "VIRTUAL" },
+            ]}
+          />
+          {form.type === "PHYSICAL" && (
+            <>
+              <Input placeholder="Venue name" value={form.venue} onChange={e => update("venue", e.target.value)} error={errors.venue} />
+              <Input placeholder="Venue address" value={form.address} onChange={e => update("address", e.target.value)} error={errors.address} />
+            </>
           )}
-        </form>
-      </main>
+        </Card>
+
+        {/* Event Image */}
+        <Card title="Event Image">
+          {!preview ? (
+            <FileInput accept="image/*" onChange={e => setImage(e.target.files?.[0] ?? null)} />
+          ) : (
+            <div className="flex items-center gap-4">
+              <img src={preview} className="h-20 w-20 rounded-lg object-cover border" />
+              <Button variant="outline" onClick={() => setImage(null)}>Remove</Button>
+            </div>
+          )}
+          {uploadState === "uploading" && (
+            <p className="text-sm text-gray-500">Uploading… {uploadProgress}%</p>
+          )}
+        </Card>
+
+        {/* Schedule */}
+        <Card title="Schedule">
+          <div className="grid md:grid-cols-2 gap-4">
+            <Input type="datetime-local" value={form.startAt} onChange={e => update("startAt", e.target.value)} error={errors.startAt} />
+            <Input type="datetime-local" value={form.endAt} onChange={e => update("endAt", e.target.value)} error={errors.endAt} />
+          </div>
+        </Card>
+
+        {/* Actions */}
+        <Card title="Actions">
+          <div className="flex flex-col md:flex-row gap-3">
+            <Button variant="secondary" disabled={saving} onClick={() => saveEvent(false)}>Save Draft</Button>
+            <Button disabled={saving} onClick={() => saveEvent(true)}>Save & Publish</Button>
+          </div>
+        </Card>
+      </div>
+    </main>
+  );
+}
+
+/* =====================================================
+   UI Components
+===================================================== */
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="bg-white dark:bg-neutral-900 rounded-2xl p-6 mb-6 shadow border">
+      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      <div className="flex flex-col gap-4">{children}</div>
+    </section>
+  );
+}
+
+function Input({ error, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { error?: string }) {
+  return (
+    <div>
+      <input {...props} className={`w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800 ${error ? "border-red-400" : ""}`} />
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
+}
+
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800" />;
+}
+
+function Select({ options, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { options: { label: string; value: string }[] }) {
+  return (
+    <select {...props} className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800">
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+
+function FileInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} type="file" className="w-full cursor-pointer rounded-xl border px-4 py-2" />;
+}
+
+function Button({ variant = "primary", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "outline" }) {
+  const styles = variant === "primary" ? "bg-black text-white" : variant === "secondary" ? "bg-gray-200" : "border";
+  return <button {...props} className={`rounded-xl px-5 py-2 ${styles}`} />;
 }
