@@ -96,7 +96,7 @@ export default function SavingsDailyCreateModal({
       setSubmitting(true);
 
       await api.post("/strict-daily", {
-        targetAmount: draft.targetAmount,
+        targetAmount: Math.round(draft.targetAmount * 100),
         startDate: draft.startDate,
         durationDays: 30,
         primarySource: draft.primarySource,
