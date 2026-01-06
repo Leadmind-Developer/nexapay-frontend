@@ -24,6 +24,7 @@
     "jspdf": "2.5.1",
     "eventsource": "^4.1.0",
     "zod": "^4.3.5",
+    "dayjs": "^1.11.10",
     "swr": "^2.3.6"
   },
   "devDependencies": {
