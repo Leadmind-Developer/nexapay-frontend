@@ -136,53 +136,64 @@ export default function EventEditPage() {
   };
 
   /* ------------------------------
-     Save / Publish
-  ------------------------------ */
-  const saveEvent = async (publish: boolean) => {
-    if (!validate()) return;
-    if (!eventId) return;
+   Save / Publish
+------------------------------ */
+const saveEvent = async (publish: boolean) => {
+  if (!validate()) return;
+  if (!eventId) return;
 
-    setSaving(true);
-    setFormError(null);
+  setSaving(true);
+  setFormError(null);
 
-    try {
-      // 1️⃣ Update event
-      await api.patch(`/events/organizer/events/${eventId}`, {
-        ...form,
-        venue: form.type === "PHYSICAL" ? form.venue : null,
-        address: form.type === "PHYSICAL" ? form.address : null,
-        startAt: new Date(form.startAt).toISOString(),
-        endAt: new Date(form.endAt).toISOString(),
-        published: publish,
-      });
+  try {
+    // 1️⃣ Update event
+    await api.patch(`/events/organizer/events/${eventId}`, {
+      ...form,
+      venue: form.type === "PHYSICAL" ? form.venue : null,
+      address: form.type === "PHYSICAL" ? form.address : null,
+      startAt: new Date(form.startAt).toISOString(),
+      endAt: new Date(form.endAt).toISOString(),
+      published: publish,
+    });
 
-      // 2️⃣ Upload image if changed
-      if (image) {
-        setUploadState("uploading");
-        const fd = new FormData();
-        fd.append("images", image);
-        await api.post(`/events/organizer/events/${eventId}/images`, fd, {
+    // 2️⃣ Upload image if changed
+    if (image) {
+      setUploadState("uploading");
+      const fd = new FormData();
+      fd.append("images", image);
+
+      await api.post(
+        `/events/organizer/events/${eventId}/images`,
+        fd,
+        {
           headers: { "Content-Type": "multipart/form-data" },
-          onUploadProgress: e => {
-            if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          onUploadProgress: (e) => {
+            if (e.total) {
+              setUploadProgress(
+                Math.round((e.loaded / e.total) * 100)
+              );
+            }
           },
-        });
-        setUploadState("success");
-      }
+        }
+      );
 
-      setSaving(false);
-      router.push("/organizer/events");
-    } catch (err) {
-      if (err?.response?.status === 304) {
+      setUploadState("success");
+    }
+
+    setSaving(false);
+    router.push("/organizer/events");
+  } catch (err: any) {
+    if (err?.response?.status === 304) {
       router.push("/organizer/events");
       return;
     }
-       console.error(err);
-       setFormError("Failed to save event. Please try again.");
-       setUploadState("error");       
-     }
-     
-   };
+
+    console.error(err);
+    setFormError("Failed to save event. Please try again.");
+    setUploadState("error");
+  }
+};
+
   
 
   /* ------------------------------
