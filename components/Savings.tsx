@@ -5,7 +5,7 @@ import api from "@/lib/api";
 import SavingsCreateModal from "./SavingsCreateModal";
 import WithdrawalModal from "./WithdrawalModal";
 import SavingsAI from "./SavingsAI";
-import SavingsDailyCreateModal from "./SavingsDailyCreateModal";
+import { useRouter } from "next/navigation";
 
 type GoalStatus = "ACTIVE" | "MATURED" | "BROKEN";
 
@@ -36,7 +36,7 @@ export default function Savings() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [withdrawGoal, setWithdrawGoal] = useState<SavingsGoal | null>(null);
-  const [dailyCreateOpen, setDailyCreateOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const load = async () => {
@@ -202,17 +202,17 @@ export default function Savings() {
   </button>
 
   {/* Strict Daily */}
-  <button
-    onClick={() => setDailyCreateOpen(true)}
-    className="
-      px-5 py-3 rounded-full shadow transition
-      bg-white text-black border border-gray-200
-      hover:bg-gray-100
-      dark:bg-zinc-900 dark:text-white dark:border-zinc-700 dark:hover:bg-zinc-800
-    "
-  >
-    Strict Daily Savings
-  </button>
+<button
+  onClick={() => router.push("/dashboard/savings/strict-daily")}
+  className="
+    px-5 py-3 rounded-full shadow transition
+    bg-white text-black border border-gray-200
+    hover:bg-gray-100
+    dark:bg-zinc-900 dark:text-white dark:border-zinc-700 dark:hover:bg-zinc-800
+  "
+>
+  Strict Daily Savings
+</button>
 </div>
 
       {/* MODALS (Headless-UI-free) */}
@@ -220,15 +220,6 @@ export default function Savings() {
         <SavingsCreateModal onClose={() => setCreateOpen(false)} />
       )}
 
-      {dailyCreateOpen && (
-  <SavingsDailyCreateModal
-    onClose={() => setDailyCreateOpen(false)}
-    onCreated={(goal) => {
-      setGoals((prev) => [goal, ...prev]);
-      setTab("ACTIVE"); // ensure visible
-      }}
-  />
-)}
       {withdrawGoal && (
         <WithdrawalModal
           goal={withdrawGoal}
