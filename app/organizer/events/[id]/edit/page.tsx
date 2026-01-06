@@ -47,19 +47,20 @@ export default function EventEditPage() {
   };
 
   /**
-   * Submit event with explicit publish state
+   * Save event with explicit published state
    */
-  const handleSubmit = async (publish: boolean) => {
+  const saveEvent = async (publish: boolean) => {
     if (!eventId) return;
-
     setStatus("saving");
 
     try {
+      // Only send necessary fields in correct format
       await api.patch(`/events/organizer/events/${eventId}`, {
-        ...form,
+        title: form.title,
+        description: form.description,
+        startAt: form.startAt ? new Date(form.startAt).toISOString() : null,
+        endAt: form.endAt ? new Date(form.endAt).toISOString() : null,
         published: publish,
-        startAt: new Date(form.startAt).toISOString(),
-        endAt: new Date(form.endAt).toISOString(),
       });
 
       setForm((prev) => ({ ...prev, published: publish }));
@@ -71,17 +72,17 @@ export default function EventEditPage() {
     }
   };
 
+  /**
+   * Toggle published from top-bar
+   */
   const togglePublish = async () => {
     if (!eventId) return;
     try {
-      const newStatus = !form.published;
+      const newPublished = !form.published;
       await api.patch(`/events/organizer/events/${eventId}`, {
-        ...form,
-        published: newStatus,
-        startAt: new Date(form.startAt).toISOString(),
-        endAt: new Date(form.endAt).toISOString(),
+        published: newPublished,
       });
-      setForm((prev) => ({ ...prev, published: newStatus }));
+      setForm((prev) => ({ ...prev, published: newPublished }));
     } catch (err) {
       console.error(err);
     }
@@ -102,16 +103,14 @@ export default function EventEditPage() {
       <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
         {/* HEADER */}
         <div>
-          <h1 className="text-3xl font-bold">
-            Edit Event
-          </h1>
+          <h1 className="text-3xl font-bold">Edit Event</h1>
           <p className="text-gray-500 mt-1">
             Update your event details below.
           </p>
         </div>
 
         {/* FORM */}
-        <form className="space-y-8">
+        <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
           {/* EVENT DETAILS */}
           <section className="bg-white dark:bg-neutral-900 border rounded-xl p-6 space-y-4">
             <h2 className="font-semibold">Event Details</h2>
@@ -177,7 +176,7 @@ export default function EventEditPage() {
               <button
                 type="button"
                 disabled={status === "saving"}
-                onClick={() => handleSubmit(false)}
+                onClick={() => saveEvent(false)}
                 className="rounded-xl bg-gray-200 px-5 py-3 font-medium dark:bg-neutral-800"
               >
                 Save Draft
@@ -185,7 +184,7 @@ export default function EventEditPage() {
               <button
                 type="button"
                 disabled={status === "saving"}
-                onClick={() => handleSubmit(true)}
+                onClick={() => saveEvent(true)}
                 className="rounded-xl bg-black text-white px-5 py-3 font-medium hover:opacity-90"
               >
                 Save & Publish
