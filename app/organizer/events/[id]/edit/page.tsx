@@ -13,7 +13,7 @@ interface EventPayload {
   published: boolean;
 }
 
-export default function EventFormPage() {
+export default function EventEditPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params?.id as string | undefined;
@@ -26,9 +26,7 @@ export default function EventFormPage() {
     published: false,
   });
 
-  const [status, setStatus] = useState<
-    "saving" | "success" | "error" | null
-  >(null);
+  const [status, setStatus] = useState<"saving" | "error" | null>(null);
 
   /* ================= FETCH EVENT ================= */
   useEffect(() => {
@@ -44,28 +42,28 @@ export default function EventFormPage() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value, type } = e.target;
-
-    if (type === "checkbox") {
-      const target = e.target as HTMLInputElement;
-      setForm((prev) => ({ ...prev, [name]: target.checked }));
-    } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
-    }
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /**
+   * Submit event with explicit publish state
+   */
+  const handleSubmit = async (publish: boolean) => {
+    if (!eventId) return;
+
     setStatus("saving");
 
     try {
-      if (eventId) {
-        await api.patch(`/events/organizer/events/${eventId}`, form);
-      } else {
-        await api.post("/events/organizer/events", form);
-      }
+      await api.patch(`/events/organizer/events/${eventId}`, {
+        ...form,
+        published: publish,
+        startAt: new Date(form.startAt).toISOString(),
+        endAt: new Date(form.endAt).toISOString(),
+      });
 
-      setStatus("success");
+      setForm((prev) => ({ ...prev, published: publish }));
+      setStatus(null);
       router.push("/organizer/events");
     } catch (err) {
       console.error(err);
@@ -73,62 +71,73 @@ export default function EventFormPage() {
     }
   };
 
+  const togglePublish = async () => {
+    if (!eventId) return;
+    try {
+      const newStatus = !form.published;
+      await api.patch(`/events/organizer/events/${eventId}`, {
+        ...form,
+        published: newStatus,
+        startAt: new Date(form.startAt).toISOString(),
+        endAt: new Date(form.endAt).toISOString(),
+      });
+      setForm((prev) => ({ ...prev, published: newStatus }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   /* ================= RENDER ================= */
+  if (!eventId) return <p className="text-red-500">Invalid Event</p>;
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50 dark:bg-neutral-950">
       {/* TOP BAR */}
       <OrganizerEventTopBar
         eventId={eventId}
         published={form.published}
-        onTogglePublish={() =>
-          setForm((prev) => ({ ...prev, published: !prev.published }))
-        }
+        onTogglePublish={togglePublish}
       />
 
-      <main className="max-w-3xl mx-auto px-6 py-8">
+      <main className="max-w-4xl mx-auto px-6 py-10 space-y-8">
         {/* HEADER */}
-        <div className="mb-8">
+        <div>
           <h1 className="text-3xl font-bold">
-            {eventId ? "Edit Event" : "Create Event"}
+            Edit Event
           </h1>
           <p className="text-gray-500 mt-1">
-            Fill in the details below to get your event ready.
+            Update your event details below.
           </p>
         </div>
 
         {/* FORM */}
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form className="space-y-8">
           {/* EVENT DETAILS */}
-          <section className="bg-white border rounded-xl p-6">
-            <h2 className="font-semibold mb-4">Event Details</h2>
-
-            <div className="space-y-4">
-              <input
-                name="title"
-                value={form.title}
-                onChange={handleChange}
-                placeholder="Event title"
-                required
-                className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring"
-              />
-
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                placeholder="Describe your event"
-                rows={5}
-                required
-                className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring"
-              />
-            </div>
+          <section className="bg-white dark:bg-neutral-900 border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold">Event Details</h2>
+            <input
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              placeholder="Event title"
+              required
+              className="w-full rounded-xl border px-4 py-3 dark:bg-neutral-800 focus:outline-none focus:ring"
+            />
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Describe your event"
+              rows={5}
+              required
+              className="w-full rounded-xl border px-4 py-3 dark:bg-neutral-800 focus:outline-none focus:ring"
+            />
           </section>
 
           {/* SCHEDULE */}
-          <section className="bg-white border rounded-xl p-6">
-            <h2 className="font-semibold mb-4">Schedule</h2>
-
-            <div className="grid gap-4 sm:grid-cols-2">
+          <section className="bg-white dark:bg-neutral-900 border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold">Schedule</h2>
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-500 mb-1">
                   Start Date & Time
@@ -139,10 +148,9 @@ export default function EventFormPage() {
                   value={form.startAt}
                   onChange={handleChange}
                   required
-                  className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring"
+                  className="w-full rounded-xl border px-4 py-3 dark:bg-neutral-800 focus:outline-none focus:ring"
                 />
               </div>
-
               <div>
                 <label className="block text-sm text-gray-500 mb-1">
                   End Date & Time
@@ -153,28 +161,36 @@ export default function EventFormPage() {
                   value={form.endAt}
                   onChange={handleChange}
                   required
-                  className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring"
+                  className="w-full rounded-xl border px-4 py-3 dark:bg-neutral-800 focus:outline-none focus:ring"
                 />
               </div>
             </div>
           </section>
 
           {/* ACTIONS */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <span className="text-sm text-gray-500">
-              Status:{" "}
-              <strong>
-                {form.published ? "Published" : "Draft"}
-              </strong>
+              Status: <strong>{form.published ? "Published" : "Draft"}</strong>
             </span>
 
-            <button
-              type="submit"
-              disabled={status === "saving"}
-              className="rounded-xl bg-black text-white px-6 py-3 font-medium hover:opacity-90"
-            >
-              {status === "saving" ? "Saving..." : "Save Event"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                disabled={status === "saving"}
+                onClick={() => handleSubmit(false)}
+                className="rounded-xl bg-gray-200 px-5 py-3 font-medium dark:bg-neutral-800"
+              >
+                Save Draft
+              </button>
+              <button
+                type="button"
+                disabled={status === "saving"}
+                onClick={() => handleSubmit(true)}
+                className="rounded-xl bg-black text-white px-5 py-3 font-medium hover:opacity-90"
+              >
+                Save & Publish
+              </button>
+            </div>
           </div>
 
           {status === "error" && (
