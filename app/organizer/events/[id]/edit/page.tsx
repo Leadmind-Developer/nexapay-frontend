@@ -180,8 +180,9 @@ export default function EventEditPage() {
        console.error(err);
        setFormError("Failed to save event. Please try again.");
        setUploadState("error");
-       }
-  };
+       
+    }
+  
 
   /* ------------------------------
      Toggle published
