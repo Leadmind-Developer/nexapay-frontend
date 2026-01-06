@@ -27,8 +27,9 @@ export default function TicketTypesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Success banner & CTA
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showCTA, setShowCTA] = useState(false);
 
   /* ---------------- FETCH TICKETS (ORGANIZER) ---------------- */
   const fetchTicketTypes = async () => {
@@ -61,6 +62,8 @@ export default function TicketTypesPage() {
   const resetForm = () => {
     setForm({});
     setEditingId(null);
+    setShowCTA(false);
+    setSuccessMessage("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,6 +71,7 @@ export default function TicketTypesPage() {
     if (!eventId) return toast.error("Event not found");
 
     setLoading(true);
+    setShowCTA(false);
 
     try {
       if (editingId) {
@@ -81,7 +85,11 @@ export default function TicketTypesPage() {
           `/events/organizer/events/${eventId}/tickets`,
           form
         );
-        toast.success("Ticket type created");
+        // Show success message + CTA after creation
+        setSuccessMessage(
+          "Ticket type created successfully! You can create multiple types like Regular, VIP, Platinum..."
+        );
+        setShowCTA(true);
       }
 
       resetForm();
@@ -101,32 +109,42 @@ export default function TicketTypesPage() {
       return;
     }
 
-    // Strip server-controlled fields
     const { id, sold, ...editable } = tt;
     setForm(editable);
     setEditingId(id);
+    setShowCTA(false);
+    setSuccessMessage("");
   };
 
-  const confirmDelete = (id: string) => {
-    setDeletingId(id);
-    setShowDeleteModal(true);
-  };
-
-  const handleDelete = async () => {
-    if (!deletingId || !eventId) return;
-
+  const handleDelete = async (id: string) => {
+    if (!eventId) return;
     try {
-      await api.delete(
-        `/events/organizer/events/${eventId}/tickets/${deletingId}`
-      );
+      await api.delete(`/events/organizer/events/${eventId}/tickets/${id}`);
       toast.success("Ticket type deleted");
       fetchTicketTypes();
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.error || "Failed to delete ticket type");
-    } finally {
-      setDeletingId(null);
-      setShowDeleteModal(false);
+    }
+  };
+
+  /* ---------------- CTA HANDLERS ---------------- */
+  const handleCreateAnother = () => {
+    resetForm();
+  };
+
+  const handleBackToEvent = () => {
+    router.push(`/organizer/events/${eventId}`);
+  };
+
+  const handlePublishEvent = async () => {
+    try {
+      await api.patch(`/events/organizer/events/${eventId}`, { published: true });
+      toast.success("Event published successfully!");
+      router.push(`/organizer/events/${eventId}`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.error || "Failed to publish event");
     }
   };
 
@@ -155,6 +173,26 @@ export default function TicketTypesPage() {
           </button>
         </div>
 
+        {/* SUCCESS MESSAGE + CTA */}
+        {successMessage && (
+          <div className="bg-green-100 dark:bg-green-900 p-4 rounded space-y-2">
+            <p className="text-green-800 dark:text-green-200">{successMessage}</p>
+            {showCTA && (
+              <div className="flex gap-3 mt-2">
+                <button onClick={handleCreateAnother} className="btn">
+                  Create Another Ticket Type
+                </button>
+                <button onClick={handleBackToEvent} className="btn">
+                  Back to Event
+                </button>
+                <button onClick={handlePublishEvent} className="btn btn-primary">
+                  Publish Event
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* FORM */}
         <form
           onSubmit={handleSubmit}
@@ -166,7 +204,7 @@ export default function TicketTypesPage() {
 
           <input
             name="name"
-            placeholder="Ticket name"
+            placeholder="Ticket name (e.g Regular, VIP, Platinum)"
             value={form.name || ""}
             onChange={handleChange}
             required
@@ -197,11 +235,7 @@ export default function TicketTypesPage() {
               required
               disabled={!!editingId}
             />
-            <input
-              name="currency"
-              value={form.currency || "NGN"}
-              disabled
-            />
+            <input name="currency" value={form.currency || "NGN"} disabled />
           </div>
 
           <div className="flex gap-3">
@@ -213,15 +247,43 @@ export default function TicketTypesPage() {
                 : "Create Ticket"}
             </button>
 
-            {editingId && (
-              <button type="button" onClick={resetForm}>
-                Cancel
-              </button>
-            )}
+            {editingId && <button type="button" onClick={resetForm}>Cancel</button>}
           </div>
         </form>
 
-        {/* TABLE (unchanged UI logic) */}
+        {/* TABLE */}
+        <div className="bg-white dark:bg-neutral-900 p-6 rounded-xl border">
+          <h3 className="font-medium mb-4">Existing Ticket Types</h3>
+          {ticketTypes.length === 0 ? (
+            <p className="text-gray-500">No ticket types yet.</p>
+          ) : (
+            <table className="w-full text-left">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Price</th>
+                  <th>Quantity</th>
+                  <th>Sold</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ticketTypes.map(tt => (
+                  <tr key={tt.id}>
+                    <td>{tt.name}</td>
+                    <td>{tt.price} {tt.currency}</td>
+                    <td>{tt.quantity}</td>
+                    <td>{tt.sold}</td>
+                    <td className="flex gap-2">
+                      <button onClick={() => handleEdit(tt)}>Edit</button>
+                      <button onClick={() => handleDelete(tt.id)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </main>
   );
