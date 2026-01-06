@@ -173,11 +173,14 @@ export default function EventEditPage() {
       setSaving(false);
       router.push("/organizer/events");
     } catch (err) {
-      console.error(err);
-      setFormError("Failed to save event. Please try again.");
-      setUploadState("error");
-      setSaving(false);
+      if (err?.response?.status === 304) {
+      router.push("/organizer/events");
+      return;
     }
+       console.error(err);
+       setFormError("Failed to save event. Please try again.");
+       setUploadState("error");
+       }
   };
 
   /* ------------------------------
