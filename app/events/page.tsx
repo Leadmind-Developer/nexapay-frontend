@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
+import { getEventImage } from "@/lib/getEventImage";
 
 interface Event {
   id: string;
