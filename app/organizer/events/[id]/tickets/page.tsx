@@ -132,6 +132,12 @@ export default function TicketTypesPage() {
     router.push("/organizer/events");
   };
 
+  /* ---------------- TOTAL REVENUE ---------------- */
+  const totalRevenue = ticketTypes.reduce(
+    (sum, tt) => sum + tt.price * tt.sold,
+    0
+  );
+
   /* ---------------- RENDER ---------------- */
   if (!eventId) {
     return (
@@ -222,8 +228,9 @@ export default function TicketTypesPage() {
         {/* FORM */}
         <form
           onSubmit={handleSubmit}
-          className={ticketsLocked ? "opacity-50 pointer-events-none bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700 space-y-4" :
-            "bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700 space-y-4"}
+          className={ticketsLocked
+            ? "opacity-50 pointer-events-none bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700 space-y-4"
+            : "bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700 space-y-4"}
         >
           <h2 className="font-medium text-gray-900 dark:text-gray-100">
             {editingId ? "Edit Ticket Type" : "Create Ticket Type"}
@@ -278,7 +285,7 @@ export default function TicketTypesPage() {
             <button
               type="submit"
               disabled={loading || ticketsLocked}
-              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+              className="px-4 py-2 rounded border border-blue-600 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-600 dark:text-white dark:hover:bg-blue-500"
             >
               {loading
                 ? "Saving..."
@@ -305,53 +312,58 @@ export default function TicketTypesPage() {
           <h3 className="font-medium mb-4 text-gray-900 dark:text-gray-100">
             Existing Ticket Types
           </h3>
+
           {ticketTypes.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400">
-              No ticket types yet.
-            </p>
+            <p className="text-gray-500 dark:text-gray-400">No ticket types yet.</p>
           ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-gray-300 dark:border-neutral-700">
-                  <th className="py-2 px-2">Name</th>
-                  <th className="py-2 px-2">Price</th>
-                  <th className="py-2 px-2">Quantity</th>
-                  <th className="py-2 px-2">Sold</th>
-                  <th className="py-2 px-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ticketTypes.map(tt => (
-                  <tr
-                    key={tt.id}
-                    className="border-b border-gray-200 dark:border-neutral-800"
-                  >
-                    <td className="py-2 px-2">{tt.name}</td>
-                    <td className="py-2 px-2">
-                      {tt.price} {tt.currency}
-                    </td>
-                    <td className="py-2 px-2">{tt.quantity}</td>
-                    <td className="py-2 px-2">{tt.sold}</td>
-                    <td className="py-2 px-2 flex gap-2">
-                      <button
-                        onClick={() => handleEdit(tt)}
-                        disabled={ticketsLocked}
-                        className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(tt.id)}
-                        disabled={ticketsLocked}
-                        className="px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
-                      >
-                        Delete
-                      </button>
-                    </td>
+            <>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-300 dark:border-neutral-700">
+                    <th className="py-2 px-2">Name</th>
+                    <th className="py-2 px-2">Price</th>
+                    <th className="py-2 px-2">Quantity</th>
+                    <th className="py-2 px-2">Sold</th>
+                    <th className="py-2 px-2">Revenue</th>
+                    <th className="py-2 px-2">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ticketTypes.map(tt => (
+                    <tr key={tt.id} className="border-b border-gray-200 dark:border-neutral-800">
+                      <td className="py-2 px-2">{tt.name}</td>
+                      <td className="py-2 px-2">{tt.price} {tt.currency}</td>
+                      <td className="py-2 px-2">{tt.quantity}</td>
+                      <td className="py-2 px-2">{tt.sold}</td>
+                      <td className="py-2 px-2 font-semibold">
+                        {(tt.price * tt.sold).toLocaleString()} {tt.currency}
+                      </td>
+                      <td className="py-2 px-2 flex gap-2">
+                        <button
+                          onClick={() => handleEdit(tt)}
+                          disabled={ticketsLocked}
+                          className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(tt.id)}
+                          disabled={ticketsLocked}
+                          className="px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* GRAND TOTAL */}
+              <div className="mt-4 text-right font-bold text-gray-900 dark:text-gray-100">
+                Total Revenue: ₦{totalRevenue.toLocaleString()}
+              </div>
+            </>
           )}
         </div>
       </div>
