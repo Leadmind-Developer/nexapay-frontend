@@ -58,7 +58,8 @@ export default function CheckoutPage() {
 
       // Paystack → redirect user
       if (paymentMethod === "paystack" && res.data.paymentUrl) {
-        setPaymentUrl(res.data.paymentUrl);
+        window.location.href = res.data.paymentUrl;
+        return;
       }
 
       setStatus("success");
