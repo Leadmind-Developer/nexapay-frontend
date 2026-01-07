@@ -19,7 +19,7 @@ interface Event {
   startAt: string;
   endAt: string;
   published: boolean;
-  "imageUrl": "https://res.cloudinary.com/…",
+  images: { url: string }[];
   ticketTypes: TicketType[];
 }
 
