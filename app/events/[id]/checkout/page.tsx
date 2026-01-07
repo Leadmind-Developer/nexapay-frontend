@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import api from "@/lib/api";
 
@@ -11,7 +11,11 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams();
 
   const eventId = params.id as string;
-  const ticketTypeId = searchParams.get("ticketTypeId");
+  const ticketTypeIdParam = searchParams.get("ticketTypeId");
+  const referenceParam = searchParams.get("reference");
+
+  const [ticketTypeId, setTicketTypeId] = useState(ticketTypeIdParam);
+  const [reference, setReference] = useState(referenceParam);
 
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
@@ -21,13 +25,31 @@ export default function CheckoutPage() {
 
   const [status, setStatus] =
     useState<"idle" | "sending" | "success" | "error">("idle");
-
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [ticketCode, setTicketCode] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  /* ---------------- SUBMIT ---------------- */
+  /* ---------------- FETCH EXISTING ORDER ---------------- */
+  useEffect(() => {
+    if (reference) {
+      setStatus("sending");
+      api.get(`/events/orders/${reference}`)
+        .then(res => {
+          if (res.data.ticket) {
+            setTicketCode(res.data.ticket.code);
+            setStatus("success");
+          } else {
+            setStatus("idle");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setStatus("idle");
+        });
+    }
+  }, [reference]);
 
+  /* ---------------- SUBMIT NEW ORDER ---------------- */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -39,8 +61,8 @@ export default function CheckoutPage() {
 
     setStatus("sending");
     setErrorMessage(null);
-    setPaymentUrl(null);
     setTicketCode(null);
+    setPaymentUrl(null);
 
     try {
       const res = await api.post("/events/checkout", {
@@ -51,18 +73,24 @@ export default function CheckoutPage() {
         paymentMethod,
       });
 
+      const data = res.data;
+      setReference(data.reference);
+
       // Wallet → ticket issued immediately
-      if (paymentMethod === "wallet" && res.data.ticket) {
-        setTicketCode(res.data.ticket.code);
+      if (paymentMethod === "wallet" && data.ticket) {
+        setTicketCode(data.ticket.code);
+        setStatus("success");
       }
 
       // Paystack → redirect user
-      if (paymentMethod === "paystack" && res.data.paymentUrl) {
-        window.location.href = res.data.paymentUrl;
+      if (paymentMethod === "paystack" && data.paymentUrl) {
+        setPaymentUrl(data.paymentUrl);
+        window.location.href = data.paymentUrl;
         return;
       }
 
-      setStatus("success");
+      // Default success
+      if (!ticketCode) setStatus("success");
     } catch (err: any) {
       console.error(err);
       setErrorMessage(
@@ -73,7 +101,6 @@ export default function CheckoutPage() {
   };
 
   /* ---------------- GUARDS ---------------- */
-
   if (!ticketTypeId) {
     return (
       <main className="max-w-md mx-auto p-6">
@@ -85,7 +112,6 @@ export default function CheckoutPage() {
   }
 
   /* ---------------- RENDER ---------------- */
-
   return (
     <main className="max-w-md mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Checkout</h1>
@@ -136,33 +162,30 @@ export default function CheckoutPage() {
       </form>
 
       {/* ---------------- SUCCESS ---------------- */}
-      {status === "success" && (
-        <div className="mt-6 space-y-3">
-          {ticketCode && (
-            <div className="rounded-xl bg-green-50 border border-green-200 p-4">
-              <p className="text-green-700 font-medium">
-                Payment successful 🎉
-              </p>
-              <p className="mt-1 text-sm">
-                Ticket Code:
-                <span className="ml-2 font-mono font-semibold">
-                  {ticketCode}
-                </span>
-              </p>
-            </div>
-          )}
-
-          {paymentUrl && (
-            <a
-              href={paymentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-center rounded-xl bg-blue-600 text-white py-2 font-medium hover:opacity-90"
-            >
-              Complete Payment on Paystack →
-            </a>
-          )}
+      {status === "success" && ticketCode && (
+        <div className="mt-6 rounded-xl bg-green-50 border border-green-200 p-4">
+          <p className="text-green-700 font-medium">
+            Payment successful 🎉
+          </p>
+          <p className="mt-1 text-sm">
+            Ticket Code:
+            <span className="ml-2 font-mono font-semibold">
+              {ticketCode}
+            </span>
+          </p>
         </div>
+      )}
+
+      {/* ---------------- PAYSTACK REDIRECT ---------------- */}
+      {paymentUrl && (
+        <a
+          href={paymentUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 block text-center rounded-xl bg-blue-600 text-white py-2 font-medium hover:opacity-90"
+        >
+          Complete Payment on Paystack →
+        </a>
       )}
 
       {/* ---------------- ERROR ---------------- */}
