@@ -8,13 +8,25 @@ interface Props {
   onTogglePublish: () => void;
 }
 
+/**
+ * OrganizerEventTopBar
+ *
+ * Shows event status, allows publish/unpublish,
+ * and provides a safe draft preview link for organizers.
+ */
 export default function OrganizerEventTopBar({
   eventId,
   published,
   onTogglePublish,
 }: Props) {
+  if (!eventId) return null;
+
+  // Draft preview link — only accessible by organizer
+  const previewUrl = `/organizer/events/${eventId}/preview`;
+
   return (
     <div className="sticky top-0 z-40 bg-white border-b px-6 py-3 flex items-center justify-between">
+      {/* Event Status */}
       <span className="text-sm text-gray-600">
         Status:{" "}
         <span
@@ -26,17 +38,18 @@ export default function OrganizerEventTopBar({
         </span>
       </span>
 
+      {/* Actions */}
       <div className="flex gap-3">
-        {eventId && (
-          <Link
-            href={`/events/${eventId}`}
-            target="_blank"
-            className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
-          >
-            Preview
-          </Link>
-        )}
+        {/* Draft-safe Preview */}
+        <Link
+          href={previewUrl}
+          target="_blank"
+          className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"
+        >
+          Preview
+        </Link>
 
+        {/* Publish/Unpublish */}
         <button
           onClick={onTogglePublish}
           className={`rounded-lg px-4 py-2 text-sm font-medium ${
