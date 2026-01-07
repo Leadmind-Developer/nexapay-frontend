@@ -2,8 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import api from "@/lib/api";
 import { getEventImage } from "@/lib/getEventImage";
+
+interface EventImage {
+  id: string;
+  url: string;
+  isPrimary?: boolean;
+}
 
 interface Event {
   id: string;
@@ -12,6 +19,7 @@ interface Event {
   slug: string;
   startAt: string;
   endAt: string;
+  images?: EventImage[];
   organizer: { name: string };
 }
 
@@ -20,7 +28,8 @@ export default function EventsLandingPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get<Event[]>("/events")
+    api
+      .get<Event[]>("/events")
       .then(res => setEvents(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -50,29 +59,78 @@ export default function EventsLandingPage() {
       <section id="events" className="max-w-6xl mx-auto p-6">
         <h2 className="text-2xl font-semibold mb-6">Upcoming Events</h2>
 
-        {loading && <p>Loading events...</p>}
+        {/* Skeleton Loader */}
+        {loading && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="border rounded-xl overflow-hidden animate-pulse"
+              >
+                <div className="aspect-[16/9] bg-gray-200" />
+                <div className="p-5 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded w-3/4" />
+                  <div className="h-3 bg-gray-200 rounded w-full" />
+                  <div className="h-3 bg-gray-200 rounded w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {!loading && events.length === 0 && (
           <p className="text-gray-500">No upcoming events.</p>
         )}
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map(event => (
-            <Link
-              key={event.id}
-              href={`/events/${event.slug ?? event.id}`}
-              className="block border rounded-xl p-5 hover:shadow-lg transition"
-            >
-              <h3 className="text-lg font-semibold">{event.title}</h3>
-              <p className="text-sm text-gray-600 line-clamp-2">
-                {event.description}
-              </p>
-              <p className="text-xs text-gray-500 mt-2">
-                {new Date(event.startAt).toLocaleDateString()}
-              </p>
-            </Link>
-          ))}
-        </div>
+        {!loading && events.length > 0 && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {events.map(event => {
+              const imageUrl = getEventImage(event);
+
+              return (
+                <Link
+                  key={event.id}
+                  href={`/events/${event.slug ?? event.id}`}
+                  className="group block border rounded-xl overflow-hidden hover:shadow-lg transition"
+                >
+                  {/* IMAGE */}
+                  <div className="relative aspect-[16/9] bg-gray-100">
+                    {imageUrl ? (
+                      <Image
+                        src={imageUrl}
+                        alt={event.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform"
+                        loading="lazy"
+                        placeholder="blur"
+                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4="
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                        No image
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CONTENT */}
+                  <div className="p-5">
+                    <h3 className="text-lg font-semibold mb-1">
+                      {event.title}
+                    </h3>
+
+                    <p className="text-sm text-gray-600 line-clamp-2">
+                      {event.description}
+                    </p>
+
+                    <p className="text-xs text-gray-500 mt-3">
+                      {new Date(event.startAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* ORGANIZER CTA */}
