@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
+import { getEventImage } from "@/lib/getEventImage";
 
 /* ================= TYPES ================= */
 
@@ -114,16 +115,16 @@ function DashboardStat({
 }
 
 function EventCard({ event }: { event: Event }) {
+  const imageUrl = getEventImage(event);
   const hasTickets = event.ticketTypes.length > 0;
 
   return (
     <div className="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
-      
       {/* IMAGE */}
       <div className="h-40 w-full bg-gray-100">
-        {event.imageUrl ? (
+        {imageUrl ? (
           <img
-            src={event.imageUrl}
+            src={imageUrl}
             alt={event.title}
             className="h-full w-full object-cover"
           />
