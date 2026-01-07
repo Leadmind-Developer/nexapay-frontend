@@ -22,27 +22,31 @@ export default function TicketTypesPage() {
   const params = useParams();
   const eventId = params?.id as string | undefined;
 
+  const [event, setEvent] = useState<any>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [form, setForm] = useState<Partial<TicketType>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showCTA, setShowCTA] = useState(false);
+  const [eventLoading, setEventLoading] = useState(true);
 
   const ticketsLocked = event && !event.published;
 
-  // Success banner & CTA
-  const [successMessage, setSuccessMessage] = useState("");
-  const [showCTA, setShowCTA] = useState(false);
-
-  /* ---------------- FETCH TICKETS ---------------- */
+  /* ---------------- FETCH EVENT & TICKETS ---------------- */
   const fetchTicketTypes = async () => {
     if (!eventId) return;
 
     try {
+      setEventLoading(true);
       const res = await api.get(`/events/organizer/events/${eventId}`);
+      setEvent(res.data);
       setTicketTypes(res.data.ticketTypes || []);
     } catch (err: any) {
       console.error(err);
-      toast.error("Failed to load ticket types");
+      toast.error("Failed to load event/tickets");
+    } finally {
+      setEventLoading(false);
     }
   };
 
@@ -71,25 +75,19 @@ export default function TicketTypesPage() {
     if (!eventId) return toast.error("Event not found");
 
     setLoading(true);
-
     try {
       if (editingId) {
-        await api.patch(
-          `/events/organizer/events/${eventId}/tickets/${editingId}`,
-          form
-        );
+        await api.patch(`/events/organizer/events/${eventId}/tickets/${editingId}`, form);
         toast.success("Ticket type updated");
-        resetForm();
-        fetchTicketTypes();
       } else {
         await api.post(`/events/organizer/events/${eventId}/tickets`, form);
         setSuccessMessage(
           "Ticket type created successfully! You can create multiple types like Regular, VIP, Platinum..."
         );
         setShowCTA(true);
-        resetForm();
-        fetchTicketTypes();
       }
+      resetForm();
+      fetchTicketTypes();
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.error || "Failed to save ticket type");
@@ -104,7 +102,6 @@ export default function TicketTypesPage() {
       toast.error("Cannot edit ticket after sales have started");
       return;
     }
-
     const { id, sold, ...editable } = tt;
     setForm(editable);
     setEditingId(id);
@@ -146,6 +143,43 @@ export default function TicketTypesPage() {
     );
   }
 
+  if (eventLoading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading event...</p>
+      </main>
+    );
+  }
+
+  if (event && !event.published) {
+    return (
+      <main className="min-h-screen bg-gray-50 dark:bg-neutral-950 p-8">
+        <div className="max-w-xl mx-auto bg-white dark:bg-neutral-900 p-6 rounded-xl border border-yellow-300 dark:border-yellow-700">
+          <h2 className="text-xl font-semibold text-yellow-700 dark:text-yellow-300">
+            Event Not Published
+          </h2>
+          <p className="mt-2 text-gray-700 dark:text-gray-300">
+            You must publish this event before creating ticket types.
+          </p>
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={() => router.push(`/organizer/events/${eventId}/edit`)}
+              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Go to Event & Publish
+            </button>
+            <button
+              onClick={() => router.push("/organizer/events")}
+              className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700"
+            >
+              Back to Events
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-neutral-950 p-8">
       <div className="max-w-5xl mx-auto space-y-8">
@@ -168,12 +202,12 @@ export default function TicketTypesPage() {
             <p className="text-green-800 dark:text-green-200">{successMessage}</p>
             {showCTA && (
               <div className="flex gap-3 mt-2 flex-wrap">
-                <button disabled={ticketsLocked} ... />
+                <button
                   onClick={handleCreateAnother}
                   className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
                 >
                   Create Another Ticket Type
-                <button disabled={ticketsLocked} ... />
+                </button>
                 <button
                   onClick={handleBackToEvent}
                   className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
@@ -186,9 +220,10 @@ export default function TicketTypesPage() {
         )}
 
         {/* FORM */}
-        <form className={ticketsLocked ? "opacity-50 pointer-events-none" : ""}>
+        <form
           onSubmit={handleSubmit}
-          className="bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700 space-y-4"
+          className={ticketsLocked ? "opacity-50 pointer-events-none bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700 space-y-4" :
+            "bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700 space-y-4"}
         >
           <h2 className="font-medium text-gray-900 dark:text-gray-100">
             {editingId ? "Edit Ticket Type" : "Create Ticket Type"}
@@ -242,7 +277,7 @@ export default function TicketTypesPage() {
           <div className="flex gap-3 flex-wrap">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || ticketsLocked}
               className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
             >
               {loading
@@ -256,6 +291,7 @@ export default function TicketTypesPage() {
               <button
                 type="button"
                 onClick={resetForm}
+                disabled={ticketsLocked}
                 className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
               >
                 Cancel
@@ -299,12 +335,14 @@ export default function TicketTypesPage() {
                     <td className="py-2 px-2 flex gap-2">
                       <button
                         onClick={() => handleEdit(tt)}
+                        disabled={ticketsLocked}
                         className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(tt.id)}
+                        disabled={ticketsLocked}
                         className="px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
                       >
                         Delete
