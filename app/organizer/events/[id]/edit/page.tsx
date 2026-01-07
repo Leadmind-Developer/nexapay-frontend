@@ -2,58 +2,40 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Image from "next/image";
 import api from "@/lib/api";
-import { z } from "zod";
 import OrganizerEventTopBar from "@/components/OrganizerEventTopBar";
 import { getEventImage } from "@/lib/getEventImage";
 
 /* =====================================================
    Types
 ===================================================== */
-
 type EventType = "PHYSICAL" | "VIRTUAL";
 type UploadState = "idle" | "uploading" | "success" | "error";
 
-/* =====================================================
-   EDIT Schema (IMPORTANT: NOT CREATE SCHEMA)
-===================================================== */
-
-const editEventSchema = z
-  .object({
-    title: z.string().min(3, "Event title is required"),
-    description: z.string().optional(),
-    startAt: z.string().min(1, "Start date is required"),
-    endAt: z.string().min(1, "End date is required"),
-    published: z.boolean(),
-  })
-  .refine(
-    data => new Date(data.endAt) > new Date(data.startAt),
-    { message: "End date must be after start date", path: ["endAt"] }
-  );
-
-type EditEventFormState = z.infer<typeof editEventSchema> & {
+interface EditEventFormState {
+  title: string;
+  description?: string;
+  startAt: string;
+  endAt: string;
+  published: boolean;
   email: string;
   type: EventType;
   venue?: string;
   address?: string;
   category?: string;
-};
-
-type FormErrors = Partial<Record<keyof EditEventFormState, string>>;
+}
 
 /* =====================================================
    Edit Page
 ===================================================== */
-
 export default function EventEditPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params?.id as string | undefined;
 
   const [form, setForm] = useState<EditEventFormState | null>(null);
-  const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
-
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
@@ -83,7 +65,10 @@ export default function EventEditPage() {
       });
 
       const imageUrl = getEventImage(data);
-       if (imageUrl) setPreview(imageUrl);
+      if (imageUrl) setPreview(imageUrl);
+    }).catch(err => {
+      console.error("Failed to fetch event:", err);
+      setFormError("Failed to load event data.");
     });
   }, [eventId]);
 
@@ -98,43 +83,24 @@ export default function EventEditPage() {
   }, [image]);
 
   /* ------------------------------
-     Helpers
+     Form helpers
   ------------------------------ */
   const update = (key: keyof EditEventFormState, value: any) => {
     setForm(prev => (prev ? { ...prev, [key]: value } : prev));
-    setErrors(prev => ({ ...prev, [key]: undefined }));
   };
 
-  const validate = (): boolean => {
-    if (!form) return false;
-
-    const result = editEventSchema.safeParse(form);
-    if (result.success) {
-      setErrors({});
-      setFormError(null);
-      return true;
-    }
-
-    const fieldErrors: FormErrors = {};
-    result.error.issues.forEach(issue => {
-      const key = issue.path[0] as keyof EditEventFormState;
-      fieldErrors[key] = issue.message;
-    });
-
-    setErrors(fieldErrors);
-    setFormError("Please fix the errors below.");
-    return false;
-  };
-
-  /* ------------------------------
-     Save / Publish
-  ------------------------------ */
-  const saveEvent = async (
-    publish?: boolean,
-    redirect: boolean = true
-  ) => {
+  const saveEvent = async (publish?: boolean, redirect: boolean = true) => {
     if (!form || !eventId) return;
-    if (!validate()) return;
+
+    // Basic validation
+    if (!form.title || !form.startAt || !form.endAt) {
+      setFormError("Title, start date, and end date are required.");
+      return;
+    }
+    if (new Date(form.endAt) <= new Date(form.startAt)) {
+      setFormError("End date must be after start date.");
+      return;
+    }
 
     setSaving(true);
     setFormError(null);
@@ -149,12 +115,6 @@ export default function EventEditPage() {
         endAt: new Date(form.endAt).toISOString(),
       });
 
-      setForm(prev =>
-        prev
-          ? { ...prev, published: publish ?? prev.published }
-          : prev
-      );
-
       if (image) {
         setUploadState("uploading");
         const fd = new FormData();
@@ -166,11 +126,7 @@ export default function EventEditPage() {
           {
             headers: { "Content-Type": "multipart/form-data" },
             onUploadProgress: e => {
-              if (e.total) {
-                setUploadProgress(
-                  Math.round((e.loaded / e.total) * 100)
-                );
-              }
+              if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100));
             },
           }
         );
@@ -178,10 +134,10 @@ export default function EventEditPage() {
         setUploadState("success");
       }
 
-      if (redirect) {
-        router.push("/organizer/events");
-      }
-    } catch (err: any) {
+      setForm(prev => prev ? { ...prev, published: publish ?? prev.published } : prev);
+
+      if (redirect) router.push("/organizer/events");
+    } catch (err) {
       console.error(err);
       setFormError("Failed to save event. Please try again.");
       setUploadState("error");
@@ -190,9 +146,6 @@ export default function EventEditPage() {
     }
   };
 
-  /* ------------------------------
-     Toggle published (TOP BAR)
-  ------------------------------ */
   const togglePublish = async () => {
     if (!form) return;
     await saveEvent(!form.published, false);
@@ -201,8 +154,7 @@ export default function EventEditPage() {
   /* =====================================================
      Render
   ===================================================== */
-
-  if (!form) return null;
+  if (!form) return <p className="text-gray-500">Loading event...</p>;
   if (!eventId) return <p className="text-red-500">Invalid Event</p>;
 
   return (
@@ -215,9 +167,7 @@ export default function EventEditPage() {
         />
 
         <h1 className="text-3xl font-bold mb-2 mt-6">Edit Event</h1>
-        <p className="text-gray-500 mb-8">
-          Changes are saved as drafts until published.
-        </p>
+        <p className="text-gray-500 mb-8">Changes are saved as drafts until published.</p>
 
         {formError && (
           <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
@@ -231,7 +181,6 @@ export default function EventEditPage() {
             placeholder="Event title"
             value={form.title}
             onChange={e => update("title", e.target.value)}
-            error={errors.title}
           />
           <Textarea
             placeholder="Describe your event"
@@ -243,33 +192,17 @@ export default function EventEditPage() {
         {/* Event Image */}
         <Card title="Event Image">
           {!preview ? (
-            <FileInput
-              accept="image/*"
-              onChange={e =>
-                setImage(e.target.files?.[0] ?? null)
-              }
-            />
+            <FileInput accept="image/*" onChange={e => setImage(e.target.files?.[0] ?? null)} />
           ) : (
             <div className="flex items-center gap-4">
-              <img
-                src={preview}
-                className="h-20 w-20 rounded-lg object-cover border"
-              />
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setImage(null);
-                  setPreview(null);
-                }}
-              >
+              <img src={preview} className="h-20 w-20 rounded-lg object-cover border" />
+              <Button variant="outline" onClick={() => { setImage(null); setPreview(null); }}>
                 Remove
               </Button>
             </div>
           )}
           {uploadState === "uploading" && (
-            <p className="text-sm text-gray-500">
-              Uploading… {uploadProgress}%
-            </p>
+            <p className="text-sm text-gray-500">Uploading… {uploadProgress}%</p>
           )}
         </Card>
 
@@ -280,13 +213,11 @@ export default function EventEditPage() {
               type="datetime-local"
               value={form.startAt}
               onChange={e => update("startAt", e.target.value)}
-              error={errors.startAt}
             />
             <Input
               type="datetime-local"
               value={form.endAt}
               onChange={e => update("endAt", e.target.value)}
-              error={errors.endAt}
             />
           </div>
         </Card>
@@ -294,75 +225,86 @@ export default function EventEditPage() {
         {/* Actions */}
         <Card title="Actions">
           <div className="flex flex-col md:flex-row gap-3">
-            <Button
-              variant="secondary"
-              disabled={saving}
-              onClick={() => saveEvent(false)}
-            >
+            <Button variant="secondary" disabled={saving} onClick={() => saveEvent(false)}>
               Save Draft
             </Button>
-            <Button
-              disabled={saving}
-              onClick={() => saveEvent(true)}
-            >
+            <Button disabled={saving} onClick={() => saveEvent(true)}>
               Save & Publish
             </Button>
           </div>
         </Card>
+
+        {/* Event Preview */}
+        <EventPreview form={form} previewImage={preview} />
       </div>
     </main>
   );
 }
 
 /* =====================================================
-   UI Components
+   Event Preview Component
 ===================================================== */
-
-function Card({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function EventPreview({ form, previewImage }: { form: EditEventFormState; previewImage?: string | null }) {
   return (
-    <section className="bg-white dark:bg-neutral-900 rounded-2xl p-6 mb-6 shadow border">
-      <h2 className="text-lg font-semibold mb-4">
-        {title}
-      </h2>
-      <div className="flex flex-col gap-4">
-        {children}
+    <section className="bg-white dark:bg-neutral-900 rounded-2xl p-6 mb-6 border shadow-sm">
+      <h2 className="text-lg font-semibold mb-4">Event Preview</h2>
+
+      <div className="relative w-full aspect-[16/9] bg-gray-100 rounded-lg overflow-hidden mb-4">
+        {previewImage ? (
+          <Image
+            src={previewImage}
+            alt={form.title}
+            fill
+            className="object-cover"
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4="
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+            No image
+          </div>
+        )}
       </div>
+
+      <h3 className="text-xl font-bold mb-2">{form.title}</h3>
+      <p className="text-gray-700 dark:text-gray-300 mb-2 line-clamp-3">
+        {form.description || "No description yet."}
+      </p>
+      <p className="text-sm text-gray-500 mb-1">
+        {new Date(form.startAt).toLocaleString()} — {new Date(form.endAt).toLocaleString()}
+      </p>
+      {form.type === "PHYSICAL" && form.venue && (
+        <p className="text-sm text-gray-500">
+          Venue: {form.venue} {form.address && `(${form.address})`}
+        </p>
+      )}
+      <p className="text-sm text-gray-500 mt-1">Organizer: {form.email}</p>
     </section>
   );
 }
 
-function Input({
-  error,
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement> & {
-  error?: string;
-}) {
+/* =====================================================
+   UI Components
+===================================================== */
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <input
-        {...props}
-        className={`w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800 ${
-          error ? "border-red-400" : ""
-        }`}
-      />
-      {error && (
-        <p className="text-xs text-red-500 mt-1">
-          {error}
-        </p>
-      )}
-    </div>
+    <section className="bg-white dark:bg-neutral-900 rounded-2xl p-6 mb-6 shadow border">
+      <h2 className="text-lg font-semibold mb-4">{title}</h2>
+      <div className="flex flex-col gap-4">{children}</div>
+    </section>
   );
 }
 
-function Textarea(
-  props: React.TextareaHTMLAttributes<HTMLTextAreaElement>
-) {
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800"
+    />
+  );
+}
+
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
@@ -371,35 +313,15 @@ function Textarea(
   );
 }
 
-function FileInput(
-  props: React.InputHTMLAttributes<HTMLInputElement>
-) {
-  return (
-    <input
-      {...props}
-      type="file"
-      className="w-full cursor-pointer rounded-xl border px-4 py-2"
-    />
-  );
+function FileInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} type="file" className="w-full cursor-pointer rounded-xl border px-4 py-2" />;
 }
 
 function Button({
   variant = "primary",
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "outline";
-}) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "outline" }) {
   const styles =
-    variant === "primary"
-      ? "bg-black text-white"
-      : variant === "secondary"
-      ? "bg-gray-200"
-      : "border";
-
-  return (
-    <button
-      {...props}
-      className={`rounded-xl px-5 py-2 ${styles}`}
-    />
-  );
+    variant === "primary" ? "bg-black text-white" : variant === "secondary" ? "bg-gray-200" : "border";
+  return <button {...props} className={`rounded-xl px-5 py-2 ${styles}`} />;
 }
