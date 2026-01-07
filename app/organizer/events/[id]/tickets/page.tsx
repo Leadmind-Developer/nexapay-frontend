@@ -81,12 +81,11 @@ export default function TicketTypesPage() {
         fetchTicketTypes();
       } else {
         await api.post(`/events/organizer/events/${eventId}/tickets`, form);
-        // Show success banner + CTA after creation
         setSuccessMessage(
           "Ticket type created successfully! You can create multiple types like Regular, VIP, Platinum..."
         );
         setShowCTA(true);
-        resetForm(); // clears inputs but keeps success message
+        resetForm();
         fetchTicketTypes();
       }
     } catch (err: any) {
@@ -107,7 +106,7 @@ export default function TicketTypesPage() {
     const { id, sold, ...editable } = tt;
     setForm(editable);
     setEditingId(id);
-    setSuccessMessage(""); // clear banner when editing
+    setSuccessMessage("");
     setShowCTA(false);
   };
 
@@ -131,18 +130,7 @@ export default function TicketTypesPage() {
   };
 
   const handleBackToEvent = () => {
-    router.push(`/organizer/events/${eventId}`);
-  };
-
-  const handlePublishEvent = async () => {
-    try {
-      await api.patch(`/events/organizer/events/${eventId}`, { published: true });
-      toast.success("Event published successfully!");
-      router.push(`/organizer/events/${eventId}`);
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err?.response?.data?.error || "Failed to publish event");
-    }
+    router.push("/organizer/events");
   };
 
   /* ---------------- RENDER ---------------- */
@@ -188,13 +176,7 @@ export default function TicketTypesPage() {
                   onClick={handleBackToEvent}
                   className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
                 >
-                  Back to Event
-                </button>
-                <button
-                  onClick={handlePublishEvent}
-                  className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
-                >
-                  Publish Event
+                  Back to Events
                 </button>
               </div>
             )}
@@ -282,9 +264,13 @@ export default function TicketTypesPage() {
 
         {/* TABLE */}
         <div className="bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700">
-          <h3 className="font-medium mb-4 text-gray-900 dark:text-gray-100">Existing Ticket Types</h3>
+          <h3 className="font-medium mb-4 text-gray-900 dark:text-gray-100">
+            Existing Ticket Types
+          </h3>
           {ticketTypes.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400">No ticket types yet.</p>
+            <p className="text-gray-500 dark:text-gray-400">
+              No ticket types yet.
+            </p>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
@@ -298,9 +284,14 @@ export default function TicketTypesPage() {
               </thead>
               <tbody>
                 {ticketTypes.map(tt => (
-                  <tr key={tt.id} className="border-b border-gray-200 dark:border-neutral-800">
+                  <tr
+                    key={tt.id}
+                    className="border-b border-gray-200 dark:border-neutral-800"
+                  >
                     <td className="py-2 px-2">{tt.name}</td>
-                    <td className="py-2 px-2">{tt.price} {tt.currency}</td>
+                    <td className="py-2 px-2">
+                      {tt.price} {tt.currency}
+                    </td>
                     <td className="py-2 px-2">{tt.quantity}</td>
                     <td className="py-2 px-2">{tt.sold}</td>
                     <td className="py-2 px-2 flex gap-2">
