@@ -27,30 +27,26 @@ export default function TicketTypesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const [event, setEvent] = useState<any>(null);
-  const [eventLoading, setEventLoading] = useState(true);
-
   // Success banner & CTA
   const [successMessage, setSuccessMessage] = useState("");
   const [showCTA, setShowCTA] = useState(false);
 
   /* ---------------- FETCH TICKETS ---------------- */
   const fetchTicketTypes = async () => {
-  if (!eventId) return;
+    if (!eventId) return;
 
-  try {
-    setEventLoading(true);
-    const res = await api.get(`/events/organizer/events/${eventId}`);
+    try {
+      const res = await api.get(`/events/organizer/events/${eventId}`);
+      setTicketTypes(res.data.ticketTypes || []);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to load ticket types");
+    }
+  };
 
-    setEvent(res.data);
-    setTicketTypes(res.data.ticketTypes || []);
-  } catch (err: any) {
-    console.error(err);
-    toast.error("Failed to load event");
-  } finally {
-    setEventLoading(false);
-  }
-};
+  useEffect(() => {
+    fetchTicketTypes();
+  }, [eventId]);
 
   /* ---------------- FORM HANDLERS ---------------- */
   const handleChange = (
@@ -136,49 +132,8 @@ export default function TicketTypesPage() {
   const handleBackToEvent = () => {
     router.push("/organizer/events");
   };
-  
 
   /* ---------------- RENDER ---------------- */
-  if (eventLoading) {
-  return (
-    <main className="min-h-screen flex items-center justify-center">
-      <p className="text-gray-500">Loading event...</p>
-    </main>
-  );
-}
-
-if (event && !event.published) {
-  return (
-    <main className="min-h-screen bg-gray-50 dark:bg-neutral-950 p-8">
-      <div className="max-w-xl mx-auto bg-white dark:bg-neutral-900 p-6 rounded-xl border border-yellow-300 dark:border-yellow-700">
-        <h2 className="text-xl font-semibold text-yellow-700 dark:text-yellow-300">
-          Event Not Published
-        </h2>
-
-        <p className="mt-2 text-gray-700 dark:text-gray-300">
-          You must publish this event before creating ticket types.
-        </p>
-
-        <div className="mt-4 flex gap-3">
-          <button
-            onClick={() => router.push(`/organizer/events/${eventId}/edit`)}
-            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Go to Event & Publish
-          </button>
-
-          <button
-            onClick={() => router.push("/organizer/events")}
-            className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700"
-          >
-            Back to Events
-          </button>
-        </div>
-      </div>
-    </main>
-  );
-}
-
   if (!eventId) {
     return (
       <main className="min-h-screen p-8 flex items-center justify-center">
