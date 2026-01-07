@@ -5,6 +5,20 @@ import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 
+// Chart.js
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
 /* ---------------- TYPES ---------------- */
 interface TicketType {
   id: string;
@@ -137,6 +151,42 @@ export default function TicketTypesPage() {
     (sum, tt) => sum + tt.price * tt.sold,
     0
   );
+
+  /* ---------------- CHART DATA ---------------- */
+  const chartData = {
+    labels: ticketTypes.map(tt => tt.name),
+    datasets: [
+      {
+        label: "Revenue",
+        data: ticketTypes.map(tt => tt.price * tt.sold),
+        backgroundColor: "#2563EB", // Blue
+      },
+      {
+        label: "Tickets Sold",
+        data: ticketTypes.map(tt => tt.sold),
+        backgroundColor: "#10B981", // Green
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        labels: { color: event?.darkMode ? "white" : "black" },
+      },
+      title: {
+        display: true,
+        text: "Revenue vs Tickets Sold",
+        color: event?.darkMode ? "white" : "black",
+        font: { size: 16 },
+      },
+    },
+    scales: {
+      x: { ticks: { color: event?.darkMode ? "white" : "black" } },
+      y: { ticks: { color: event?.darkMode ? "white" : "black" } },
+    },
+  };
 
   /* ---------------- RENDER ---------------- */
   if (!eventId) {
@@ -335,9 +385,7 @@ export default function TicketTypesPage() {
                       <td className="py-2 px-2">{tt.price} {tt.currency}</td>
                       <td className="py-2 px-2">{tt.quantity}</td>
                       <td className="py-2 px-2">{tt.sold}</td>
-                      <td className="py-2 px-2 font-semibold">
-                        {(tt.price * tt.sold).toLocaleString()} {tt.currency}
-                      </td>
+                      <td className="py-2 px-2 font-semibold">{(tt.price * tt.sold).toLocaleString()} {tt.currency}</td>
                       <td className="py-2 px-2 flex gap-2">
                         <button
                           onClick={() => handleEdit(tt)}
@@ -362,6 +410,11 @@ export default function TicketTypesPage() {
               {/* GRAND TOTAL */}
               <div className="mt-4 text-right font-bold text-gray-900 dark:text-gray-100">
                 Total Revenue: ₦{totalRevenue.toLocaleString()}
+              </div>
+
+              {/* CHART */}
+              <div className="mt-6 bg-white dark:bg-neutral-900 p-4 rounded-xl border border-gray-300 dark:border-neutral-700">
+                <Bar data={chartData} options={chartOptions} />
               </div>
             </>
           )}
