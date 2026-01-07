@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import api from "@/lib/api";
 import { z } from "zod";
 import OrganizerEventTopBar from "@/components/OrganizerEventTopBar";
+import { getEventImage } from "@/lib/getEventImage";
 
 /* =====================================================
    Types
@@ -81,7 +82,8 @@ export default function EventEditPage() {
         published: Boolean(data.published),
       });
 
-      if (data.imageUrl) setPreview(data.imageUrl);
+      const imageUrl = getEventImage(data);
+       if (imageUrl) setPreview(imageUrl);
     });
   }, [eventId]);
 
