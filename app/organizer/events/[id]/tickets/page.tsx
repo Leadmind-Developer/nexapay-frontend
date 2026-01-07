@@ -27,6 +27,8 @@ export default function TicketTypesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const ticketsLocked = event && !event.published;
+
   // Success banner & CTA
   const [successMessage, setSuccessMessage] = useState("");
   const [showCTA, setShowCTA] = useState(false);
@@ -166,12 +168,12 @@ export default function TicketTypesPage() {
             <p className="text-green-800 dark:text-green-200">{successMessage}</p>
             {showCTA && (
               <div className="flex gap-3 mt-2 flex-wrap">
-                <button
+                <button disabled={ticketsLocked} ... />
                   onClick={handleCreateAnother}
                   className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
                 >
                   Create Another Ticket Type
-                </button>
+                <button disabled={ticketsLocked} ... />
                 <button
                   onClick={handleBackToEvent}
                   className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100"
@@ -184,7 +186,7 @@ export default function TicketTypesPage() {
         )}
 
         {/* FORM */}
-        <form
+        <form className={ticketsLocked ? "opacity-50 pointer-events-none" : ""}>
           onSubmit={handleSubmit}
           className="bg-white dark:bg-neutral-900 p-6 rounded-xl border border-gray-300 dark:border-neutral-700 space-y-4"
         >
