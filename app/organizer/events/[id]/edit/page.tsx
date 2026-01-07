@@ -10,7 +10,6 @@ import { getEventImage } from "@/lib/getEventImage";
 /* =====================================================
    Types
 ===================================================== */
-type EventType = "PHYSICAL" | "VIRTUAL";
 type UploadState = "idle" | "uploading" | "success" | "error";
 
 interface EditEventFormState {
@@ -20,10 +19,8 @@ interface EditEventFormState {
   endAt: string;
   published: boolean;
   email: string;
-  type: EventType;
   venue?: string;
   address?: string;
-  category?: string;
 }
 
 /* =====================================================
@@ -48,28 +45,28 @@ export default function EventEditPage() {
   useEffect(() => {
     if (!eventId) return;
 
-    api.get(`/events/organizer/events/${eventId}`).then(res => {
-      const data = res.data;
+    api.get(`/events/organizer/events/${eventId}`)
+      .then(res => {
+        const data = res.data;
 
-      setForm({
-        title: data.title,
-        description: data.description ?? "",
-        email: data.email,
-        type: data.type,
-        venue: data.venue ?? "",
-        address: data.address ?? "",
-        category: data.category ?? "",
-        startAt: data.startAt?.slice(0, 16) ?? "",
-        endAt: data.endAt?.slice(0, 16) ?? "",
-        published: Boolean(data.published),
+        setForm({
+          title: data.title,
+          description: data.description ?? "",
+          email: data.email,
+          venue: data.venue ?? "",
+          address: data.address ?? "",
+          startAt: data.startAt?.slice(0, 16) ?? "",
+          endAt: data.endAt?.slice(0, 16) ?? "",
+          published: Boolean(data.published),
+        });
+
+        const imageUrl = getEventImage(data);
+        if (imageUrl) setPreview(imageUrl);
+      })
+      .catch(err => {
+        console.error("Failed to fetch event:", err);
+        setFormError("Failed to load event data.");
       });
-
-      const imageUrl = getEventImage(data);
-      if (imageUrl) setPreview(imageUrl);
-    }).catch(err => {
-      console.error("Failed to fetch event:", err);
-      setFormError("Failed to load event data.");
-    });
   }, [eventId]);
 
   /* ------------------------------
@@ -86,9 +83,13 @@ export default function EventEditPage() {
      Form helpers
   ------------------------------ */
   const update = (key: keyof EditEventFormState, value: any) => {
-    setForm(prev => (prev ? { ...prev, [key]: value } : prev));
+    setForm(prev => prev ? { ...prev, [key]: value } : prev);
   };
 
+  /* ------------------------------
+     Save / Publish
+     Only minimal fields sent to backend
+  ------------------------------ */
   const saveEvent = async (publish?: boolean, redirect: boolean = true) => {
     if (!form || !eventId) return;
 
@@ -106,39 +107,39 @@ export default function EventEditPage() {
     setFormError(null);
 
     try {
-      await api.patch(`/events/organizer/events/${eventId}`, {
-        ...form,
+      // minimal payload
+      const payload = {
+        title: form.title,
+        description: form.description,
+        startAt: form.startAt,
+        endAt: form.endAt,
         published: publish ?? form.published,
-        venue: form.type === "PHYSICAL" ? form.venue : null,
-        address: form.type === "PHYSICAL" ? form.address : null,
-        startAt: new Date(form.startAt).toISOString(),
-        endAt: new Date(form.endAt).toISOString(),
-      });
+      };
 
+      await api.patch(`/events/organizer/events/${eventId}`, payload);
+
+      // update local form state
+      setForm(prev => prev ? { ...prev, published: publish ?? prev.published } : prev);
+
+      // handle image upload separately
       if (image) {
         setUploadState("uploading");
         const fd = new FormData();
         fd.append("images", image);
 
-        await api.post(
-          `/events/organizer/events/${eventId}/images`,
-          fd,
-          {
-            headers: { "Content-Type": "multipart/form-data" },
-            onUploadProgress: e => {
-              if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100));
-            },
-          }
-        );
+        await api.post(`/events/organizer/events/${eventId}/images`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: e => {
+            if (e.total) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          },
+        });
 
         setUploadState("success");
       }
 
-      setForm(prev => prev ? { ...prev, published: publish ?? prev.published } : prev);
-
       if (redirect) router.push("/organizer/events");
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("Failed to save event:", err.response?.data || err);
       setFormError("Failed to save event. Please try again.");
       setUploadState("error");
     } finally {
@@ -160,6 +161,7 @@ export default function EventEditPage() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-neutral-950 py-10">
       <div className="max-w-4xl mx-auto px-6">
+        {/* TOP BAR */}
         <OrganizerEventTopBar
           eventId={eventId}
           published={form.published}
@@ -273,7 +275,7 @@ function EventPreview({ form, previewImage }: { form: EditEventFormState; previe
       <p className="text-sm text-gray-500 mb-1">
         {new Date(form.startAt).toLocaleString()} — {new Date(form.endAt).toLocaleString()}
       </p>
-      {form.type === "PHYSICAL" && form.venue && (
+      {form.venue && (
         <p className="text-sm text-gray-500">
           Venue: {form.venue} {form.address && `(${form.address})`}
         </p>
