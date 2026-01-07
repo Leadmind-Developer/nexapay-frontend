@@ -1,25 +1,35 @@
-"use client";
-
+// screens/AirtimeScreen.tsx
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import api from "@/lib/api";
-import BannersWrapper from "@/components/BannersWrapper";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+} from "react-native";
+import api from "../lib/api";
 
-/* ================= TYPES ================= */
-type Network = { label: string; value: string; icon: string };
+interface DataPlan {
+  planId: string;
+  planName: string;
+  price: string;
+  validity: string;
+}
+
 type Stage = "form" | "review" | "processing" | "success" | "error";
-type AirtimeReceipt = any;
 
-/* ================= NETWORKS ================= */
-const NETWORKS: Network[] = [
-  { label: "MTN", value: "mtn", icon: "/images/icons/MTN_logo.png" },
-  { label: "GLO", value: "glo", icon: "/images/icons/Glo_button.png" },
-  { label: "Airtel", value: "airtel", icon: "/images/icons/Airtel_logo.png" },
-  { label: "9Mobile", value: "etisalat", icon: "/images/icons/9Mobile-Telecom-Logo.jpg" },
+const NETWORKS = [
+  { label: "MTN", value: "mtn" },
+  { label: "GLO", value: "glo" },
+  { label: "Airtel", value: "airtel" },
+  { label: "9Mobile", value: "etisalat" },
 ];
 
-/* ================= PREFIX MAP ================= */
 const PREFIX_MAP: Record<string, string[]> = {
   mtn: ["0703","0706","0803","0806","0810","0813","0814","0816","0903","0906","0913","0916"],
   glo: ["0705","0805","0807","0811","0815","0905"],
@@ -27,7 +37,6 @@ const PREFIX_MAP: Record<string, string[]> = {
   etisalat: ["0709","0809","0817","0818","0908","0909"],
 };
 
-/* ================= HELPERS ================= */
 const normalizePhone = (value: string) => {
   let v = value.replace(/\s+/g, "");
   if (v.startsWith("+234")) v = "0" + v.slice(4);
@@ -35,216 +44,227 @@ const normalizePhone = (value: string) => {
   return v;
 };
 
-const extractReference = (data: any) => {
-  return (
-    data?.requestId ||
-    data?.reference ||
-    data?.vtpass?.requestId ||
-    data?.vtpass?.vtpassTransaction?.request_id ||
-    data?.vtpassTransaction?.request_id ||
-    null
-  );
-};
-
-/* ================= PAGE ================= */
-export default function AirtimePage() {
-  const router = useRouter();
-
+const AirtimeScreen: React.FC = () => {
   const [stage, setStage] = useState<Stage>("form");
+  const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // User Inputs
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
-  const [network, setNetwork] = useState<Network | null>(null);
-  const [receipt, setReceipt] = useState<AirtimeReceipt | null>(null);
+  const [network, setNetwork] = useState<string | null>(null);
+
+  // Data Plans
+  const [clickatellPlans, setClickatellPlans] = useState<DataPlan[]>([]);
+  const [openApiPlans, setOpenApiPlans] = useState<DataPlan[]>([]);
+
+  // Purchase result
+  const [receipt, setReceipt] = useState<any>(null);
   const [reference, setReference] = useState<string | null>(null);
 
-  /* ========== AUTO-DETECT NETWORK ========== */
-  useEffect(() => {
-    if (phone.length < 4) return;
-    const prefix = phone.slice(0, 4);
-
-    for (const [key, list] of Object.entries(PREFIX_MAP)) {
-      if (list.includes(prefix)) {
-        const found = NETWORKS.find(n => n.value === key);
-        if (found && found.value !== network?.value) setNetwork(found);
-      }
-    }
-  }, [phone]);
-
-  /* ========== AUTO-REDIRECT AFTER SUCCESS ========== */
-  useEffect(() => {
-    if (stage !== "success") return;
-
-    const t = setTimeout(() => {
-      router.push("/transactions");
-    }, 3000);
-
-    return () => clearTimeout(t);
-  }, [stage, router]);
-
-  /* ================= CHECKOUT ================= */
-  const checkout = async () => {
-    if (!phone || !amount || !network) return;
-
+  // ---------------- Fetch Data Plans ----------------
+  const fetchClickatellPlans = async () => {
     try {
-      setStage("processing");
-      setErrorMessage("");
-
-      const res = await api.post(
-        "/vtpass/airtime/local",
-        {
-          phone,
-          amount: Number(amount),
-          serviceID: network.value,
-        },
-        { withCredentials: true }
-      );
-
-      /* ✅ WALLET / VTpass SUCCESS */
-      if (res.data?.success === true) {
-        const tx =
-          res.data.vtpass?.vtpassTransaction ||
-          res.data.vtpassTransaction ||
-          res.data.data;
-
-        setReceipt(tx);
-        setReference(extractReference(res.data));
-        setStage("success");
-        return;
-      }
-
-      /* 💳 PAYSTACK FALLBACK */
-      if (res.data?.status === "paystack" && res.data?.authorization_url) {
-        window.location.href = res.data.authorization_url;
-        return;
-      }
-
-      /* ⚠️ BACKEND ERROR */
-      setErrorMessage(
-        res.data?.message ||
-        "Unable to complete this transaction. Please check your transaction history."
-      );
-      setStage("error");
+      const res = await api.get("/wema/airtime/clickatell/data/plans");
+      setClickatellPlans(res.data.result || []);
     } catch (err: any) {
-      console.error("Airtime checkout error:", err);
-      setErrorMessage(
-        err?.response?.data?.message ||
-        "Something went wrong. Please check your transaction history."
-      );
-      setStage("error");
+      console.error(err);
+      Alert.alert("Error", "Failed to fetch Clickatell data plans");
     }
   };
 
+  const fetchOpenApiPlans = async () => {
+    try {
+      const res = await api.get("/wema/airtime/openapi/data/plans");
+      setOpenApiPlans(res.data.result || []);
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert("Error", "Failed to fetch OpenAPI data plans");
+    }
+  };
+
+  useEffect(() => {
+    fetchClickatellPlans();
+    fetchOpenApiPlans();
+  }, []);
+
+  // ---------------- AUTO-DETECT NETWORK ----------------
+  useEffect(() => {
+    if (phone.length < 4) return;
+    const prefix = phone.slice(0, 4);
+    for (const [key, list] of Object.entries(PREFIX_MAP)) {
+      if (list.includes(prefix)) {
+        setNetwork(key);
+        return;
+      }
+    }
+    setNetwork(null);
+  }, [phone]);
+
+  // ---------------- PURCHASE ----------------
+  const purchase = async () => {
+    if (!phone || !amount || !network) {
+      return Alert.alert("Validation", "Please fill all required fields and select a network");
+    }
+
+    setStage("processing");
+    setErrorMessage("");
+    setLoading(true);
+
+    try {
+      const res = await api.post("/wema/airtime/purchase", {
+        phone: normalizePhone(phone),
+        amount: Number(amount),
+        network,
+      });
+
+      if (res.data?.success) {
+        setReceipt(res.data.data || res.data);
+        setReference(res.data?.reference || res.data?.requestId || null);
+        setStage("success");
+      } else {
+        setErrorMessage(res.data?.message || "Unable to complete this transaction");
+        setStage("error");
+      }
+    } catch (err: any) {
+      console.error("Airtime purchase error:", err);
+      setErrorMessage(err.response?.data?.message || "Something went wrong");
+      setStage("error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---------------- RENDER ----------------
   return (
-    <BannersWrapper page="airtime">
-      <div className="max-w-md mx-auto px-4 text-gray-900 dark:text-gray-100 space-y-4">
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Buy Airtime</Text>
 
-        {/* ===== FORM ===== */}
-        {stage === "form" && (
-          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
-            <h2 className="text-xl font-bold">Buy Airtime</h2>
-
-            <div className="grid grid-cols-4 gap-3">
-              {NETWORKS.map(n => (
-                <button
-                  key={n.value}
-                  onClick={() => setNetwork(n)}
-                  className={`border rounded-lg p-3 flex flex-col items-center
-                    ${network?.value === n.value
-                      ? "border-yellow-500 ring-2 ring-yellow-400"
-                      : "dark:border-gray-700"}`}
-                >
-                  <Image src={n.icon} alt={n.label} width={32} height={32} />
-                  <span className="text-xs mt-1 font-semibold">{n.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <input
-              value={phone}
-              onChange={e => setPhone(normalizePhone(e.target.value))}
-              placeholder="Phone number"
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            />
-
-            <input
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="Amount"
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            />
-
-            <button
-              disabled={!phone || !amount || !network}
-              onClick={() => setStage("review")}
-              className="w-full bg-yellow-500 text-white py-3 rounded font-semibold disabled:opacity-60"
-            >
-              Review
-            </button>
-          </div>
-        )}
-
-        {/* ===== REVIEW ===== */}
-        {stage === "review" && (
-          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-3 shadow">
-            <p><b>Network:</b> {network?.label}</p>
-            <p><b>Phone:</b> {phone}</p>
-            <p><b>Amount:</b> ₦{amount}</p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStage("form")}
-                className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
+      {/* ===== FORM ===== */}
+      {stage === "form" && (
+        <View style={styles.section}>
+          <Text style={styles.label}>Select Network</Text>
+          <View style={{ flexDirection: "row", marginBottom: 12 }}>
+            {NETWORKS.map(n => (
+              <TouchableOpacity
+                key={n.value}
+                onPress={() => setNetwork(n.value)}
+                style={[
+                  styles.networkBtn,
+                  network === n.value && styles.networkBtnActive,
+                ]}
               >
-                Back
-              </button>
-              <button
-                onClick={checkout}
-                className="flex-1 bg-yellow-500 text-white py-3 rounded"
-              >
-                Pay
-              </button>
-            </div>
-          </div>
-        )}
+                <Text style={styles.networkLabel}>{n.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        {stage === "processing" && (
-          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow">
-            Processing your request…
-          </div>
-        )}
+          <Text style={styles.label}>Phone Number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter phone number"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
 
-        {stage === "success" && (
-          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded text-center space-y-2">
-            <h2 className="text-xl font-bold">Airtime Purchase Successful 🎉</h2>
-            <p className="text-sm">
-              Your airtime is being delivered. You’ll be redirected shortly.
-            </p>
+          <Text style={styles.label}>Amount</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter amount"
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="numeric"
+          />
 
-            {reference && (
-              <p className="text-xs mt-2 break-all">
-                <b>Transaction Reference:</b><br />
-                {reference}
-              </p>
-            )}
-          </div>
-        )}
+          <Button
+            title="Review"
+            onPress={() => setStage("review")}
+            disabled={!phone || !amount || !network}
+          />
+        </View>
+      )}
 
-        {stage === "error" && (
-          <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
-            <h2 className="text-lg font-bold">Something went wrong</h2>
-            <p className="text-sm">{errorMessage}</p>
-            <a
-              href="/contact"
-              className="inline-block mt-3 bg-yellow-500 text-white py-3 px-4 rounded w-full"
-            >
-              Contact Support
-            </a>
-          </div>
-        )}
+      {/* ===== REVIEW ===== */}
+      {stage === "review" && (
+        <View style={styles.section}>
+          <Text style={styles.label}>Review Purchase</Text>
+          <Text>Network: {network}</Text>
+          <Text>Phone: {phone}</Text>
+          <Text>Amount: ₦{amount}</Text>
 
-      </div>
-    </BannersWrapper>
+          <View style={{ flexDirection: "row", marginTop: 12, gap: 12 }}>
+            <Button title="Back" onPress={() => setStage("form")} />
+            <Button title="Pay" onPress={purchase} />
+          </View>
+        </View>
+      )}
+
+      {/* ===== PROCESSING ===== */}
+      {stage === "processing" && (
+        <View style={styles.section}>
+          <Text>Processing your request…</Text>
+          <ActivityIndicator size="large" color="#007bff" />
+        </View>
+      )}
+
+      {/* ===== SUCCESS ===== */}
+      {stage === "success" && (
+        <View style={[styles.section, styles.success]}>
+          <Text style={{ fontWeight: "bold", fontSize: 16 }}>Purchase Successful 🎉</Text>
+          {reference && <Text>Reference: {reference}</Text>}
+        </View>
+      )}
+
+      {/* ===== ERROR ===== */}
+      {stage === "error" && (
+        <View style={[styles.section, styles.error]}>
+          <Text style={{ fontWeight: "bold", fontSize: 16 }}>Something went wrong</Text>
+          <Text>{errorMessage}</Text>
+        </View>
+      )}
+
+      {loading && <ActivityIndicator size="large" color="#007bff" />}
+    </ScrollView>
   );
-}
+};
+
+export default AirtimeScreen;
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, backgroundColor: "#fff" },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 16 },
+  section: { marginBottom: 20 },
+  label: { fontWeight: "bold", marginBottom: 4 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 8,
+    marginBottom: 12,
+    borderRadius: 6,
+  },
+  networkBtn: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  networkBtnActive: {
+    borderColor: "#fbbf24",
+    backgroundColor: "#fde68a",
+  },
+  networkLabel: {
+    fontWeight: "bold",
+  },
+  success: {
+    padding: 12,
+    backgroundColor: "#d1fae5",
+    borderRadius: 6,
+  },
+  error: {
+    padding: 12,
+    backgroundColor: "#fee2e2",
+    borderRadius: 6,
+  },
+});
