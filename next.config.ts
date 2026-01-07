@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    domains: [
+      "res.cloudinary.com", // Cloudinary
+      "images.unsplash.com", // example
+      "cdn.nexa.com.ng", // your host
+    ],
+  },
 };
 
 export default nextConfig;
