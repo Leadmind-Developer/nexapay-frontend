@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { z } from "zod";
@@ -28,13 +28,10 @@ const eventSchema = z
     startAt: z.string().min(1, "Start date is required"),
     endAt: z.string().min(1, "End date is required"),
   })
-  .refine(
-    data => new Date(data.endAt) > new Date(data.startAt),
-    {
-      message: "End date must be after start date",
-      path: ["endAt"],
-    }
-  )
+  .refine(data => new Date(data.endAt) > new Date(data.startAt), {
+    message: "End date must be after start date",
+    path: ["endAt"],
+  })
   .refine(
     data =>
       data.type === "VIRTUAL" ||
@@ -136,6 +133,9 @@ export default function EventCreatePage() {
   ) => {
     if (!validate()) return;
 
+    // 🔑 Save & Add Tickets MUST publish
+    const shouldPublish = redirect === "tickets" ? true : publish;
+
     setSaving(true);
     setFormError(null);
 
@@ -147,7 +147,7 @@ export default function EventCreatePage() {
         address: form.type === "PHYSICAL" ? form.address : null,
         startAt: new Date(form.startAt).toISOString(),
         endAt: new Date(form.endAt).toISOString(),
-        published: publish,
+        published: shouldPublish,
       });
 
       const eventId = res.data.id;
@@ -332,7 +332,7 @@ export default function EventCreatePage() {
 }
 
 /* =====================================================
-   UI Components (Fixed & Typed)
+   UI Components
 ===================================================== */
 
 function Card({
