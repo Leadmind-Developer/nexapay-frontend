@@ -16,7 +16,7 @@ export default function PayCallbackPage() {
   useEffect(() => {
     const reference =
       searchParams.get("reference") ||
-      searchParams.get("trxref"); // Paystack sometimes sends trxref
+      searchParams.get("trxref");
 
     if (!reference) {
       setStatus("error");
@@ -24,28 +24,52 @@ export default function PayCallbackPage() {
       return;
     }
 
-    async function verify() {
+    async function verifyPayment() {
       try {
-        await api.post("/events/verify-paystack", { reference });
+        const res = await api.get(`/paystack/verify/${reference}`);
+
+        const tx = res.data;
+
+        if (tx.status !== "success") {
+          throw new Error("Payment not successful");
+        }
 
         setStatus("success");
-        setMessage("Payment successful! 🎉 Redirecting…");
+        setMessage("Payment successful 🎉 Redirecting…");
 
-        // Redirect after short delay
+        /**
+         * 🔀 Route based on metadata / purpose
+         */
+        const metadata = tx.metadata || {};
+
         setTimeout(() => {
-          router.push(`/pay/success?reference=${reference}`);
+          // Event tickets
+          if (metadata.type === "event" || metadata.purpose?.includes("ticket")) {
+            router.push(`/pay/success?reference=${reference}`);
+            return;
+          }
+
+          // Savings / Loan / Fund
+          if (metadata.type) {
+            router.push(`/wallet/transactions?ref=${reference}`);
+            return;
+          }
+
+          // Fallback
+          router.push("/");
         }, 2000);
       } catch (err: any) {
         console.error(err);
         setStatus("error");
         setMessage(
           err.response?.data?.error ||
+            err.message ||
             "Payment verification failed. Please contact support."
         );
       }
     }
 
-    verify();
+    verifyPayment();
   }, [searchParams, router]);
 
   return (
