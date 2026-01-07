@@ -33,16 +33,21 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (reference) {
       setStatus("sending");
-      api.get(`/events/orders/${reference}`)
-        .then(res => {
-          if (res.data.ticket) {
-            setTicketCode(res.data.ticket.code);
+      api
+        .get(`/events/orders/${reference}`)
+        .then((res) => {
+          const order = res.data;
+          if (order.ticket) {
+            setTicketCode(order.ticket.code);
             setStatus("success");
+          } else if (order.paymentStatus === "pending") {
+            // Payment pending via Paystack, user can continue
+            setStatus("idle");
           } else {
             setStatus("idle");
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
           setStatus("idle");
         });
@@ -80,17 +85,18 @@ export default function CheckoutPage() {
       if (paymentMethod === "wallet" && data.ticket) {
         setTicketCode(data.ticket.code);
         setStatus("success");
+        return;
       }
 
       // Paystack → redirect user
       if (paymentMethod === "paystack" && data.paymentUrl) {
         setPaymentUrl(data.paymentUrl);
+        // Redirect immediately
         window.location.href = data.paymentUrl;
         return;
       }
 
-      // Default success
-      if (!ticketCode) setStatus("success");
+      setStatus("success");
     } catch (err: any) {
       console.error(err);
       setErrorMessage(
@@ -155,7 +161,7 @@ export default function CheckoutPage() {
         <button
           type="submit"
           disabled={status === "sending"}
-          className="w-full rounded-xl bg-black text-white py-2 font-medium hover:opacity-90 disabled:opacity-60"
+          className="w-full rounded-xl border-2 border-black bg-white text-black py-2 font-medium hover:bg-black hover:text-white disabled:opacity-60 transition-colors"
         >
           {status === "sending" ? "Processing..." : "Pay"}
         </button>
@@ -169,9 +175,7 @@ export default function CheckoutPage() {
           </p>
           <p className="mt-1 text-sm">
             Ticket Code:
-            <span className="ml-2 font-mono font-semibold">
-              {ticketCode}
-            </span>
+            <span className="ml-2 font-mono font-semibold">{ticketCode}</span>
           </p>
         </div>
       )}
