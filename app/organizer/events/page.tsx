@@ -19,6 +19,7 @@ interface Event {
   startAt: string;
   endAt: string;
   published: boolean;
+  "imageUrl": "https://res.cloudinary.com/…",
   ticketTypes: TicketType[];
 }
 
@@ -116,48 +117,58 @@ function EventCard({ event }: { event: Event }) {
   const hasTickets = event.ticketTypes.length > 0;
 
   return (
-    <div className="bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition">
-      <div className="flex items-start justify-between">
-        <h3 className="text-lg font-semibold">{event.title}</h3>
-        <span
-          className={`text-xs px-2 py-1 rounded-full ${
-            event.published
-              ? "bg-green-100 text-green-700"
-              : "bg-yellow-100 text-yellow-700"
-          }`}
-        >
-          {event.published ? "Published" : "Draft"}
-        </span>
-      </div>
-
-      <p className="text-sm text-gray-500 mt-2">
-        {new Date(event.startAt).toLocaleDateString()} •{" "}
-        {new Date(event.endAt).toLocaleDateString()}
-      </p>
-
-      <div className="mt-3 text-sm text-gray-600">
-        <p>Ticket Types: {event.ticketTypes.length}</p>
-        {!hasTickets && (
-          <p className="mt-1 text-red-500 font-medium">
-            Setup required: add tickets
-          </p>
+    <div className="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+      
+      {/* IMAGE */}
+      <div className="h-40 w-full bg-gray-100">
+        {event.imageUrl ? (
+          <img
+            src={event.imageUrl}
+            alt={event.title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center text-gray-400 text-sm">
+            No event image
+          </div>
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-        <ActionLink href={`/organizer/events/${event.id}/edit`} label="Edit" />
-        <ActionLink
-          href={`/organizer/events/${event.id}/tickets`}
-          label="Tickets"
-        />
-        <ActionLink
-          href={`/organizer/events/${event.id}/attendees`}
-          label="Attendees"
-        />
-        <ActionLink
-          href={`/organizer/events/${event.id}/stats`}
-          label="Stats"
-        />
+      {/* CONTENT */}
+      <div className="p-5">
+        <div className="flex items-start justify-between">
+          <h3 className="text-lg font-semibold">{event.title}</h3>
+          <span
+            className={`text-xs px-2 py-1 rounded-full ${
+              event.published
+                ? "bg-green-100 text-green-700"
+                : "bg-yellow-100 text-yellow-700"
+            }`}
+          >
+            {event.published ? "Published" : "Draft"}
+          </span>
+        </div>
+
+        <p className="text-sm text-gray-500 mt-2">
+          {new Date(event.startAt).toLocaleDateString()} •{" "}
+          {new Date(event.endAt).toLocaleDateString()}
+        </p>
+
+        <div className="mt-3 text-sm text-gray-600">
+          <p>Ticket Types: {event.ticketTypes.length}</p>
+          {!hasTickets && (
+            <p className="mt-1 text-red-500 font-medium">
+              Setup required: add tickets
+            </p>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+          <ActionLink href={`/organizer/events/${event.id}/edit`} label="Edit" />
+          <ActionLink href={`/organizer/events/${event.id}/tickets`} label="Tickets" />
+          <ActionLink href={`/organizer/events/${event.id}/attendees`} label="Attendees" />
+          <ActionLink href={`/organizer/events/${event.id}/stats`} label="Stats" />
+        </div>
       </div>
     </div>
   );
