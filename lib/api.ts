@@ -15,7 +15,7 @@ interface OTPInputProps {
   hasWhatsApp?: boolean;
 
   // Optional override from parent
-  rateLimited?: boolean;
+  rateLimited?: boolean; // comes from backend or parent
 }
 
 export default function OTPInput({
@@ -31,11 +31,10 @@ export default function OTPInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState<"email" | "whatsapp" | null>(null);
   const [sent, setSent] = useState<"email" | "whatsapp" | null>(null);
-  const [rateLimited, setRateLimited] = useState(rateLimitedProp);
+  const [internalRateLimited, setInternalRateLimited] = useState(false);
 
-  useEffect(() => {
-    setRateLimited(rateLimitedProp);
-  }, [rateLimitedProp]);
+  // Show recovery if parent says rateLimited OR we internally detected too_many_requests
+  const showRecovery = rateLimitedProp || internalRateLimited;
 
   async function requestRecovery(channel: "email" | "whatsapp") {
     if (!identifier || !purpose) return;
@@ -48,17 +47,16 @@ export default function OTPInput({
 
       if (res.data.success) {
         setSent(channel);
-        setRateLimited(true); // Ensure recovery options stay visible
+        setInternalRateLimited(true); // ensure buttons stay visible
       } else if (res.data.message === "too_many_requests") {
-        setRateLimited(true);
+        setInternalRateLimited(true);
       } else {
-        // Any other backend message
         console.warn("OTP recovery response:", res.data);
-        setRateLimited(true);
+        setInternalRateLimited(true);
       }
     } catch (err) {
       console.error("OTP recovery failed:", err);
-      setRateLimited(true); // Fallback: show recovery options anyway
+      setInternalRateLimited(true); // fallback
     } finally {
       setLoading(null);
     }
@@ -96,7 +94,7 @@ export default function OTPInput({
       </div>
 
       {/* 🔓 RECOVERY OPTIONS */}
-      {rateLimited && (
+      {showRecovery && (
         <div className="mt-5 text-center space-y-2">
           <p className="text-sm text-gray-500">Trouble receiving your code?</p>
 
