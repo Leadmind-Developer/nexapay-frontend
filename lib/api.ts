@@ -1,91 +1,134 @@
-import axios, { AxiosHeaders, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+"use client";
 
-// -------------------------------
-// ✅ BACKEND CONFIG
-// -------------------------------
-const BACKEND = process.env.NEXT_PUBLIC_API_BASE || "https://api.nexa.com.ng/api";
+import { useRef, useState, useEffect } from "react";
+import api, { Payload } from "@/lib/api";
 
-const api = axios.create({
-  baseURL: BACKEND,
-  headers: new AxiosHeaders({ "Content-Type": "application/json" }),
-  withCredentials: true, // ✅ send HttpOnly cookies automatically
-});
+interface OTPInputProps {
+  length?: number;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
 
-// -------------------------------
-// REQUEST INTERCEPTOR
-// -------------------------------
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-    if (!config.headers) config.headers = new AxiosHeaders();
+  /* 🔐 Recovery support */
+  identifier?: string;
+  purpose?: string;
+  hasWhatsApp?: boolean;
 
-    // Always send platform
-    config.headers.set("x-platform", "web");
+  // Optional override from parent
+  rateLimited?: boolean;
+}
 
-    // No localStorage token injection — relies entirely on HttpOnly cookies
+export default function OTPInput({
+  length = 6,
+  value,
+  onChange,
+  disabled = false,
+  identifier,
+  purpose,
+  hasWhatsApp = false,
+  rateLimited: rateLimitedProp = false,
+}: OTPInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState<"email" | "whatsapp" | null>(null);
+  const [sent, setSent] = useState<"email" | "whatsapp" | null>(null);
+  const [rateLimited, setRateLimited] = useState(rateLimitedProp);
 
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  useEffect(() => {
+    setRateLimited(rateLimitedProp);
+  }, [rateLimitedProp]);
 
-// -------------------------------
-// GENERIC PAYLOAD TYPE
-// -------------------------------
-export type Payload = Record<string, unknown>;
+  async function requestRecovery(channel: "email" | "whatsapp") {
+    if (!identifier || !purpose) return;
 
-// -------------------------------
-// AUTH API
-// -------------------------------
-export const AuthAPI = {
-  login: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/web/login", payload),
+    try {
+      setLoading(channel);
 
-  register: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/auth/web/register", payload),
+      const payload: Payload = { identifier, purpose, channel };
+      const res = await api.post("/auth/otp/recovery", payload);
 
-  verify: <T>(): Promise<AxiosResponse<T>> => api.get("/auth/web/verify-session"),
+      if (res.data.success) {
+        setSent(channel);
+        setRateLimited(true); // Ensure recovery options stay visible
+      } else if (res.data.message === "too_many_requests") {
+        setRateLimited(true);
+      } else {
+        // Any other backend message
+        console.warn("OTP recovery response:", res.data);
+        setRateLimited(true);
+      }
+    } catch (err) {
+      console.error("OTP recovery failed:", err);
+      setRateLimited(true); // Fallback: show recovery options anyway
+    } finally {
+      setLoading(null);
+    }
+  }
 
-  logout: <T>(): Promise<AxiosResponse<T>> => api.post("/auth/web/logout"),
-};
+  return (
+    <>
+      {/* OTP INPUT */}
+      <div
+        className="flex justify-center gap-2 cursor-text"
+        onClick={() => inputRef.current?.focus()}
+      >
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={length}
+          value={value}
+          disabled={disabled}
+          onChange={(e) =>
+            onChange(e.target.value.replace(/\D/g, "").slice(0, length))
+          }
+          className="absolute opacity-0 pointer-events-none"
+        />
+        {Array.from({ length }).map((_, i) => (
+          <div
+            key={i}
+            className={`w-12 h-12 flex items-center justify-center border rounded-lg text-xl
+              ${value[i] ? "border-blue-500" : "border-gray-300"}`}
+          >
+            {value[i] || ""}
+          </div>
+        ))}
+      </div>
 
-// -------------------------------
-// SMARTCASH API
-// -------------------------------
-export const SmartCashAPI = {
-  pay: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/smartcash/pay", payload),
+      {/* 🔓 RECOVERY OPTIONS */}
+      {rateLimited && (
+        <div className="mt-5 text-center space-y-2">
+          <p className="text-sm text-gray-500">Trouble receiving your code?</p>
 
-  disburse: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/smartcash/disburse", payload),
+          {/* Email Recovery */}
+          <button
+            onClick={() => requestRecovery("email")}
+            disabled={loading !== null}
+            className="text-blue-600 text-sm underline disabled:opacity-50"
+          >
+            {sent === "email"
+              ? "Verification link sent to email"
+              : loading === "email"
+              ? "Sending email…"
+              : "Verify via Email"}
+          </button>
 
-  collect: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/smartcash/collect", payload),
-
-  remit: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/smartcash/remit", payload),
-
-  bulk: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/smartcash/bulk", payload),
-
-  generateVAN: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/smartcash/generate-van", payload),
-};
-
-// -------------------------------
-// VTPASS API
-// -------------------------------
-export const VTPassAPI = {
-  verify: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/vtpass/verify", payload),
-
-  pay: <T>(payload: Payload): Promise<AxiosResponse<T>> =>
-    api.post("/vtpass/pay", payload),
-
-  status: <T>(request_id: string): Promise<AxiosResponse<T>> =>
-    api.get(`/vtpass/status/${request_id}`),
-};
-
-// -------------------------------
-// EXPORT DEFAULT AXIOS INSTANCE
-// -------------------------------
-export default api;
+          {/* WhatsApp Recovery */}
+          {hasWhatsApp && (
+            <button
+              onClick={() => requestRecovery("whatsapp")}
+              disabled={loading !== null}
+              className="block mx-auto text-green-600 text-sm underline disabled:opacity-50"
+            >
+              {sent === "whatsapp"
+                ? "Verification link sent to WhatsApp"
+                : loading === "whatsapp"
+                ? "Sending WhatsApp message…"
+                : "Verify via WhatsApp"}
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
