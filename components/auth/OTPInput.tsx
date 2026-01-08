@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 interface OTPInputProps {
   length?: number;
@@ -11,8 +11,10 @@ interface OTPInputProps {
   /* 🔐 Recovery support (non-breaking additions) */
   identifier?: string;
   purpose?: string;
-  rateLimited?: boolean;
   hasWhatsApp?: boolean;
+
+  // Optional override from parent
+  rateLimited?: boolean;
 }
 
 export default function OTPInput({
@@ -20,15 +22,19 @@ export default function OTPInput({
   value,
   onChange,
   disabled = false,
-
   identifier,
   purpose,
-  rateLimited = false,
   hasWhatsApp = false,
+  rateLimited: rateLimitedProp = false,
 }: OTPInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState<"email" | "whatsapp" | null>(null);
   const [sent, setSent] = useState<"email" | "whatsapp" | null>(null);
+  const [rateLimited, setRateLimited] = useState(rateLimitedProp);
+
+  useEffect(() => {
+    setRateLimited(rateLimitedProp);
+  }, [rateLimitedProp]);
 
   async function requestRecovery(channel: "email" | "whatsapp") {
     if (!identifier || !purpose) return;
@@ -36,19 +42,22 @@ export default function OTPInput({
     try {
       setLoading(channel);
 
-      await fetch("/api/otp/recovery", {
+      const res = await fetch("/api/otp/recovery", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          identifier,
-          purpose,
-          channel, // backend may ignore or extend later
-        }),
+        body: JSON.stringify({ identifier, purpose, channel }),
       });
 
-      setSent(channel);
+      const data = await res.json();
+
+      if (data.success) {
+        setSent(channel);
+      } else if (data.message === "too_many_requests") {
+        setRateLimited(true); // force showing the recovery buttons
+      }
     } catch (err) {
       console.error("OTP recovery failed:", err);
+      setRateLimited(true); // fallback: allow user to try magic link
     } finally {
       setLoading(null);
     }
@@ -61,7 +70,6 @@ export default function OTPInput({
         className="flex justify-center gap-2 cursor-text"
         onClick={() => inputRef.current?.focus()}
       >
-        {/* Hidden real input */}
         <input
           ref={inputRef}
           type="text"
@@ -70,34 +78,24 @@ export default function OTPInput({
           maxLength={length}
           value={value}
           disabled={disabled}
-          onChange={(e) => {
-            const digits = e.target.value
-              .replace(/\D/g, "")
-              .slice(0, length);
-            onChange(digits);
-          }}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, length))}
           className="absolute opacity-0 pointer-events-none"
         />
-
-        {/* Visual boxes */}
         {Array.from({ length }).map((_, i) => (
           <div
             key={i}
             className={`w-12 h-12 flex items-center justify-center border rounded-lg text-xl
-              ${value[i] ? "border-blue-500" : "border-gray-300"}
-            `}
+              ${value[i] ? "border-blue-500" : "border-gray-300"}`}
           >
             {value[i] || ""}
           </div>
         ))}
       </div>
 
-      {/* 🔓 RECOVERY OPTIONS (ONLY WHEN RATE LIMITED) */}
+      {/* 🔓 RECOVERY OPTIONS */}
       {rateLimited && (
         <div className="mt-5 text-center space-y-2">
-          <p className="text-sm text-gray-500">
-            Trouble receiving your code?
-          </p>
+          <p className="text-sm text-gray-500">Trouble receiving your code?</p>
 
           {/* Email Recovery */}
           <button
