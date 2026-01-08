@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import api, { Payload } from "@/lib/api";
 
 interface OTPInputProps {
   length?: number;
@@ -8,13 +9,13 @@ interface OTPInputProps {
   onChange: (v: string) => void;
   disabled?: boolean;
 
-  /* 🔐 Recovery support (non-breaking additions) */
+  /* 🔐 Recovery support */
   identifier?: string;
   purpose?: string;
   hasWhatsApp?: boolean;
 
   // Optional override from parent
-  rateLimited?: boolean;
+  rateLimited?: boolean; // comes from backend or parent
 }
 
 export default function OTPInput({
@@ -30,11 +31,10 @@ export default function OTPInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState<"email" | "whatsapp" | null>(null);
   const [sent, setSent] = useState<"email" | "whatsapp" | null>(null);
-  const [rateLimited, setRateLimited] = useState(rateLimitedProp);
+  const [internalRateLimited, setInternalRateLimited] = useState(false);
 
-  useEffect(() => {
-    setRateLimited(rateLimitedProp);
-  }, [rateLimitedProp]);
+  // Show recovery if parent says rateLimited OR we internally detected too_many_requests
+  const showRecovery = rateLimitedProp || internalRateLimited;
 
   async function requestRecovery(channel: "email" | "whatsapp") {
     if (!identifier || !purpose) return;
@@ -42,22 +42,21 @@ export default function OTPInput({
     try {
       setLoading(channel);
 
-      const res = await fetch("/api/otp/recovery", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, purpose, channel }),
-      });
+      const payload: Payload = { identifier, purpose, channel };
+      const res = await api.post("/auth/otp/recovery", payload);
 
-      const data = await res.json();
-
-      if (data.success) {
+      if (res.data.success) {
         setSent(channel);
-      } else if (data.message === "too_many_requests") {
-        setRateLimited(true); // force showing the recovery buttons
+        setInternalRateLimited(true); // ensure buttons stay visible
+      } else if (res.data.message === "too_many_requests") {
+        setInternalRateLimited(true);
+      } else {
+        console.warn("OTP recovery response:", res.data);
+        setInternalRateLimited(true);
       }
     } catch (err) {
       console.error("OTP recovery failed:", err);
-      setRateLimited(true); // fallback: allow user to try magic link
+      setInternalRateLimited(true); // fallback
     } finally {
       setLoading(null);
     }
@@ -65,7 +64,7 @@ export default function OTPInput({
 
   return (
     <>
-      {/* OTP INPUT (UNCHANGED CORE LOGIC) */}
+      {/* OTP INPUT */}
       <div
         className="flex justify-center gap-2 cursor-text"
         onClick={() => inputRef.current?.focus()}
@@ -78,7 +77,9 @@ export default function OTPInput({
           maxLength={length}
           value={value}
           disabled={disabled}
-          onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, length))}
+          onChange={(e) =>
+            onChange(e.target.value.replace(/\D/g, "").slice(0, length))
+          }
           className="absolute opacity-0 pointer-events-none"
         />
         {Array.from({ length }).map((_, i) => (
@@ -93,7 +94,7 @@ export default function OTPInput({
       </div>
 
       {/* 🔓 RECOVERY OPTIONS */}
-      {rateLimited && (
+      {showRecovery && (
         <div className="mt-5 text-center space-y-2">
           <p className="text-sm text-gray-500">Trouble receiving your code?</p>
 
