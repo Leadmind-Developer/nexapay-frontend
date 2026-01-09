@@ -1,13 +1,17 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
-export default function OTPRecoveryVerify() {
-  const params = useSearchParams();
+export default function OTPRecoveryVerifyPage() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const token = params.get("token");
+  const token = searchParams.get("token");
+
+  const [status, setStatus] = useState<
+    "verifying" | "success" | "error"
+  >("verifying");
 
   useEffect(() => {
     if (!token) {
@@ -15,19 +19,62 @@ export default function OTPRecoveryVerify() {
       return;
     }
 
-    api
-      .post("/auth/otp/recovery/verify", { token })
-      .then(() => {
-        router.replace("/auth/success?recovered=true");
-      })
-      .catch(() => {
-        router.replace("/auth/error?reason=expired_or_invalid");
-      });
-  }, [token]);
+    let cancelled = false;
+
+    async function verify() {
+      try {
+        await api.post("/auth/otp/recovery/verify", { token });
+
+        if (cancelled) return;
+
+        setStatus("success");
+
+        // Small delay for UX polish
+        setTimeout(() => {
+          router.replace("/auth/success?recovered=true");
+        }, 400);
+      } catch (err) {
+        if (cancelled) return;
+
+        setStatus("error");
+
+        setTimeout(() => {
+          router.replace("/auth/error?reason=expired_or_invalid");
+        }, 500);
+      }
+    }
+
+    verify();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, router]);
 
   return (
-    <p className="text-center mt-24 text-gray-600">
-      Verifying your account…
-    </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="text-center space-y-3">
+        {status === "verifying" && (
+          <>
+            <div className="animate-spin h-8 w-8 mx-auto border-4 border-blue-600 border-t-transparent rounded-full" />
+            <p className="text-gray-600 dark:text-gray-300">
+              Verifying your account…
+            </p>
+          </>
+        )}
+
+        {status === "success" && (
+          <p className="text-green-600 font-medium">
+            Verification successful. Redirecting…
+          </p>
+        )}
+
+        {status === "error" && (
+          <p className="text-red-600 font-medium">
+            Verification failed. Redirecting…
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
