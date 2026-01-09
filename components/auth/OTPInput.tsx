@@ -1,21 +1,14 @@
-"use client";
+// components/auth/OTPInput.tsx
 
-import { useRef, useState, useEffect } from "react";
-import api, { Payload } from "@/lib/api";
+ "use client";
+
+import { useRef } from "react";
 
 interface OTPInputProps {
   length?: number;
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
-
-  /* 🔐 Recovery support */
-  identifier?: string;
-  purpose?: string;
-  hasWhatsApp?: boolean;
-
-  // Optional override from parent
-  rateLimited?: boolean; // comes from backend or parent
 }
 
 export default function OTPInput({
@@ -23,110 +16,161 @@ export default function OTPInput({
   value,
   onChange,
   disabled = false,
-  identifier,
-  purpose,
-  hasWhatsApp = false,
-  rateLimited: rateLimitedProp = false,
 }: OTPInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [loading, setLoading] = useState<"email" | "whatsapp" | null>(null);
-  const [sent, setSent] = useState<"email" | "whatsapp" | null>(null);
-  const [internalRateLimited, setInternalRateLimited] = useState(false);
-
-  // Show recovery if parent says rateLimited OR we internally detected too_many_requests
-  const showRecovery = rateLimitedProp || internalRateLimited;
-
-  async function requestRecovery(channel: "email" | "whatsapp") {
-    if (!identifier || !purpose) return;
-
-    try {
-      setLoading(channel);
-
-      const payload: Payload = { identifier, purpose, channel };
-      const res = await api.post("/auth/otp/recovery", payload);
-
-      if (res.data.success) {
-        setSent(channel);
-        setInternalRateLimited(true); // ensure buttons stay visible
-      } else if (res.data.message === "too_many_requests") {
-        setInternalRateLimited(true);
-      } else {
-        console.warn("OTP recovery response:", res.data);
-        setInternalRateLimited(true);
-      }
-    } catch (err) {
-      console.error("OTP recovery failed:", err);
-      setInternalRateLimited(true); // fallback
-    } finally {
-      setLoading(null);
-    }
-  }
 
   return (
-    <>
-      {/* OTP INPUT */}
-      <div
-        className="flex justify-center gap-2 cursor-text"
-        onClick={() => inputRef.current?.focus()}
-      >
-        <input
-          ref={inputRef}
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={length}
-          value={value}
-          disabled={disabled}
-          onChange={(e) =>
-            onChange(e.target.value.replace(/\D/g, "").slice(0, length))
-          }
-          className="absolute opacity-0 pointer-events-none"
-        />
-        {Array.from({ length }).map((_, i) => (
-          <div
-            key={i}
-            className={`w-12 h-12 flex items-center justify-center border rounded-lg text-xl
-              ${value[i] ? "border-blue-500" : "border-gray-300"}`}
-          >
-            {value[i] || ""}
-          </div>
-        ))}
-      </div>
+    <div
+      className="flex justify-center gap-2 cursor-text"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {/* Hidden real input */}
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={length}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, "").slice(0, length);
+          onChange(digits);
+        }}
+        className="absolute opacity-0 pointer-events-none"
+      />
 
-      {/* 🔓 RECOVERY OPTIONS */}
-      {showRecovery && (
-        <div className="mt-5 text-center space-y-2">
-          <p className="text-sm text-gray-500">Trouble receiving your code?</p>
-
-          {/* Email Recovery */}
-          <button
-            onClick={() => requestRecovery("email")}
-            disabled={loading !== null}
-            className="text-blue-600 text-sm underline disabled:opacity-50"
-          >
-            {sent === "email"
-              ? "Verification link sent to email"
-              : loading === "email"
-              ? "Sending email…"
-              : "Verify via Email"}
-          </button>
-
-          {/* WhatsApp Recovery */}
-          {hasWhatsApp && (
-            <button
-              onClick={() => requestRecovery("whatsapp")}
-              disabled={loading !== null}
-              className="block mx-auto text-green-600 text-sm underline disabled:opacity-50"
-            >
-              {sent === "whatsapp"
-                ? "Verification link sent to WhatsApp"
-                : loading === "whatsapp"
-                ? "Sending WhatsApp message…"
-                : "Verify via WhatsApp"}
-            </button>
-          )}
+      {/* Visual boxes */}
+      {Array.from({ length }).map((_, i) => (
+        <div
+          key={i}
+          className={`w-12 h-12 flex items-center justify-center border rounded-lg text-xl
+            ${value[i] ? "border-blue-500" : "border-gray-300"}
+          `}
+        >
+          {value[i] || ""}
         </div>
-      )}
-    </>
+      ))}
+    </div>
   );
+  {rateLimited && (
+  <div className="mt-4 text-center space-y-2">
+    <p className="text-sm text-gray-500">
+      Trouble receiving OTP?
+    </p>
+
+    <button
+      onClick={requestEmailRecovery}
+      className="text-blue-600 text-sm underline"
+    >
+      Verify via Email
+    </button>
+
+    {hasWhatsApp && (
+      <button
+        onClick={requestWhatsAppRecovery}
+        className="text-green-600 text-sm underline block"
+      >
+        Verify via WhatsApp
+      </button>
+    )}
+  </div>
+)}
 }
+
+
+routes/otpRecovery.routes.js
+
+// routes/otprecovery
+import express from "express";
+import prisma from "../lib/prisma.js";
+import { sendMail } from "../lib/mailer.js";
+import {
+  generateOtpRecoveryToken,
+  buildOtpRecoveryEmail,
+  verifyOtpRecoveryToken,
+} from "../middleware/OTPLimitRecovery.js";
+
+const router = express.Router();
+
+router.post("/recovery", async (req, res) => {
+  const { identifier, purpose } = req.body;
+
+  if (!identifier || !purpose) {
+    return res.status(400).json({
+      success: false,
+      message: "Identifier and purpose are required",
+    });
+  }
+
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: identifier },
+        { phone: identifier },
+      ],
+    },
+  });
+
+  if (!user) {
+    // Silent fail (avoid account probing)
+    return res.json({ success: true });
+  }
+
+  const token = generateOtpRecoveryToken({
+    userId: user.id,
+    identifier,
+    purpose,
+  });
+
+  const link = `${process.env.APP_URL}/auth/otp/recovery/verify?token=${token}`;
+
+  await sendMail({
+    to: user.email,
+    subject: "Verify Your Account – Nexa",
+    html: buildOtpRecoveryEmail({
+      customerName: user.name,
+      link,
+    }),
+  });
+
+//Verify Magic Link
+router.get("/recovery/verify", async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.redirect("/auth/error?reason=invalid_link");
+  }
+
+  const decoded = verifyOtpRecoveryToken(token);
+
+  if (!decoded) {
+    return res.redirect("/auth/error?reason=expired_or_invalid");
+  }
+
+  const { identifier, purpose, userId } = decoded;
+
+  // 🔓 Clear OTP rate limits
+  await prisma.otpRateLimit.deleteMany({
+    where: {
+      identifier,
+      purpose,
+    },
+  });
+
+  // ✅ Mark user verified / authenticated
+  // (depends on your auth flow)
+  // Example: issue session or redirect with success token
+
+  return res.redirect(
+    `${process.env.APP_URL}/auth/success?recovered=true`
+  );
+});
+
+  return res.json({
+    success: true,
+    message: "Verification link sent to email",
+  });
+});
+
+export default router;
