@@ -1,6 +1,6 @@
 // components/auth/OTPInput.tsx
 
- "use client";
+"use client";
 
 import { useRef } from "react";
 
@@ -53,4 +53,4 @@ export default function OTPInput({
       ))}
     </div>
   );
-  
+}
