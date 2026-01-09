@@ -66,9 +66,9 @@ export default function NavBar() {
   const dashboardLinks: NavLink[] = [
     { name: "Dashboard", href: "/dashboard", icon: <IoHomeOutline /> },
     { name: "Wallet", href: "/dashboard/wallethistory", icon: <IoWalletOutline /> },
-    { name: "Savings", href: "/dashboard/savings", icon: <IoCashOutline /> },
-    { name: "Loans", href: "/dashboard/loans", icon: <IoBriefcaseOutline /> },
-    { name: "Funds", href: "/dashboard/funds", icon: <IoCashOutline /> },
+    { name: "Bills", href: "/dashboard/savings", icon: <IoCashOutline /> },
+    { name: "Track", href: "/expenses", icon: <IoBriefcaseOutline /> },
+    { name: "Team Up", href: "/dashboard/funds", icon: <IoCashOutline /> },
     { name: "Event", href: "/events", icon: <IoCashOutline /> },
     {
       name: "More",
