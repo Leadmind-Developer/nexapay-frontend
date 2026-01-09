@@ -379,16 +379,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         {/* OTP */}
         {step === "verify" && (
           <>
-            <OTPInput
-               length={6}
-               value={code}
-               onChange={setCode}
-               identifier={otpIdentifier}        // Pass identifier
-               purpose={otpPurpose}             // Pass purpose (login/register)
-               rateLimited={resendTimer <= 0}   // Example: allow recovery when OTP resend cooldown is done
-               hasWhatsApp={true}               // If WhatsApp recovery is supported
-            />
-
+            <OTPInput length={6} value={code} onChange={setCode} />
             <button
               onClick={handleConfirmOtp}
               disabled={loading}
