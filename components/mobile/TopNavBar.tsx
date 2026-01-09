@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 
 export default function TopNavBar() {
-  const navItems = [
+  const allNavItems = [
     "Make Payment",
     "Become an Agent",
     "Start Earning",
@@ -12,6 +12,12 @@ export default function TopNavBar() {
     "Savings",
     "Nexa FundMe",
   ];
+
+  // Items to hide
+  const hiddenItems = ["Loan", "Savings", "Nexa FundMe"];
+
+  // Filtered nav items for display
+  const navItems = allNavItems.filter((item) => !hiddenItems.includes(item));
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
