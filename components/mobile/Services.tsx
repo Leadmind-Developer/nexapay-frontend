@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { io, Socket } from "socket.io-client";
+import { useRouter } from "next/navigation";
 
-type ServiceType = "AIRTIME" | "DATA" | "CABLE" | "ELECTRICITY" | "INSURANCE";
-type ProviderType = "SmartCash" | "VTpass";
+type ServiceItem = {
+  label: string;
+  description: string;
+  href: string;
+};
 
 interface Transaction {
   id: string;
@@ -16,53 +20,51 @@ interface Transaction {
   provider: string;
 }
 
-const SERVICE_CATEGORIES: {
-  type: ServiceType;
-  label: string;
-  options: string[];
-}[] = [
+const SERVICES: ServiceItem[] = [
   {
-    type: "AIRTIME",
-    label: "Buy Phone Airtime",
-    options: ["MTN VTU", "GLO VTU", "Airtel VTU", "9Mobile VTU"],
+    label: "Airtime",
+    description: "Buy local mobile airtime",
+    href: "/airtime",
   },
   {
-    type: "DATA",
-    label: "Buy Internet Data",
-    options: ["MTN DATA", "GLO DATA", "AIRTEL DATA", "9MOBILE DATA", "SMILE DATA"],
+    label: "International Airtime",
+    description: "Send airtime abroad",
+    href: "/IntAirtime",
   },
   {
-    type: "ELECTRICITY",
-    label: "Pay Electricity Bill",
-    options: ["PHED", "AEDC", "IKEDC", "EKEDC", "KEDCO", "IBEDC", "JEDplc", "KAEDCO"],
+    label: "Data",
+    description: "Buy internet data bundles",
+    href: "/data",
   },
   {
-    type: "CABLE",
-    label: "Pay TV Subscription",
-    options: ["GOTV", "DSTV", "STARTIMES"],
+    label: "Electricity",
+    description: "Pay electricity bills",
+    href: "/electricity",
   },
   {
-    type: "INSURANCE",
-    label: "Insurance Plans",
-    options: [
-      "Third Party Motor",
-      "Health Insurance - HMO",
-      "Home Cover",
-      "Personal Accident",
-    ],
+    label: "Cable TV",
+    description: "DSTV, GOTV & Startimes",
+    href: "/cable",
+  },
+  {
+    label: "Insurance",
+    description: "Motor, health & personal cover",
+    href: "/insurance",
+  },
+  {
+    label: "Education",
+    description: "School & exam payments",
+    href: "/education",
   },
 ];
 
 export default function Services() {
-  const [selectedService, setSelectedService] = useState<ServiceType>("AIRTIME");
-  const [selectedOption, setSelectedOption] = useState<string>("");
-  const [provider, setProvider] = useState<ProviderType>("SmartCash");
-  const [formData, setFormData] = useState({ phone: "", amount: "", planCode: "" });
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const router = useRouter();
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
 
-  // Fetch transactions
+  /** Fetch recent transactions */
   const fetchTransactions = async () => {
     try {
       const res = await fetch("/api/transactions/recent");
@@ -73,9 +75,12 @@ export default function Services() {
     }
   };
 
-  // Setup Socket.IO
+  /** Socket setup */
   useEffect(() => {
-    const socketClient = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
+    const socketClient = io(
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+    );
+
     setSocket(socketClient);
 
     socketClient.on("transaction:new", (tx: Transaction) => {
@@ -83,41 +88,13 @@ export default function Services() {
     });
 
     fetchTransactions();
+
     return () => {
       socketClient.disconnect();
     };
   }, []);
 
-  // Submit handler
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatusMessage("Processing...");
-
-    try {
-      const res = await fetch(`/api/${provider.toLowerCase()}/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          service: selectedService,
-          option: selectedOption,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setStatusMessage(`✅ Payment successful! Ref: ${data?.transactionId || "N/A"}`);
-        setFormData({ phone: "", amount: "", planCode: "" });
-        setSelectedOption("");
-      } else {
-        setStatusMessage(`❌ Failed: ${data?.message || "An error occurred"}`);
-      }
-    } catch (err) {
-      setStatusMessage(`⚠️ Error: ${(err as Error).message}`);
-    }
-  };
-
-  // Shared fade-up animation
+  /** Animation */
   const fadeUp = {
     initial: { opacity: 0, y: 40 },
     whileInView: { opacity: 1, y: 0 },
@@ -126,162 +103,53 @@ export default function Services() {
   };
 
   return (
-    <section className="py-20 bg-gray-50 dark:bg-gray-900 text-center transition-colors duration-300">
+    <section className="py-20 bg-gray-50 dark:bg-gray-900 transition-colors">
       <motion.h2
         {...fadeUp}
-        className="text-3xl font-bold mb-10 text-gray-900 dark:text-white"
+        className="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white"
       >
-        Pay Bills & Buy Airtime/Data
+        Services
       </motion.h2>
 
-      {/* Provider Toggle */}
-      <motion.div
-        {...fadeUp}
-        className="flex justify-center gap-4 mb-12 flex-wrap"
-      >
-        {(["SmartCash", "VTpass"] as ProviderType[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => setProvider(p)}
-            className={`px-6 py-2 rounded-full font-semibold transition-colors duration-200 ${
-              provider === p
-                ? "bg-indigo-600 text-white"
-                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow"
-            }`}
+      {/* === SERVICES GRID === */}
+      <div className="max-w-6xl mx-auto grid gap-6 sm:grid-cols-2 lg:grid-cols-3 px-4">
+        {SERVICES.map((service, index) => (
+          <motion.div
+            key={service.label}
+            {...fadeUp}
+            transition={{ delay: index * 0.1 }}
+            onClick={() => router.push(service.href)}
+            className="cursor-pointer bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all"
           >
-            {p}
-          </button>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+              {service.label}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              {service.description}
+            </p>
+          </motion.div>
         ))}
-      </motion.div>
+      </div>
 
-      {/* === Service Sections === */}
-      {SERVICE_CATEGORIES.map((service, index) => (
-        <motion.section
-          id={service.type.toLowerCase()}
-          key={service.type}
-          {...fadeUp}
-          transition={{ duration: 0.6, delay: index * 0.2 }}
-          className="py-16 border-t border-gray-200 dark:border-gray-800"
-        >
-          <h3 className="text-2xl font-bold mb-8 text-gray-900 dark:text-white">
-            {service.label}
-          </h3>
-
-          <div className="max-w-md mx-auto">
-            <select
-              value={selectedService === service.type ? selectedOption : ""}
-              onChange={(e) => {
-                setSelectedService(service.type);
-                setSelectedOption(e.target.value);
-              }}
-              className="w-full mb-6 p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-md shadow-sm text-gray-800 dark:text-gray-200"
-            >
-              <option value="">Select an option</option>
-              {service.options.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-
-            {selectedService === service.type && selectedOption && (
-              <motion.form
-                onSubmit={handleSubmit}
-                {...fadeUp}
-                transition={{ delay: 0.2 }}
-                className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg text-left"
-              >
-                <h4 className="text-lg font-semibold mb-4 text-center text-indigo-600 dark:text-indigo-400">
-                  {selectedOption}
-                </h4>
-
-                {/* Input Fields */}
-                <input
-                  type="text"
-                  placeholder={
-                    service.type === "ELECTRICITY"
-                      ? "Meter Number"
-                      : service.type === "CABLE"
-                      ? "Smartcard Number"
-                      : "Phone Number"
-                  }
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
-                  required
-                />
-
-                {service.type === "DATA" && (
-                  <input
-                    type="text"
-                    placeholder="Data Plan Code"
-                    value={formData.planCode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, planCode: e.target.value })
-                    }
-                    className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
-                  />
-                )}
-
-                <input
-                  type="number"
-                  placeholder="Amount (₦)"
-                  value={formData.amount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, amount: e.target.value })
-                  }
-                  className="w-full mb-4 p-2 border dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded"
-                  required
-                  min="50"
-                />
-
-                <button
-                  type="submit"
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded transition font-semibold"
-                >
-                  Pay Now
-                </button>
-              </motion.form>
-            )}
-          </div>
-        </motion.section>
-      ))}
-
-      {/* Status Message */}
-      {statusMessage && (
-        <motion.p
-          {...fadeUp}
-          className={`mt-10 font-medium ${
-            statusMessage.includes("✅")
-              ? "text-green-600 dark:text-green-400"
-              : statusMessage.includes("❌")
-              ? "text-red-600 dark:text-red-400"
-              : "text-yellow-600 dark:text-yellow-400"
-          }`}
-        >
-          {statusMessage}
-        </motion.p>
-      )}
-
-      {/* Recent Transactions */}
+      {/* === RECENT TRANSACTIONS === */}
       <motion.div
         {...fadeUp}
-        className="max-w-5xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg mt-16 transition-colors"
+        className="max-w-5xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg mt-20 transition-colors"
       >
         <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
           Recent Transactions
         </h3>
+
         {transactions.length === 0 ? (
-          <p className="text-gray-600 dark:text-gray-400">No recent transactions found.</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            No recent transactions found.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full border border-gray-200 dark:border-gray-700">
               <thead>
                 <tr className="bg-gray-100 dark:bg-gray-700 text-left text-gray-800 dark:text-gray-200">
                   <th className="py-2 px-4">Service</th>
-                  <th className="py-2 px-4">Provider</th>
                   <th className="py-2 px-4">Amount</th>
                   <th className="py-2 px-4">Status</th>
                   <th className="py-2 px-4">Date</th>
@@ -294,7 +162,6 @@ export default function Services() {
                     className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900 transition"
                   >
                     <td className="py-2 px-4">{tx.service}</td>
-                    <td className="py-2 px-4">{tx.provider}</td>
                     <td className="py-2 px-4">₦{tx.amount}</td>
                     <td
                       className={`py-2 px-4 font-semibold ${
