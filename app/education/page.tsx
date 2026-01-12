@@ -1,189 +1,234 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { io, Socket } from "socket.io-client";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import api from "@/lib/api";
+import BannersWrapper from "@/components/BannersWrapper";
 
-type ServiceItem = {
-  label: string;
-  description: string;
-  href: string;
+/* ================= TYPES ================= */
+type Variation = {
+  name: string;
+  variation_code: string;
+  amount: number;
 };
 
-interface Transaction {
-  id: string;
-  service: string;
-  amount: number;
-  status: string;
-  date: string;
-  provider: string;
-}
+type Stage = "form" | "verifying" | "processing" | "success" | "error";
 
-const SERVICES: ServiceItem[] = [
-  {
-    label: "Airtime",
-    description: "Buy local mobile airtime",
-    href: "/airtime",
-  },
-  {
-    label: "International Airtime",
-    description: "Send airtime abroad",
-    href: "/IntAirtime",
-  },
-  {
-    label: "Data",
-    description: "Buy internet data bundles",
-    href: "/data",
-  },
-  {
-    label: "Electricity",
-    description: "Pay electricity bills",
-    href: "/electricity",
-  },
-  {
-    label: "Cable TV",
-    description: "DSTV, GOTV & Startimes",
-    href: "/cable",
-  },
-  {
-    label: "Insurance",
-    description: "Motor, health & personal cover",
-    href: "/insurance",
-  },
-  {
-    label: "Education",
-    description: "School & exam payments",
-    href: "/education",
-  },
+/* ================= SERVICES ================= */
+const SERVICES = [
+  { id: "waec", label: "WAEC" },
+  { id: "jamb", label: "JAMB" },
+  { id: "neco", label: "NECO" },
+  { id: "nabteb", label: "NABTEB" },
 ];
 
-export default function Services() {
-  const router = useRouter();
+/* ================= PAGE ================= */
+export default function EducationPage() {
+  const [serviceID, setServiceID] = useState("");
+  const [variationCode, setVariationCode] = useState("");
+  const [billersCode, setBillersCode] = useState("");
+  const [phone, setPhone] = useState("");
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [variations, setVariations] = useState<Variation[]>([]);
+  const [amount, setAmount] = useState<number>(0);
 
-  /** Fetch recent transactions */
-  const fetchTransactions = async () => {
+  const [stage, setStage] = useState<Stage>("form");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [reference, setReference] = useState<string | null>(null);
+
+  /* ================= LOAD VARIATIONS ================= */
+  useEffect(() => {
+    if (!serviceID) {
+      setVariations([]);
+      setVariationCode("");
+      setAmount(0);
+      return;
+    }
+
+    api
+      .get("/vtpass/education/variations", {
+        params: { serviceID },
+      })
+      .then(res => {
+        setVariations(res.data || []);
+      })
+      .catch(() => {
+        setVariations([]);
+      });
+  }, [serviceID]);
+
+  /* ================= SET AMOUNT ================= */
+  useEffect(() => {
+    const selected = variations.find(
+      v => v.variation_code === variationCode
+    );
+    setAmount(selected?.amount || 0);
+  }, [variationCode, variations]);
+
+  /* ================= VERIFY ================= */
+  const verifyCandidate = async () => {
+    if (!serviceID || !variationCode || !billersCode || !phone) return;
+
     try {
-      const res = await fetch("/api/transactions/recent");
-      const data = await res.json();
-      setTransactions(data || []);
-    } catch (err) {
-      console.error("Failed to fetch transactions:", err);
+      setStage("verifying");
+      setErrorMessage("");
+
+      const res = await api.post("/vtpass/education/verify", {
+        serviceID,
+        billersCode,
+        variation_code: variationCode,
+      });
+
+      if (res.data?.status === "success") {
+        await checkout();
+      } else {
+        throw new Error("Verification failed");
+      }
+    } catch (err: any) {
+      setStage("error");
+      setErrorMessage(
+        err?.response?.data?.error || "Unable to verify candidate"
+      );
     }
   };
 
-  /** Socket setup */
-  useEffect(() => {
-    const socketClient = io(
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-    );
+  /* ================= CHECKOUT ================= */
+  const checkout = async () => {
+    try {
+      setStage("processing");
 
-    setSocket(socketClient);
+      const res = await api.post("/vtpass/education/checkout", {
+        serviceID,
+        variation_code: variationCode,
+        billersCode,
+        phone,
+        amount,
+      });
 
-    socketClient.on("transaction:new", (tx: Transaction) => {
-      setTransactions((prev) => [tx, ...prev]);
-    });
-
-    fetchTransactions();
-
-    return () => {
-      socketClient.disconnect();
-    };
-  }, []);
-
-  /** Animation */
-  const fadeUp = {
-    initial: { opacity: 0, y: 40 },
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true },
-    transition: { duration: 0.6 },
+      setReference(res.data?.requestId || null);
+      setStage("success");
+    } catch (err: any) {
+      setStage("error");
+      setErrorMessage(
+        err?.response?.data?.error || "Payment failed"
+      );
+    }
   };
 
+  /* ================= UI ================= */
   return (
-    <section className="py-20 bg-gray-50 dark:bg-gray-900 transition-colors">
-      <motion.h2
-        {...fadeUp}
-        className="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white"
-      >
-        Services
-      </motion.h2>
+    <BannersWrapper page="education">
+      <div className="max-w-md mx-auto px-4 py-8 space-y-4 text-gray-900 dark:text-gray-100">
 
-      {/* === SERVICES GRID === */}
-      <div className="max-w-6xl mx-auto grid gap-6 sm:grid-cols-2 lg:grid-cols-3 px-4">
-        {SERVICES.map((service, index) => (
-          <motion.div
-            key={service.label}
-            {...fadeUp}
-            transition={{ delay: index * 0.1 }}
-            onClick={() => router.push(service.href)}
-            className="cursor-pointer bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all"
-          >
-            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
-              {service.label}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              {service.description}
-            </p>
-          </motion.div>
-        ))}
-      </div>
+        {/* ===== FORM ===== */}
+        {stage === "form" && (
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
+            <h2 className="text-xl font-bold">Education PIN Purchase</h2>
 
-      {/* === RECENT TRANSACTIONS === */}
-      <motion.div
-        {...fadeUp}
-        className="max-w-5xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg mt-20 transition-colors"
-      >
-        <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
-          Recent Transactions
-        </h3>
+            <select
+              value={serviceID}
+              onChange={e => {
+                setServiceID(e.target.value);
+                setVariationCode("");
+              }}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+            >
+              <option value="">Select Exam</option>
+              {SERVICES.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
 
-        {transactions.length === 0 ? (
-          <p className="text-gray-600 dark:text-gray-400">
-            No recent transactions found.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border border-gray-200 dark:border-gray-700">
-              <thead>
-                <tr className="bg-gray-100 dark:bg-gray-700 text-left text-gray-800 dark:text-gray-200">
-                  <th className="py-2 px-4">Service</th>
-                  <th className="py-2 px-4">Amount</th>
-                  <th className="py-2 px-4">Status</th>
-                  <th className="py-2 px-4">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr
-                    key={tx.id}
-                    className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900 transition"
-                  >
-                    <td className="py-2 px-4">{tx.service}</td>
-                    <td className="py-2 px-4">₦{tx.amount}</td>
-                    <td
-                      className={`py-2 px-4 font-semibold ${
-                        tx.status === "SUCCESS"
-                          ? "text-green-600 dark:text-green-400"
-                          : tx.status === "FAILED"
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-yellow-600 dark:text-yellow-400"
-                      }`}
-                    >
-                      {tx.status}
-                    </td>
-                    <td className="py-2 px-4 text-gray-700 dark:text-gray-300">
-                      {new Date(tx.date).toLocaleString()}
-                    </td>
-                  </tr>
+            {variations.length > 0 && (
+              <select
+                value={variationCode}
+                onChange={e => setVariationCode(e.target.value)}
+                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+              >
+                <option value="">Select PIN Type</option>
+                {variations.map(v => (
+                  <option key={v.variation_code} value={v.variation_code}>
+                    {v.name} — ₦{v.amount}
+                  </option>
                 ))}
-              </tbody>
-            </table>
+              </select>
+            )}
+
+            <input
+              value={billersCode}
+              onChange={e => setBillersCode(e.target.value)}
+              placeholder="Candidate / Registration Number"
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+            />
+
+            <input
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="Phone Number"
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+            />
+
+            <p className="text-sm text-gray-500">
+              Amount: <b>₦{amount || "--"}</b>
+            </p>
+
+            <button
+              onClick={verifyCandidate}
+              disabled={!amount || !phone}
+              className="w-full bg-blue-600 text-white py-3 rounded font-semibold disabled:opacity-60"
+            >
+              Verify & Pay
+            </button>
           </div>
         )}
-      </motion.div>
-    </section>
+
+        {/* ===== VERIFYING ===== */}
+        {stage === "verifying" && (
+          <div className="bg-white dark:bg-gray-900 border rounded p-6 text-center">
+            Verifying candidate details…
+          </div>
+        )}
+
+        {/* ===== PROCESSING ===== */}
+        {stage === "processing" && (
+          <div className="bg-white dark:bg-gray-900 border rounded p-6 text-center">
+            Processing payment…
+          </div>
+        )}
+
+        {/* ===== SUCCESS ===== */}
+        {stage === "success" && (
+          <div className="bg-green-100 dark:bg-green-900 border p-6 rounded text-center space-y-3">
+            <h2 className="text-xl font-bold">Purchase Successful 🎉</h2>
+
+            {reference && (
+              <p className="text-xs break-all">
+                <b>Reference:</b> {reference}
+              </p>
+            )}
+
+            <p className="text-sm opacity-80">
+              Your PIN will appear in Transactions shortly.
+            </p>
+          </div>
+        )}
+
+        {/* ===== ERROR ===== */}
+        {stage === "error" && (
+          <div className="bg-red-100 dark:bg-red-900 border p-6 rounded text-center space-y-3">
+            <h2 className="text-lg font-bold">Purchase Failed</h2>
+            <p className="text-sm">{errorMessage}</p>
+            <button
+              onClick={() => setStage("form")}
+              className="w-full bg-blue-600 text-white py-3 rounded"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+      </div>
+    </BannersWrapper>
   );
 }
