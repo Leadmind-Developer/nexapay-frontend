@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
-import ResponsiveLandingWrapper from "@/components/ResponsiveLandingWrapper";
 import BannersWrapper from "@/components/BannersWrapper";
 
 /* ================= TYPES ================= */
@@ -22,19 +21,8 @@ export default function InsurancePage() {
   const [variations, setVariations] = useState<Variation[]>([]);
   const [variationCode, setVariationCode] = useState("");
   const [billersCode, setBillersCode] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
 
-  const [insuredName, setInsuredName] = useState("");
-  const [engineCapacity, setEngineCapacity] = useState("");
-  const [chasisNumber, setChasisNumber] = useState("");
-  const [plateNumber, setPlateNumber] = useState("");
-  const [vehicleMake, setVehicleMake] = useState("");
-  const [vehicleModel, setVehicleModel] = useState("");
-  const [vehicleColor, setVehicleColor] = useState("");
-  const [yearOfMake, setYearOfMake] = useState("");
-  const [state, setState] = useState("");
-  const [lga, setLGA] = useState("");
+  const [form, setForm] = useState<Record<string, string>>({});
 
   const [stage, setStage] = useState<Stage>("form");
   const [errorMessage, setErrorMessage] = useState("");
@@ -43,7 +31,7 @@ export default function InsurancePage() {
   /* ================= FETCH VARIATIONS ================= */
   useEffect(() => {
     api
-      .get(`/vtpass/insurance/variations?serviceID=${serviceID}`)
+      .get("/vtpass/insurance/variations", { params: { serviceID } })
       .then(res => setVariations(res.data || []))
       .catch(() => {});
   }, []);
@@ -53,30 +41,19 @@ export default function InsurancePage() {
     () => variations.find(v => v.variation_code === variationCode),
     [variations, variationCode]
   );
+
   const amount = selectedVariation?.amount || 0;
+  const requiredFields = selectedVariation?.requiredFields || [];
 
   /* ================= VALIDATION ================= */
   function validate(): string | null {
     if (!variationCode) return "Please select an insurance plan";
     if (!billersCode) return "Customer number is required";
 
-    const required = selectedVariation?.requiredFields || [];
-    const map: Record<string, string> = {
-      insuredName,
-      engineCapacity,
-      chasisNumber,
-      plateNumber,
-      vehicleMake,
-      vehicleModel,
-      vehicleColor,
-      yearOfMake,
-      state,
-      lga,
-      email,
-    };
-
-    for (const field of required) {
-      if (!map[field]) return `${field.replace(/_/g, " ")} is required`;
+    for (const field of requiredFields) {
+      if (!form[field]) {
+        return `${field.replace(/_/g, " ")} is required`;
+      }
     }
 
     if (amount <= 0) return "Invalid amount";
@@ -104,18 +81,7 @@ export default function InsurancePage() {
           variation_code: variationCode,
           billersCode,
           amount,
-          phone,
-          email,
-          insuredName,
-          engineCapacity,
-          chasisNumber,
-          plateNumber,
-          vehicleMake,
-          vehicleModel,
-          vehicleColor,
-          yearOfMake,
-          state,
-          lga,
+          ...form,
         },
         { withCredentials: true }
       );
@@ -123,6 +89,7 @@ export default function InsurancePage() {
       if (res.data?.success) {
         setReference(res.data.requestId || res.data.reference || null);
         setStage("success");
+
         setTimeout(() => {
           window.location.href = "/transactions";
         }, 2500);
@@ -137,115 +104,103 @@ export default function InsurancePage() {
       setErrorMessage(res.data?.error || res.data?.message || "Transaction failed");
       setStage("error");
     } catch (err: any) {
-      console.error("Checkout error:", err);
-      setErrorMessage(err?.response?.data?.error || err?.response?.data?.message || "Unexpected error");
+      console.error("Insurance checkout error:", err);
+      setErrorMessage(
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          "Checkout failed"
+      );
       setStage("error");
     }
   }
 
-  /* ================= DYNAMIC FIELD RENDER ================= */
-  const renderField = (field: string) => {
-    const valueMap: Record<string, [string, React.Dispatch<React.SetStateAction<string>>]> = {
-      insuredName: [insuredName, setInsuredName],
-      engineCapacity: [engineCapacity, setEngineCapacity],
-      chasisNumber: [chasisNumber, setChasisNumber],
-      plateNumber: [plateNumber, setPlateNumber],
-      vehicleMake: [vehicleMake, setVehicleMake],
-      vehicleModel: [vehicleModel, setVehicleModel],
-      vehicleColor: [vehicleColor, setVehicleColor],
-      yearOfMake: [yearOfMake, setYearOfMake],
-      state: [state, setState],
-      lga: [lga, setLGA],
-      email: [email, setEmail],
-    };
-
-    const [value, setter] = valueMap[field] || ["", () => {}];
-    return (
-      <input
-        key={field}
-        value={value}
-        onChange={e => setter(e.target.value)}
-        placeholder={field.replace(/_/g, " ")}
-        className="w-full p-3 border rounded"
-      />
-    );
-  };
-
-  const requiredFields = selectedVariation?.requiredFields || [];
-
-  const isProcessing = stage === "processing";
+  /* ================= FIELD RENDER ================= */
+  const renderField = (field: string) => (
+    <input
+      key={field}
+      value={form[field] || ""}
+      onChange={e =>
+        setForm(prev => ({ ...prev, [field]: e.target.value }))
+      }
+      placeholder={field.replace(/_/g, " ")}
+      className="w-full p-3 border rounded"
+    />
+  );
 
   /* ================= UI ================= */
   return (
-    <ResponsiveLandingWrapper>
-      <BannersWrapper page="insurance">
-        <div className="max-w-lg mx-auto px-4">
-          {stage === "form" && (
-            <div className="bg-white dark:bg-gray-900 p-6 rounded-lg space-y-4 shadow">
-              <h2 className="text-xl font-bold">Insurance</h2>
+    <BannersWrapper page="insurance">
+      <div className="max-w-lg mx-auto px-4 py-10">
+        {stage === "form" && (
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-lg space-y-4 shadow">
+            <h2 className="text-xl font-bold">Insurance</h2>
 
-              <select
-                value={variationCode}
-                onChange={e => setVariationCode(e.target.value)}
-                className="w-full p-3 border rounded"
-              >
-                <option value="">Select Plan</option>
-                {variations.map(v => (
-                  <option key={v.variation_code} value={v.variation_code}>
-                    {v.name} — ₦{v.amount}
-                  </option>
-                ))}
-              </select>
+            <select
+              value={variationCode}
+              onChange={e => setVariationCode(e.target.value)}
+              className="w-full p-3 border rounded"
+            >
+              <option value="">Select Plan</option>
+              {variations.map(v => (
+                <option key={v.variation_code} value={v.variation_code}>
+                  {v.name} — ₦{v.amount}
+                </option>
+              ))}
+            </select>
 
-              <input
-                value={billersCode}
-                onChange={e => setBillersCode(e.target.value)}
-                placeholder="Customer number"
-                className="w-full p-3 border rounded"
-              />
+            <input
+              value={billersCode}
+              onChange={e => setBillersCode(e.target.value)}
+              placeholder="Customer number"
+              className="w-full p-3 border rounded"
+            />
 
-              {requiredFields.map(f => renderField(f))}
+            {requiredFields.map(renderField)}
 
-              <p className="text-sm">Amount: ₦{amount}</p>
+            <p className="text-sm font-medium">
+              Amount: ₦{amount.toLocaleString()}
+            </p>
 
-              <button
-                onClick={handleCheckout}
-                disabled={isProcessing}
-                className="w-full bg-blue-600 text-white py-3 rounded disabled:opacity-60"
-              >
-                Continue
-              </button>
-            </div>
-          )}
+            <button
+              onClick={handleCheckout}
+              className="w-full bg-blue-600 text-white py-3 rounded"
+            >
+              Continue
+            </button>
+          </div>
+        )}
 
-          {stage === "processing" && (
-            <div className="bg-white p-6 rounded text-center">
-              Processing transaction…
-            </div>
-          )}
+        {stage === "processing" && (
+          <div className="bg-white p-6 rounded text-center shadow">
+            Processing transaction…
+          </div>
+        )}
 
-          {stage === "success" && (
-            <div className="bg-green-100 p-6 rounded text-center">
-              <h2 className="font-bold">Insurance Purchased 🎉</h2>
+        {stage === "success" && (
+          <div className="bg-green-100 p-6 rounded text-center">
+            <h2 className="font-bold">Insurance Purchased 🎉</h2>
+            {reference && (
               <p className="text-sm mt-2">
                 Reference: <b>{reference}</b>
               </p>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {stage === "error" && (
-            <div className="bg-red-100 p-6 rounded text-center">
-              <p className="text-red-700">{errorMessage || "Something went wrong"}</p>
-              <button
-                onClick={() => setStage("form")}
-                className="mt-4 w-full bg-gray-800 text-white py-2 rounded"
-              >
-                Back
-              </button>
-            </div>
-          )}
-        </div>
-      </BannersWrapper>
-    </ResponsiveLandingWrapper>
+        {stage === "error" && (
+          <div className="bg-red-100 p-6 rounded text-center">
+            <p className="text-red-700">
+              {errorMessage || "Something went wrong"}
+            </p>
+            <button
+              onClick={() => setStage("form")}
+              className="mt-4 w-full bg-gray-800 text-white py-2 rounded"
+            >
+              Back
+            </button>
+          </div>
+        )}
+      </div>
+    </BannersWrapper>
   );
 }
