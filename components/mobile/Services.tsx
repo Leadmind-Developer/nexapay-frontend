@@ -5,10 +5,22 @@ import { motion } from "framer-motion";
 import { io, Socket } from "socket.io-client";
 import { useRouter } from "next/navigation";
 
+import { LucideIcon } from "lucide-react";
+import {
+  Phone,
+  Globe,
+  Wifi,
+  Zap,
+  Tv,
+  ShieldCheck,
+  GraduationCap,
+} from "lucide-react";
+
 type ServiceItem = {
   label: string;
   description: string;
   href: string;
+  icon: LucideIcon;
 };
 
 interface Transaction {
@@ -25,36 +37,43 @@ const SERVICES: ServiceItem[] = [
     label: "Airtime",
     description: "Buy local mobile airtime",
     href: "/airtime",
+    icon: Phone,
   },
   {
     label: "International Airtime",
     description: "Send airtime abroad",
     href: "/IntAirtime",
+    icon: Globe,
   },
   {
     label: "Data",
     description: "Buy internet data bundles",
     href: "/data",
+    icon: Wifi,
   },
   {
     label: "Electricity",
     description: "Pay electricity bills",
     href: "/electricity",
+    icon: Zap,
   },
   {
     label: "Cable TV",
     description: "DSTV, GOTV & Startimes",
     href: "/cable",
+    icon: Tv,
   },
   {
     label: "Insurance",
     description: "Motor, health & personal cover",
     href: "/insurance",
+    icon: ShieldCheck,
   },
   {
     label: "Education",
     description: "School & exam payments",
     href: "/education",
+    icon: GraduationCap,
   },
 ];
 
@@ -113,23 +132,33 @@ export default function Services() {
 
       {/* === SERVICES GRID === */}
       <div className="max-w-6xl mx-auto grid gap-6 sm:grid-cols-2 lg:grid-cols-3 px-4">
-        {SERVICES.map((service, index) => (
-          <motion.div
-            key={service.label}
-            {...fadeUp}
-            transition={{ delay: index * 0.1 }}
-            onClick={() => router.push(service.href)}
-            className="cursor-pointer bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all"
-          >
-            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
-              {service.label}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              {service.description}
-            </p>
-          </motion.div>
-        ))}
-      </div>
+  {SERVICES.map((service, index) => {
+    const Icon = service.icon;
+
+    return (
+      <motion.div
+        key={service.label}
+        {...fadeUp}
+        transition={{ delay: index * 0.1 }}
+        onClick={() => router.push(service.href)}
+        className="cursor-pointer bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md hover:shadow-lg hover:-translate-y-1 transition-all group"
+      >
+        {/* Icon */}
+        <div className="mb-4 flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-900/30 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 transition">
+          <Icon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+        </div>
+
+        {/* Text */}
+        <h3 className="text-xl font-semibold mb-1 text-gray-900 dark:text-white">
+          {service.label}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
+          {service.description}
+        </p>
+      </motion.div>
+    );
+  })}
+</div>
 
       {/* === RECENT TRANSACTIONS === */}
       <motion.div
