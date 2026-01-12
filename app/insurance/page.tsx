@@ -30,17 +30,20 @@ export default function InsurancePage() {
 
   /* ================= FETCH VARIATIONS ================= */
   useEffect(() => {
-    api
-      .get("/vtpass/insurance/variations", { params: { serviceID } })
-      .then(res => {
-        const data =
-          res.data?.content?.variations ||
-          res.data?.variations ||
-          [];
-        setVariations(data);
-      })
-      .catch(() => {});
-  }, []);
+  api
+    .get(`/vtpass/insurance/variations?serviceID=${serviceID}`)
+    .then(res => {
+      console.log("Insurance variations raw:", res.data);
+      const data =
+        res.data?.content?.variations ||
+        res.data?.variations ||
+        [];
+      setVariations(data);
+    })
+    .catch(() => {
+      setVariations([]);
+    });
+}, [serviceID]);
 
   /* ================= DERIVED ================= */
   const selectedVariation = useMemo(
@@ -149,7 +152,7 @@ export default function InsurancePage() {
               <option value="">Select Plan</option>
               {variations.map(v => (
                 <option key={v.variation_code} value={v.variation_code}>
-                  {v.name} — ₦{v.amount}
+                  {v.name} — ₦{Number(v.amount).toLocaleString()}
                 </option>
               ))}
             </select>
