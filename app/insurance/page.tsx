@@ -32,7 +32,13 @@ export default function InsurancePage() {
   useEffect(() => {
     api
       .get("/vtpass/insurance/variations", { params: { serviceID } })
-      .then(res => setVariations(res.data || []))
+      .then(res => {
+        const data =
+          res.data?.content?.variations ||
+          res.data?.variations ||
+          [];
+        setVariations(data);
+      })
       .catch(() => {});
   }, []);
 
