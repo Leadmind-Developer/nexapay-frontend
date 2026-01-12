@@ -30,19 +30,29 @@ export default function InsurancePage() {
 
   /* ================= FETCH VARIATIONS ================= */
   useEffect(() => {
-  api
-    .get(`/vtpass/insurance/variations?serviceID=${serviceID}`)
-    .then(res => {
-      console.log("Insurance variations raw:", res.data);
-      const data =
-        res.data?.content?.variations ||
-        res.data?.variations ||
-        [];
-      setVariations(data);
-    })
-    .catch(() => {
-      setVariations([]);
-    });
+  api.get(
+    `/vtpass/insurance/variations`,
+    {
+      params: { serviceID },
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+    }
+  )
+  .then(res => {
+    const data =
+      res.data?.content?.variations ||
+      res.data?.variations ||
+      res.data ||
+      [];
+
+    setVariations(Array.isArray(data) ? data : []);
+  })
+  .catch(err => {
+    console.error("Variations error:", err);
+    setVariations([]);
+  });
 }, [serviceID]);
 
   /* ================= DERIVED ================= */
