@@ -1,58 +1,56 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { ComponentType } from "react";
 
-export const ResponsiveContainer = dynamic(
-  () => import("recharts").then(m => m.ResponsiveContainer),
-  { ssr: false }
+/* Helper to silence Recharts typing issues */
+const dynamicChart = <T extends ComponentType<any>>(
+  loader: () => Promise<{ default: T }>
+) =>
+  dynamic(loader, {
+    ssr: false,
+  });
+
+export const ResponsiveContainer = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.ResponsiveContainer }))
 );
 
-export const PieChart = dynamic(
-  () => import("recharts").then(m => m.PieChart),
-  { ssr: false }
+export const PieChart = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.PieChart }))
 );
 
-export const Pie = dynamic(
-  () => import("recharts").then(m => m.Pie),
-  { ssr: false }
+export const Pie = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.Pie }))
 );
 
-export const Cell = dynamic(
-  () => import("recharts").then(m => m.Cell),
-  { ssr: false }
+export const Cell = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.Cell }))
 );
 
-export const Tooltip = dynamic(
-  () => import("recharts").then(m => m.Tooltip),
-  { ssr: false }
+export const Tooltip = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.Tooltip }))
 );
 
-export const BarChart = dynamic(
-  () => import("recharts").then(m => m.BarChart),
-  { ssr: false }
+export const BarChart = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.BarChart }))
 );
 
-export const Bar = dynamic(
-  () => import("recharts").then(m => m.Bar),
-  { ssr: false }
+export const Bar = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.Bar }))
 );
 
-export const XAxis = dynamic(
-  () => import("recharts").then(m => m.XAxis),
-  { ssr: false }
+export const XAxis = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.XAxis }))
 );
 
-export const YAxis = dynamic(
-  () => import("recharts").then(m => m.YAxis),
-  { ssr: false }
+export const YAxis = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.YAxis }))
 );
 
-export const LineChart = dynamic(
-  () => import("recharts").then(m => m.LineChart),
-  { ssr: false }
+export const LineChart = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.LineChart }))
 );
 
-export const Line = dynamic(
-  () => import("recharts").then(m => m.Line),
-  { ssr: false }
+export const Line = dynamicChart(
+  () => import("recharts").then(m => ({ default: m.Line }))
 );
