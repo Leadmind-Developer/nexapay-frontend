@@ -3,19 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  LineChart,
-  Line,
-} from "@/components/charts/RechartsClient";
+import BudgetCharts, {
+  CategoryChartItem,
+  PieItem,
+  TrendPoint,
+} from "@/components/charts/BudgetCharts";
 
 /* ---------------- TYPES ---------------- */
 type BudgetCategory = {
@@ -40,24 +32,6 @@ type ExpensesSummary = {
   byCategory: Record<string, number>;
   expenses: Expense[];
 };
-
-type CategoryChartItem = {
-  name: string;
-  budget: number;
-  spent: number;
-};
-
-type PieItem = {
-  name: string;
-  value: number;
-};
-
-type TrendPoint = {
-  date: string;
-  amount: number;
-};
-
-const COLORS = ["#4B7BE5", "#F59E0B", "#10B981", "#EF4444", "#6366F1"];
 
 export default function BudgetPage() {
   const [budget, setBudget] = useState<Budget | null>(null);
@@ -85,13 +59,12 @@ export default function BudgetPage() {
 
   if (loading) return <p className="p-6">Loading budget…</p>;
   if (error) return <p className="p-6 text-red-600">{error}</p>;
+
   if (!budget)
     return (
       <div className="p-6 space-y-4">
         <h1 className="text-xl font-bold">Monthly Budget</h1>
-        <p className="text-gray-600">
-          You haven’t set a budget for this month yet.
-        </p>
+        <p className="text-gray-600">You haven’t set a budget for this month yet.</p>
         <Link
           href="/budget/setup"
           className="inline-block bg-blue-600 text-white px-4 py-2 rounded font-semibold"
@@ -186,47 +159,12 @@ export default function BudgetPage() {
         </div>
       </div>
 
-      {/* BUDGET VS ACTUAL (BAR CHART) */}
-      <div className="bg-white rounded-lg p-4 shadow">
-        <h2 className="font-semibold mb-4">Budget vs Actual</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={categoryData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="budget" fill="#CBD5E1" />
-            <Bar dataKey="spent" fill="#4B7BE5" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* SPENDING TREND (LINE CHART) */}
-      <div className="bg-white rounded-lg p-4 shadow">
-        <h2 className="font-semibold mb-4">Spending Trend (Last 30 Days)</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={trendData}>
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="amount" stroke="#4B7BE5" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* SPENDING DISTRIBUTION (PIE CHART) */}
-      <div className="bg-white rounded-lg p-4 shadow">
-        <h2 className="font-semibold mb-4">Spending Distribution</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <PieChart>
-            <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={90} label>
-              {pieData.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+      {/* CLIENT-ONLY CHARTS */}
+      <BudgetCharts
+        categoryData={categoryData}
+        trendData={trendData}
+        pieData={pieData}
+      />
     </div>
   );
 }
