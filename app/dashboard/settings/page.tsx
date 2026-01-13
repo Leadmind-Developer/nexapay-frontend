@@ -12,6 +12,7 @@ import {
 import api from "@/lib/api";
 import OTPInput from "@/components/auth/OTPInput";
 import clsx from "clsx";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 
 type SecurityStatus = {
   transactionPinSet: boolean;
@@ -77,27 +78,35 @@ export default function SettingsPage() {
    * Security-gated actions
    * -------------------------- */
   const withStepUpSecurity = async (action: () => Promise<void>) => {
-    setPendingAction(() => action);
-    setOtpValue("");
-  };
+  if (!security) return;
+
+  // No step-up factors available → block
+  if (!security.totpEnabled && security.pushDevices === 0) {
+    alert("Please enable 2FA or push notifications to continue.");
+    return;
+  }
+
+  setPendingAction(() => action);
+  setOtpValue("");
+};
 
   const verifyStepUp = async () => {
-    if (!pendingAction) return;
+  if (!pendingAction || !security) return;
 
-    setOtpLoading(true);
-    try {
-      await api.post("/auth/verify-2fa", {
-        totp: otpValue || undefined,
-      });
+  setOtpLoading(true);
+  try {
+    await api.post("/auth/verify-2fa", {
+      totp: security.totpEnabled ? otpValue : undefined,
+    });
 
-      await pendingAction();
-      setPendingAction(null);
-      setOtpValue("");
-      loadSecurityStatus();
-    } finally {
-      setOtpLoading(false);
-    }
-  };
+    await pendingAction();
+    setPendingAction(null);
+    setOtpValue("");
+    loadSecurityStatus();
+  } finally {
+    setOtpLoading(false);
+  }
+};
 
   /* ---------------------------
    * Actions
@@ -169,51 +178,68 @@ export default function SettingsPage() {
       {/* Preferences */}
       <Section title="Preferences">
         <Row
-          icon={<IoMoon size={18} />}
-          label="Dark mode"
-          action={
-            <input
-              type="checkbox"
-              checked={isDarkMode}
-              onChange={(e) => toggleTheme(e.target.checked)}
-              className="accent-indigo-600"
-            />
-          }
-        />
+  icon={<IoMoon size={18} />}
+  label="Dark mode"
+  action={
+    <ToggleSwitch
+      checked={isDarkMode}
+      onChange={toggleTheme}
+    />
+  }
+/>
 
         <Row
-          icon={<IoFingerPrint size={18} />}
-          label="Biometric login"
-          disabled={!biometricAvailable}
-          action={
-            <input
-              type="checkbox"
-              checked={biometricEnabled}
-              onChange={(e) => toggleBiometric(e.target.checked)}
-              disabled={!biometricAvailable}
-              className="accent-indigo-600"
-            />
-          }
-        />
+  icon={<IoFingerPrint size={18} />}
+  label="Biometric login"
+  disabled={!biometricAvailable}
+  action={
+    <ToggleSwitch
+      checked={biometricEnabled}
+      onChange={toggleBiometric}
+      disabled={!biometricAvailable}
+    />
+  }
+/>
       </Section>
 
       {/* Security */}
-      <Section title="Security">
-        <button
-          onClick={resetTransactionPin}
-          className="w-full text-left"
-        >
-          <Row
-            icon={<IoLockClosed size={18} />}
-            label={
-              security?.transactionPinSet
-                ? "Reset transaction PIN"
-                : "Set transaction PIN"
-            }
-            action={<IoChevronForward className="text-zinc-400" />}
-          />
-        </button>
-      </Section>
+<Section title="Security">
+  {!security?.totpEnabled && (
+    <button
+      onClick={() => router.push("/dashboard/security/authenticator")}
+      className="w-full text-left"
+    >
+      <Row
+        icon={<IoLockClosed size={18} />}
+        label="Set up authenticator"
+        action={<IoChevronForward className="text-zinc-400" />}
+      />
+    </button>
+  )}
+
+  <button
+    onClick={() => router.push("/dashboard/security/change-pin")}
+    className="w-full text-left"
+  >
+    <Row
+      icon={<IoLockClosed size={18} />}
+      label="Change transaction PIN"
+      action={<IoChevronForward className="text-zinc-400" />}
+    />
+  </button>
+
+  <button
+    onClick={() => router.push("/dashboard/security/push-devices")}
+    className="w-full text-left"
+  >
+    <Row
+      icon={<IoFingerPrint size={18} />}
+      label={`Push devices (${security?.pushDevices ?? 0})`}
+      action={<IoChevronForward className="text-zinc-400" />}
+    />
+  </button>
+</Section>
+
 
       {/* App Info */}
       <Section title="App info">
@@ -230,28 +256,38 @@ export default function SettingsPage() {
       </Section>
 
       {/* Step-up verification */}
-      {pendingAction && (
-        <div className="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-            Enter your authenticator code to continue
-          </p>
+      {pendingAction && security && (
+  <div className="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4">
+    {security.totpEnabled && (
+      <>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+          Enter the code from your authenticator app
+        </p>
 
-          <OTPInput
-            length={6}
-            value={otpValue}
-            onChange={setOtpValue}
-            disabled={otpLoading}
-          />
+        <OTPInput
+          length={6}
+          value={otpValue}
+          onChange={setOtpValue}
+          disabled={otpLoading}
+        />
+      </>
+    )}
 
-          <button
-            onClick={verifyStepUp}
-            disabled={otpLoading || otpValue.length < 6}
-            className="mt-4 w-full rounded-lg bg-indigo-600 text-white py-2 text-sm font-medium disabled:opacity-50"
-          >
-            {otpLoading ? "Verifying…" : "Confirm"}
-          </button>
-        </div>
-      )}
+    {!security.totpEnabled && security.pushDevices > 0 && (
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        A push notification has been sent. Approve it to continue.
+      </p>
+    )}
+
+    <button
+      onClick={verifyStepUp}
+      disabled={otpLoading || (security.totpEnabled && otpValue.length < 6)}
+      className="mt-4 w-full rounded-lg bg-indigo-600 text-white py-2 text-sm font-medium disabled:opacity-50"
+    >
+      {otpLoading ? "Verifying…" : "Confirm"}
+    </button>
+  </div>
+)}
 
       <p className="text-center text-xs text-zinc-400">
         App version 1.0.0
