@@ -62,7 +62,7 @@ const MORE_SERVICES: ServiceItem[] = [
   },
   {
     name: "International Airtime",
-    screen: "/IntAirtime",
+    screen: "/NotAvailablePage",
     icon: "earth",
     color: "#C67ACB",
   },
@@ -86,7 +86,7 @@ const MORE_SERVICES: ServiceItem[] = [
   },
   {
     name: "Insurance",
-    screen: "/insurance",
+    screen: "/NotAvailablePage",
     icon: "shield",
     color: colors.primary,
   },
