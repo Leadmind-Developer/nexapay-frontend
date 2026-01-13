@@ -13,23 +13,18 @@ type Variation = {
 
 type Stage = "form" | "verifying" | "processing" | "success" | "error";
 
-/* ================= SERVICES ================= */
-const SERVICES = [
-  { id: "waec", label: "WAEC" },
-  { id: "jamb", label: "JAMB" },
-  { id: "neco", label: "NECO" },
-  { id: "nabteb", label: "NABTEB" },
-];
-
 /* ================= PAGE ================= */
 export default function EducationPage() {
-  const [serviceID, setServiceID] = useState("");
+  /**
+   * VTpass Education = WAEC ONLY
+   */
+  const serviceID = "waec";
+
+  const [variations, setVariations] = useState<Variation[]>([]);
   const [variationCode, setVariationCode] = useState("");
   const [billersCode, setBillersCode] = useState("");
   const [phone, setPhone] = useState("");
-
-  const [variations, setVariations] = useState<Variation[]>([]);
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState(0);
 
   const [stage, setStage] = useState<Stage>("form");
   const [errorMessage, setErrorMessage] = useState("");
@@ -37,24 +32,15 @@ export default function EducationPage() {
 
   /* ================= LOAD VARIATIONS ================= */
   useEffect(() => {
-    if (!serviceID) {
-      setVariations([]);
-      setVariationCode("");
-      setAmount(0);
-      return;
-    }
-
     api
-      .get("/vtpass/education/variations", {
-        params: { serviceID },
-      })
+      .get("/vtpass/education/variations")
       .then(res => {
         setVariations(res.data || []);
       })
       .catch(() => {
         setVariations([]);
       });
-  }, [serviceID]);
+  }, []);
 
   /* ================= SET AMOUNT ================= */
   useEffect(() => {
@@ -66,7 +52,7 @@ export default function EducationPage() {
 
   /* ================= VERIFY ================= */
   const verifyCandidate = async () => {
-    if (!serviceID || !variationCode || !billersCode || !phone) return;
+    if (!variationCode || !billersCode || !phone) return;
 
     try {
       setStage("verifying");
@@ -101,7 +87,7 @@ export default function EducationPage() {
         variation_code: variationCode,
         billersCode,
         phone,
-        amount,
+        amount, // informational only; backend is authoritative
       });
 
       setReference(res.data?.requestId || null);
@@ -122,39 +108,23 @@ export default function EducationPage() {
         {/* ===== FORM ===== */}
         {stage === "form" && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
-            <h2 className="text-xl font-bold">Education PIN Purchase</h2>
+            <h2 className="text-xl font-bold">WAEC Result Checker PIN</h2>
 
+            {/* PIN TYPE */}
             <select
-              value={serviceID}
-              onChange={e => {
-                setServiceID(e.target.value);
-                setVariationCode("");
-              }}
+              value={variationCode}
+              onChange={e => setVariationCode(e.target.value)}
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             >
-              <option value="">Select Exam</option>
-              {SERVICES.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
+              <option value="">Select PIN Type</option>
+              {variations.map(v => (
+                <option key={v.variation_code} value={v.variation_code}>
+                  {v.name} — ₦{Number(v.amount).toLocaleString()}
                 </option>
               ))}
             </select>
 
-            {variations.length > 0 && (
-              <select
-                value={variationCode}
-                onChange={e => setVariationCode(e.target.value)}
-                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-              >
-                <option value="">Select PIN Type</option>
-                {variations.map(v => (
-                  <option key={v.variation_code} value={v.variation_code}>
-                    {v.name} — ₦{v.amount}
-                  </option>
-                ))}
-              </select>
-            )}
-
+            {/* CANDIDATE NUMBER */}
             <input
               value={billersCode}
               onChange={e => setBillersCode(e.target.value)}
@@ -162,6 +132,7 @@ export default function EducationPage() {
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             />
 
+            {/* PHONE */}
             <input
               value={phone}
               onChange={e => setPhone(e.target.value)}
@@ -169,13 +140,14 @@ export default function EducationPage() {
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             />
 
+            {/* AMOUNT */}
             <p className="text-sm text-gray-500">
-              Amount: <b>₦{amount || "--"}</b>
+              Amount: <b>₦{amount ? amount.toLocaleString() : "--"}</b>
             </p>
 
             <button
               onClick={verifyCandidate}
-              disabled={!amount || !phone}
+              disabled={!variationCode || !billersCode || !phone}
               className="w-full bg-blue-600 text-white py-3 rounded font-semibold disabled:opacity-60"
             >
               Verify & Pay
@@ -209,7 +181,7 @@ export default function EducationPage() {
             )}
 
             <p className="text-sm opacity-80">
-              Your PIN will appear in Transactions shortly.
+              Your WAEC PIN will appear in Transactions shortly.
             </p>
           </div>
         )}
