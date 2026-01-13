@@ -12,14 +12,33 @@ interface Category {
 export default function BudgetSetupPage() {
   const router = useRouter();
   const [total, setTotal] = useState<number>(0);
-  const [categories, setCategories] = useState<Category[]>([
-    { category: "Food", limit: 0 },
-    { category: "Transport", limit: 0 },
-    { category: "Utilities", limit: 0 },
-  ]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fetchingCategories, setFetchingCategories] = useState(true);
 
+  // ---------------- FETCH EXISTING EXPENSE CATEGORIES ----------------
+  useEffect(() => {
+    const fetchExpenseCategories = async () => {
+      try {
+        setFetchingCategories(true);
+        const res = await api.get("/expenses/me");
+        const existingCategories: string[] = [
+          ...new Set(res.data.expenses.map((e: any) => e.category)),
+        ];
+
+        // Initialize categories with existing ones, default limit 0
+        setCategories(existingCategories.map(c => ({ category: c, limit: 0 })));
+      } catch {
+        setError("Failed to load existing categories");
+      } finally {
+        setFetchingCategories(false);
+      }
+    };
+    fetchExpenseCategories();
+  }, []);
+
+  // ---------------- HANDLERS ----------------
   const handleCategoryChange = (index: number, field: string, value: string) => {
     const newCategories = [...categories];
     if (field === "category") newCategories[index].category = value;
@@ -27,7 +46,9 @@ export default function BudgetSetupPage() {
     setCategories(newCategories);
   };
 
-  const addCategory = () => setCategories([...categories, { category: "", limit: 0 }]);
+  const addCategory = () =>
+    setCategories([...categories, { category: "", limit: 0 }]);
+
   const removeCategory = (index: number) => {
     const newCategories = [...categories];
     newCategories.splice(index, 1);
@@ -36,7 +57,7 @@ export default function BudgetSetupPage() {
 
   const handleSubmit = async () => {
     if (total <= 0) return setError("Total budget must be greater than 0");
-    if (categories.some((c) => !c.category || c.limit <= 0))
+    if (categories.some(c => !c.category || c.limit <= 0))
       return setError("All categories must have a name and positive limit");
 
     setLoading(true);
@@ -58,22 +79,25 @@ export default function BudgetSetupPage() {
     }
   };
 
+  if (fetchingCategories) return <p className="p-6">Loading categories…</p>;
+
   return (
     <div className="p-6 space-y-4 max-w-xl mx-auto">
       <h1 className="text-xl font-bold">Set Monthly Budget</h1>
-
       {error && <p className="text-red-600">{error}</p>}
 
+      {/* TOTAL */}
       <div className="space-y-2">
         <label className="font-semibold">Total Budget</label>
         <input
           type="number"
           value={total}
-          onChange={(e) => setTotal(Number(e.target.value))}
+          onChange={e => setTotal(Number(e.target.value))}
           className="w-full p-2 border rounded"
         />
       </div>
 
+      {/* CATEGORIES */}
       <h2 className="text-lg font-semibold mt-4">Categories</h2>
       {categories.map((c, idx) => (
         <div key={idx} className="flex space-x-2 items-center mb-2">
@@ -81,14 +105,14 @@ export default function BudgetSetupPage() {
             type="text"
             placeholder="Category"
             value={c.category}
-            onChange={(e) => handleCategoryChange(idx, "category", e.target.value)}
+            onChange={e => handleCategoryChange(idx, "category", e.target.value)}
             className="flex-1 p-2 border rounded"
           />
           <input
             type="number"
             placeholder="Limit"
             value={c.limit}
-            onChange={(e) => handleCategoryChange(idx, "limit", e.target.value)}
+            onChange={e => handleCategoryChange(idx, "limit", e.target.value)}
             className="w-32 p-2 border rounded"
           />
           {categories.length > 1 && (
