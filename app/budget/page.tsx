@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
 import {
@@ -13,22 +13,71 @@ import {
   Bar,
   XAxis,
   YAxis,
+  LineChart,
+  Line,
 } from "recharts";
+
+/* ---------------- TYPES ---------------- */
+
+type BudgetCategory = {
+  id: number;
+  category: string;
+  limit: number;
+};
+
+type Budget = {
+  total: number;
+  categories: BudgetCategory[];
+};
+
+type Expense = {
+  amount: number;
+  category: string;
+  createdAt: string;
+};
+
+type ExpensesSummary = {
+  total: number;
+  byCategory: Record<string, number>;
+  expenses: Expense[];
+};
+
+type CategoryChartItem = {
+  name: string;
+  budget: number;
+  spent: number;
+};
+
+type PieItem = {
+  name: string;
+  value: number;
+};
+
+type TrendPoint = {
+  date: string;
+  amount: number;
+};
 
 const COLORS = ["#4B7BE5", "#F59E0B", "#10B981", "#EF4444", "#6366F1"];
 
 export default function BudgetPage() {
-  const [budget, setBudget] = useState<any>(null);
-  const [expenses, setExpenses] = useState<any>(null);
+  const [budget, setBudget] = useState<Budget | null>(null);
+  const [expenses, setExpenses] = useState<ExpensesSummary | null>(null);
+  const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /* ---------------- FETCH ---------------- */
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.get("/expenses/current");
+        setLoading(true);
+        const res = await api.get("/expenses/current", {
+          params: { month },
+        });
+
         setBudget(res.data?.budget || null);
-        setExpenses(res.data?.expenses || null);
+        setExpenses(res.data || null);
       } catch {
         setError("Failed to load budget");
       } finally {
@@ -37,15 +86,11 @@ export default function BudgetPage() {
     };
 
     fetchData();
-  }, []);
+  }, [month]);
 
-  /* ---------------- LOADING ---------------- */
   if (loading) return <p className="p-6">Loading budget…</p>;
-
-  /* ---------------- ERROR ---------------- */
   if (error) return <p className="p-6 text-red-600">{error}</p>;
 
-  /* ---------------- EMPTY ---------------- */
   if (!budget) {
     return (
       <div className="p-6 space-y-4">
@@ -64,7 +109,9 @@ export default function BudgetPage() {
   }
 
   /* ---------------- CALCULATIONS ---------------- */
-  const totalSpent = expenses?.total || 0;
+
+  const totalSpent = expenses?.total ?? 0;
+
   const utilization = Math.min(
     Math.round((totalSpent / budget.total) * 100),
     100
@@ -77,26 +124,64 @@ export default function BudgetPage() {
       ? "warning"
       : null;
 
-  const categoryData = budget.categories.map((c: any) => ({
+  /* CATEGORY BAR DATA */
+  const categoryData: CategoryChartItem[] = budget.categories.map(c => ({
     name: c.category,
     budget: c.limit,
-    spent: expenses?.byCategory?.[c.category] || 0,
+    spent: expenses?.byCategory?.[c.category] ?? 0,
   }));
 
-  const pieData = categoryData.map((c) => ({
+  /* PIE DATA */
+  const pieData: PieItem[] = categoryData.map(c => ({
     name: c.name,
     value: c.spent,
   }));
 
+  /* TREND (LAST 30 DAYS) */
+  const trendData: TrendPoint[] = useMemo(() => {
+    if (!expenses?.expenses) return [];
+
+    const map: Record<string, number> = {};
+
+    expenses.expenses.forEach(e => {
+      const d = new Date(e.createdAt);
+      const key = d.toISOString().slice(0, 10);
+      map[key] = (map[key] || 0) + e.amount;
+    });
+
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-30)
+      .map(([date, amount]) => ({ date, amount }));
+  }, [expenses]);
+
   /* ---------------- UI ---------------- */
+
   return (
     <div className="p-6 space-y-8">
-      <h1 className="text-xl font-bold">Monthly Budget</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-xl font-bold">Monthly Budget</h1>
+
+        {/* MONTH SELECTOR */}
+        <select
+          value={month}
+          onChange={e => setMonth(Number(e.target.value))}
+          className="border rounded px-3 py-2 text-sm"
+        >
+          {Array.from({ length: 12 }).map((_, i) => (
+            <option key={i} value={i + 1}>
+              {new Date(0, i).toLocaleString("default", { month: "long" })}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* SUMMARY */}
       <div className="bg-white rounded-lg p-4 shadow space-y-2">
         <p className="text-sm text-gray-600">Total Budget</p>
-        <p className="text-2xl font-bold">₦{budget.total.toLocaleString()}</p>
+        <p className="text-2xl font-bold">
+          ₦{budget.total.toLocaleString()}
+        </p>
 
         <p className="text-sm text-gray-600">Total Spent</p>
         <p className="text-xl font-semibold">
@@ -128,24 +213,12 @@ export default function BudgetPage() {
           >
             {utilization}% used
           </p>
-
-          {warning === "warning" && (
-            <p className="text-yellow-700 text-sm">
-              ⚠️ You’ve used over 80% of your budget
-            </p>
-          )}
-
-          {warning === "danger" && (
-            <p className="text-red-700 text-sm font-semibold">
-              🚨 Budget exceeded
-            </p>
-          )}
         </div>
       </div>
 
-      {/* BAR CHART */}
+      {/* BUDGET VS ACTUAL */}
       <div className="bg-white rounded-lg p-4 shadow">
-        <h2 className="font-semibold mb-4">Budget vs Actual (by category)</h2>
+        <h2 className="font-semibold mb-4">Budget vs Actual</h2>
 
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={categoryData}>
@@ -158,7 +231,26 @@ export default function BudgetPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* PIE CHART */}
+      {/* TREND */}
+      <div className="bg-white rounded-lg p-4 shadow">
+        <h2 className="font-semibold mb-4">Spending Trend (Last 30 days)</h2>
+
+        <ResponsiveContainer width="100%" height={250}>
+          <LineChart data={trendData}>
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="amount"
+              stroke="#4B7BE5"
+              strokeWidth={2}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* PIE */}
       <div className="bg-white rounded-lg p-4 shadow">
         <h2 className="font-semibold mb-4">Spending Distribution</h2>
 
