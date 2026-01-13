@@ -1,46 +1,30 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { ComponentType } from "react";
+import * as Recharts from "recharts";
 
-// Dynamically import Recharts components only on the client
-export const ResponsiveContainer = dynamic(
-  () => import("recharts").then((mod) => mod.ResponsiveContainer),
-  { ssr: false }
-);
+// Helper to wrap named exports for dynamic import
+function dynamicRecharts<T extends ComponentType<any>>(Component: T) {
+  return dynamic(
+    async () => {
+      return {
+        default: (props: any) => <Component {...props} />,
+      };
+    },
+    { ssr: false }
+  );
+}
 
-export const BarChart = dynamic(
-  () => import("recharts").then((mod) => mod.BarChart),
-  { ssr: false }
-);
-export const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), {
-  ssr: false,
-});
-export const XAxis = dynamic(
-  () => import("recharts").then((mod) => mod.XAxis),
-  { ssr: false }
-);
-export const YAxis = dynamic(
-  () => import("recharts").then((mod) => mod.YAxis),
-  { ssr: false }
-);
-export const LineChart = dynamic(
-  () => import("recharts").then((mod) => mod.LineChart),
-  { ssr: false }
-);
-export const Line = dynamic(() => import("recharts").then((mod) => mod.Line), {
-  ssr: false,
-});
-export const PieChart = dynamic(
-  () => import("recharts").then((mod) => mod.PieChart),
-  { ssr: false }
-);
-export const Pie = dynamic(() => import("recharts").then((mod) => mod.Pie), {
-  ssr: false,
-});
-export const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), {
-  ssr: false,
-});
-export const Tooltip = dynamic(
-  () => import("recharts").then((mod) => mod.Tooltip),
-  { ssr: false }
-);
+// Now export all components safely
+export const ResponsiveContainer = dynamicRecharts(Recharts.ResponsiveContainer);
+export const BarChart = dynamicRecharts(Recharts.BarChart);
+export const Bar = dynamicRecharts(Recharts.Bar);
+export const XAxis = dynamicRecharts(Recharts.XAxis);
+export const YAxis = dynamicRecharts(Recharts.YAxis);
+export const LineChart = dynamicRecharts(Recharts.LineChart);
+export const Line = dynamicRecharts(Recharts.Line);
+export const PieChart = dynamicRecharts(Recharts.PieChart);
+export const Pie = dynamicRecharts(Recharts.Pie);
+export const Cell = dynamicRecharts(Recharts.Cell);
+export const Tooltip = dynamicRecharts(Recharts.Tooltip);
