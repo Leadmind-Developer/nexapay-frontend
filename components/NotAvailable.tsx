@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
-import BannersWrapper from "@/components/BannersWrapper";
 
 interface Props {
   title?: string;
@@ -17,8 +16,7 @@ export default function NotAvailable({
 }: Props) {
   const router = useRouter();
 
-  return (
-    <BannersWrapper page="insurance">
+  return (   
       <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-xl p-8 text-center shadow-sm space-y-4">
           <div className="flex justify-center">
@@ -44,7 +42,6 @@ export default function NotAvailable({
             </button>
           )}
         </div>
-      </div>
-    </BannersWrapper>
+      </div>   
   );
 }
