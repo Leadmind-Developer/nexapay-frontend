@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
+import NotAvailable from "@/components/NotAvailable";
+
 
 /* ================= TYPES ================= */
 interface Variation {
@@ -16,6 +18,17 @@ type Stage = "form" | "processing" | "success" | "error";
 
 /* ================= PAGE ================= */
 export default function InsurancePage() {
+
+  // 🔒 TEMPORARILY DISABLED
+  return (
+    <NotAvailable
+      title="Insurance Not Available"
+      message="Insurance purchase is temporarily unavailable. Please try again later."
+    />
+  );
+
+  // ⛔ everything below remains unchanged
+  
   const serviceID = "ui-insure";
 
   const [variations, setVariations] = useState<Variation[]>([]);
