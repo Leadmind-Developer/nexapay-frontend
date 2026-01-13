@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   IoMoon,
   IoFingerPrint,
@@ -11,297 +11,249 @@ import {
 } from "react-icons/io5";
 import api from "@/lib/api";
 import OTPInput from "@/components/auth/OTPInput";
+import clsx from "clsx";
+
+type SecurityStatus = {
+  transactionPinSet: boolean;
+  twoFAEnabled: boolean;
+  totpEnabled: boolean;
+  pushDevices: number;
+};
 
 export default function SettingsPage() {
-  // Preferences
+  /* ---------------------------
+   * State
+   * -------------------------- */
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isFaceId, setIsFaceId] = useState(false);
-
-  // Biometric support
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
 
-  // 2FA state
-  const [totpRequired, setTotpRequired] = useState(false);
-  const [pushRequired, setPushRequired] = useState(false);
+  const [security, setSecurity] = useState<SecurityStatus | null>(null);
+
   const [otpValue, setOtpValue] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
-  const [otpMessage, setOtpMessage] = useState("");
-  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
+  const [pendingAction, setPendingAction] =
+    useState<null | (() => Promise<void>)>(null);
 
-  // -------------------------
-  // Load persisted settings
-  // -------------------------
+  /* ---------------------------
+   * Initial load
+   * -------------------------- */
   useEffect(() => {
     const theme = localStorage.getItem("theme");
-    setIsDarkMode(theme === "dark");
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    const dark = theme === "dark";
+    setIsDarkMode(dark);
+    document.documentElement.classList.toggle("dark", dark);
 
-    if (window.PublicKeyCredential) setBiometricAvailable(true);
+    setBiometricAvailable(!!window.PublicKeyCredential);
 
-    // Optional: load biometric status from backend
-    (async () => {
-      try {
-        const res = await api.get("/auth/biometric/status");
-        if (res.data?.enabled !== undefined) {
-          setIsFaceId(!!res.data.enabled);
-        }
-      } catch {
-        // silent fail
-      }
-    })();
+    loadSecurityStatus();
+    loadBiometricStatus();
   }, []);
 
-  // -------------------------
-  // Theme toggle
-  // -------------------------
-  const handleThemeSwitch = async (value: boolean) => {
-    setIsDarkMode(value);
-    localStorage.setItem("theme", value ? "dark" : "light");
-    document.documentElement.classList.toggle("dark", value);
+  const loadSecurityStatus = async () => {
+    const res = await api.get("/auth/security-status");
+    setSecurity(res.data);
   };
 
-  // -------------------------
-  // Biometric toggle (wrapped with 2FA)
-  // -------------------------
-  const handleFaceIdToggle = async (value: boolean) => {
-    if (value) {
-      if (!window.PublicKeyCredential) {
-        alert("Your device does not support biometrics.");
-        return;
-      }
-    }
-
-    const action = async () => {
-      await api.post("/auth/biometric", { enabled: value });
-      setIsFaceId(value);
-      alert(`Biometric login ${value ? "enabled" : "disabled"}`);
-    };
-
-    await trigger2FAIfRequired(action);
-  };
-
-  // -------------------------
-  // Reset PIN
-  // -------------------------
-  const handleResetPin = async () => {
-    const action = async () => {
-      await api.post("/auth/reset-pin");
-      alert("PIN reset link sent!");
-    };
-
-    await trigger2FAIfRequired(action);
-  };
-
-  // -------------------------
-  // Trigger 2FA if required
-  // -------------------------
-  const trigger2FAIfRequired = async (action: () => Promise<void>) => {
-    setPendingAction(() => action);
-    setOtpMessage("");
-    setOtpValue("");
-    setOtpLoading(true);
-
+  const loadBiometricStatus = async () => {
     try {
-      const res = await api.post("/auth/check-2fa");
-      const data = res.data;
-
-      if (data.totpRequired || data.pushRequired) {
-        setTotpRequired(!!data.totpRequired);
-        setPushRequired(!!data.pushRequired);
-        setOtpMessage("⚡ Additional 2FA required. Approve push or enter TOTP.");
-      } else {
-        await action();
-        setPendingAction(null);
-      }
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Error initiating 2FA.");
-    } finally {
-      setOtpLoading(false);
+      const res = await api.get("/auth/biometric/status");
+      setBiometricEnabled(!!res.data?.enabled);
+    } catch {
+      /* silent */
     }
   };
 
-  // -------------------------
-  // Verify 2FA
-  // -------------------------
-  const handle2FAVerification = async (totpCode?: string) => {
+  /* ---------------------------
+   * Theme
+   * -------------------------- */
+  const toggleTheme = (enabled: boolean) => {
+    setIsDarkMode(enabled);
+    localStorage.setItem("theme", enabled ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", enabled);
+  };
+
+  /* ---------------------------
+   * Security-gated actions
+   * -------------------------- */
+  const withStepUpSecurity = async (action: () => Promise<void>) => {
+    setPendingAction(() => action);
+    setOtpValue("");
+  };
+
+  const verifyStepUp = async () => {
     if (!pendingAction) return;
 
     setOtpLoading(true);
     try {
-      const res = await api.post("/auth/verify-2fa", {
-        totp: totpCode,
-        push: pushRequired ? true : undefined,
+      await api.post("/auth/verify-2fa", {
+        totp: otpValue || undefined,
       });
 
-      if (res.data.success) {
-        await pendingAction();
-        setPendingAction(null);
-        setTotpRequired(false);
-        setPushRequired(false);
-        setOtpMessage("");
-      } else {
-        alert(res.data.message || "2FA verification failed.");
-      }
-    } catch (err: any) {
-      alert(err.response?.data?.message || "2FA verification failed.");
+      await pendingAction();
+      setPendingAction(null);
+      setOtpValue("");
+      loadSecurityStatus();
     } finally {
       setOtpLoading(false);
     }
   };
 
-  // -------------------------
-  // UI data
-  // -------------------------
-  const preferences = [
-    {
-      title: "Dark Mode",
-      icon: <IoMoon size={20} />,
-      value: isDarkMode,
-      onChange: handleThemeSwitch,
-    },
-    {
-      title: "Enable Face ID",
-      icon: <IoFingerPrint size={20} />,
-      value: isFaceId,
-      onChange: handleFaceIdToggle,
-      disabled: !biometricAvailable,
-    },
-  ];
+  /* ---------------------------
+   * Actions
+   * -------------------------- */
+  const toggleBiometric = async (enabled: boolean) => {
+    if (enabled && !biometricAvailable) return;
 
-  const securityItems = [
-    {
-      title: "Reset Transaction PIN",
-      icon: <IoLockClosed size={20} />,
-      onClick: handleResetPin,
-    },
-  ];
+    await withStepUpSecurity(async () => {
+      await api.post("/auth/biometric", { enabled });
+      setBiometricEnabled(enabled);
+    });
+  };
 
-  const appInfoItems = [
-    {
-      title: "Privacy Policy",
-      icon: <IoDocumentText size={20} />,
-      onClick: () => alert("Navigate to Privacy Policy"),
-    },
-    {
-      title: "Terms & Conditions",
-      icon: <IoBook size={20} />,
-      onClick: () => alert("Navigate to Terms & Conditions"),
-    },
-  ];
+  const resetTransactionPin = async () => {
+    await withStepUpSecurity(async () => {
+      await api.post("/auth/transaction-pin/reset");
+    });
+  };
 
+  /* ---------------------------
+   * UI helpers
+   * -------------------------- */
+  const Section = ({
+    title,
+    children,
+  }: {
+    title: string;
+    children: React.ReactNode;
+  }) => (
+    <div className="rounded-xl bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200 dark:border-zinc-800">
+      <h2 className="px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+
+  const Row = ({
+    icon,
+    label,
+    action,
+    disabled,
+  }: {
+    icon: React.ReactNode;
+    label: string;
+    action?: React.ReactNode;
+    disabled?: boolean;
+  }) => (
+    <div
+      className={clsx(
+        "flex items-center justify-between px-4 py-4 border-t",
+        "border-zinc-200 dark:border-zinc-800",
+        disabled && "opacity-50"
+      )}
+    >
+      <div className="flex items-center gap-3 text-zinc-800 dark:text-zinc-100">
+        {icon}
+        <span className="text-sm">{label}</span>
+      </div>
+      {action}
+    </div>
+  );
+
+  /* ---------------------------
+   * Render
+   * -------------------------- */
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="max-w-xl mx-auto p-4 space-y-6">
       {/* Preferences */}
-      <div className="bg-white rounded-lg shadow mb-4">
-        <h2 className="text-gray-500 text-sm font-semibold px-4 py-2">Preferences</h2>
-        {preferences.map((item, idx) => (
-          <div
-            key={idx}
-            className="flex items-center justify-between px-4 py-3 border-t first:border-t-0 border-gray-200"
-          >
-            <div className="flex items-center">
-              {item.icon}
-              <span className="ml-3 text-gray-800">{item.title}</span>
-            </div>
+      <Section title="Preferences">
+        <Row
+          icon={<IoMoon size={18} />}
+          label="Dark mode"
+          action={
             <input
               type="checkbox"
-              checked={item.value}
-              onChange={(e) => item.onChange(e.target.checked)}
-              className="w-5 h-5 accent-blue-700"
-              disabled={otpLoading || item.disabled}
+              checked={isDarkMode}
+              onChange={(e) => toggleTheme(e.target.checked)}
+              className="accent-indigo-600"
             />
-          </div>
-        ))}
-      </div>
+          }
+        />
+
+        <Row
+          icon={<IoFingerPrint size={18} />}
+          label="Biometric login"
+          disabled={!biometricAvailable}
+          action={
+            <input
+              type="checkbox"
+              checked={biometricEnabled}
+              onChange={(e) => toggleBiometric(e.target.checked)}
+              disabled={!biometricAvailable}
+              className="accent-indigo-600"
+            />
+          }
+        />
+      </Section>
 
       {/* Security */}
-      <div className="bg-white rounded-lg shadow mb-4">
-        <h2 className="text-gray-500 text-sm font-semibold px-4 py-2">Security</h2>
-        {securityItems.map((item, idx) => (
-          <button
-            key={idx}
-            onClick={item.onClick}
+      <Section title="Security">
+        <button
+          onClick={resetTransactionPin}
+          className="w-full text-left"
+        >
+          <Row
+            icon={<IoLockClosed size={18} />}
+            label={
+              security?.transactionPinSet
+                ? "Reset transaction PIN"
+                : "Set transaction PIN"
+            }
+            action={<IoChevronForward className="text-zinc-400" />}
+          />
+        </button>
+      </Section>
+
+      {/* App Info */}
+      <Section title="App info">
+        <Row
+          icon={<IoDocumentText size={18} />}
+          label="Privacy policy"
+          action={<IoChevronForward className="text-zinc-400" />}
+        />
+        <Row
+          icon={<IoBook size={18} />}
+          label="Terms & conditions"
+          action={<IoChevronForward className="text-zinc-400" />}
+        />
+      </Section>
+
+      {/* Step-up verification */}
+      {pendingAction && (
+        <div className="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+            Enter your authenticator code to continue
+          </p>
+
+          <OTPInput
+            length={6}
+            value={otpValue}
+            onChange={setOtpValue}
             disabled={otpLoading}
-            className="w-full flex items-center justify-between px-4 py-3 border-t first:border-t-0 border-gray-200 hover:bg-gray-50"
+          />
+
+          <button
+            onClick={verifyStepUp}
+            disabled={otpLoading || otpValue.length < 6}
+            className="mt-4 w-full rounded-lg bg-indigo-600 text-white py-2 text-sm font-medium disabled:opacity-50"
           >
-            <div className="flex items-center">
-              {item.icon}
-              <span className="ml-3 text-gray-800">{item.title}</span>
-            </div>
-            <IoChevronForward size={20} className="text-gray-400" />
+            {otpLoading ? "Verifying…" : "Confirm"}
           </button>
-        ))}
-      </div>
-
-      {/* 2FA Modal */}
-      {pendingAction && (totpRequired || pushRequired) && (
-        <div className="bg-white rounded-lg shadow p-4 mb-4">
-          {totpRequired && (
-            <>
-              <p className="text-sm text-gray-700 mb-1">
-                Enter code from authenticator app
-              </p>
-              <OTPInput
-                length={6}
-                value={otpValue}
-                onChange={setOtpValue}
-                disabled={otpLoading}
-              />
-              <button
-                className="mt-2 py-2 px-4 bg-purple-600 text-white rounded"
-                onClick={() => handle2FAVerification(otpValue)}
-                disabled={otpLoading || otpValue.length < 6}
-              >
-                {otpLoading ? "Verifying..." : "Verify TOTP"}
-              </button>
-            </>
-          )}
-
-          {pushRequired && (
-            <>
-              <p className="text-sm text-gray-700 mt-2">
-                A push notification has been sent. Approve to continue.
-              </p>
-              {biometricAvailable && (
-                <p className="text-sm text-gray-500">
-                  Or confirm using device biometric
-                </p>
-              )}
-              <button
-                className="mt-2 py-2 px-4 bg-indigo-600 text-white rounded"
-                onClick={() => handle2FAVerification()}
-                disabled={otpLoading}
-              >
-                {otpLoading ? "Waiting..." : "Confirm Push / Biometric"}
-              </button>
-            </>
-          )}
-
-          {otpMessage && (
-            <p className="text-sm text-green-600 mt-1">{otpMessage}</p>
-          )}
         </div>
       )}
 
-      {/* App Info */}
-      <div className="bg-white rounded-lg shadow mb-4">
-        <h2 className="text-gray-500 text-sm font-semibold px-4 py-2">App Info</h2>
-        {appInfoItems.map((item, idx) => (
-          <button
-            key={idx}
-            onClick={item.onClick}
-            className="w-full flex items-center justify-between px-4 py-3 border-t first:border-t-0 border-gray-200 hover:bg-gray-50"
-          >
-            <div className="flex items-center">
-              {item.icon}
-              <span className="ml-3 text-gray-800">{item.title}</span>
-            </div>
-            <IoChevronForward size={20} className="text-gray-400" />
-          </button>
-        ))}
-      </div>
-
-      <p className="text-center text-gray-400 text-sm mt-6">
+      <p className="text-center text-xs text-zinc-400">
         App version 1.0.0
       </p>
     </div>
