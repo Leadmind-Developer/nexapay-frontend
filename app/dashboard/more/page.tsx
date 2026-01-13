@@ -62,7 +62,7 @@ const MORE_SERVICES: ServiceItem[] = [
   },
   {
     name: "International Airtime",
-    screen: "/NotAvailablePage",
+    screen: "/notavailable",
     icon: "earth",
     color: "#C67ACB",
   },
@@ -86,7 +86,7 @@ const MORE_SERVICES: ServiceItem[] = [
   },
   {
     name: "Insurance",
-    screen: "/NotAvailablePage",
+    screen: "/notavailable",
     icon: "shield",
     color: colors.primary,
   },
@@ -100,7 +100,7 @@ const MORE_SERVICES: ServiceItem[] = [
   },
   {
     name: "Betting Wallet Topup",
-    screen: "/coming-soon",
+    screen: "/notavailable",
     icon: "cash",
     color: "#FF6F61",
   },
