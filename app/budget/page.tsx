@@ -9,6 +9,12 @@ import {
   Pie,
   Cell,
   Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  LineChart,
+  Line,
 } from "@/components/charts/RechartsClient";
 
 /* ---------------- TYPES ---------------- */
@@ -66,10 +72,7 @@ export default function BudgetPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await api.get("/expenses/current", {
-          params: { month },
-        });
-
+        const res = await api.get("/expenses/current", { params: { month } });
         setBudget(res.data?.budget || null);
         setExpenses(res.data || null);
       } catch {
@@ -103,14 +106,8 @@ export default function BudgetPage() {
   }
 
   /* ---------------- CALCULATIONS ---------------- */
-
   const totalSpent = expenses?.total ?? 0;
-
-  const utilization = Math.min(
-    Math.round((totalSpent / budget.total) * 100),
-    100
-  );
-
+  const utilization = Math.min(Math.round((totalSpent / budget.total) * 100), 100);
   const warning =
     utilization >= 100
       ? "danger"
@@ -134,15 +131,12 @@ export default function BudgetPage() {
   /* TREND (LAST 30 DAYS) */
   const trendData: TrendPoint[] = useMemo(() => {
     if (!expenses?.expenses) return [];
-
     const map: Record<string, number> = {};
-
     expenses.expenses.forEach(e => {
       const d = new Date(e.createdAt);
       const key = d.toISOString().slice(0, 10);
       map[key] = (map[key] || 0) + e.amount;
     });
-
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-30)
@@ -150,13 +144,11 @@ export default function BudgetPage() {
   }, [expenses]);
 
   /* ---------------- UI ---------------- */
-
   return (
     <div className="p-6 space-y-8">
+      {/* HEADER + MONTH SELECTOR */}
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-bold">Monthly Budget</h1>
-
-        {/* MONTH SELECTOR */}
         <select
           value={month}
           onChange={e => setMonth(Number(e.target.value))}
@@ -173,14 +165,10 @@ export default function BudgetPage() {
       {/* SUMMARY */}
       <div className="bg-white rounded-lg p-4 shadow space-y-2">
         <p className="text-sm text-gray-600">Total Budget</p>
-        <p className="text-2xl font-bold">
-          ₦{budget.total.toLocaleString()}
-        </p>
+        <p className="text-2xl font-bold">₦{budget.total.toLocaleString()}</p>
 
         <p className="text-sm text-gray-600">Total Spent</p>
-        <p className="text-xl font-semibold">
-          ₦{totalSpent.toLocaleString()}
-        </p>
+        <p className="text-xl font-semibold">₦{totalSpent.toLocaleString()}</p>
 
         <div className="mt-2">
           <div className="h-2 bg-gray-200 rounded">
@@ -195,7 +183,6 @@ export default function BudgetPage() {
               style={{ width: `${utilization}%` }}
             />
           </div>
-
           <p
             className={`mt-1 text-sm font-medium ${
               warning === "danger"
@@ -210,10 +197,9 @@ export default function BudgetPage() {
         </div>
       </div>
 
-      {/* BUDGET VS ACTUAL */}
+      {/* BUDGET VS ACTUAL (BAR CHART) */}
       <div className="bg-white rounded-lg p-4 shadow">
         <h2 className="font-semibold mb-4">Budget vs Actual</h2>
-
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={categoryData}>
             <XAxis dataKey="name" />
@@ -225,38 +211,25 @@ export default function BudgetPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* TREND */}
+      {/* SPENDING TREND (LINE CHART) */}
       <div className="bg-white rounded-lg p-4 shadow">
-        <h2 className="font-semibold mb-4">Spending Trend (Last 30 days)</h2>
-
+        <h2 className="font-semibold mb-4">Spending Trend (Last 30 Days)</h2>
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={trendData}>
             <XAxis dataKey="date" />
             <YAxis />
             <Tooltip />
-            <Line
-              type="monotone"
-              dataKey="amount"
-              stroke="#4B7BE5"
-              strokeWidth={2}
-            />
+            <Line type="monotone" dataKey="amount" stroke="#4B7BE5" strokeWidth={2} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* PIE */}
+      {/* SPENDING DISTRIBUTION (PIE CHART) */}
       <div className="bg-white rounded-lg p-4 shadow">
         <h2 className="font-semibold mb-4">Spending Distribution</h2>
-
         <ResponsiveContainer width="100%" height={250}>
           <PieChart>
-            <Pie
-              data={pieData}
-              dataKey="value"
-              nameKey="name"
-              outerRadius={90}
-              label
-            >
+            <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={90} label>
               {pieData.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
