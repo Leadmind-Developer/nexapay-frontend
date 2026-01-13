@@ -1,9 +1,8 @@
-// app/budget/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import api from "@/lib/api";
+import Link from "next/link";
 import {
   ResponsiveContainer,
   PieChart,
@@ -19,7 +18,6 @@ import {
 } from "@/components/charts/RechartsClient";
 
 /* ---------------- TYPES ---------------- */
-
 type BudgetCategory = {
   id: number;
   category: string;
@@ -91,7 +89,9 @@ export default function BudgetPage() {
     return (
       <div className="p-6 space-y-4">
         <h1 className="text-xl font-bold">Monthly Budget</h1>
-        <p className="text-gray-600">You haven’t set a budget for this month yet.</p>
+        <p className="text-gray-600">
+          You haven’t set a budget for this month yet.
+        </p>
         <Link
           href="/budget/setup"
           className="inline-block bg-blue-600 text-white px-4 py-2 rounded font-semibold"
@@ -105,11 +105,7 @@ export default function BudgetPage() {
   const totalSpent = expenses?.total ?? 0;
   const utilization = Math.min(Math.round((totalSpent / budget.total) * 100), 100);
   const warning =
-    utilization >= 100
-      ? "danger"
-      : utilization >= 80
-      ? "warning"
-      : null;
+    utilization >= 100 ? "danger" : utilization >= 80 ? "warning" : null;
 
   const categoryData: CategoryChartItem[] = budget.categories.map((c) => ({
     name: c.category,
@@ -159,8 +155,10 @@ export default function BudgetPage() {
       <div className="bg-white rounded-lg p-4 shadow space-y-2">
         <p className="text-sm text-gray-600">Total Budget</p>
         <p className="text-2xl font-bold">₦{budget.total.toLocaleString()}</p>
+
         <p className="text-sm text-gray-600">Total Spent</p>
         <p className="text-xl font-semibold">₦{totalSpent.toLocaleString()}</p>
+
         <div className="mt-2">
           <div className="h-2 bg-gray-200 rounded">
             <div
