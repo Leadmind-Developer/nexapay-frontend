@@ -1,56 +1,46 @@
-// components/charts/RechartsClient.tsx
 "use client";
 
 import dynamic from "next/dynamic";
-import type { ComponentType } from "react";
-import type { PieProps, BarProps, LineProps, XAxisProps, YAxisProps, CellProps, TooltipProps, ResponsiveContainerProps } from "recharts";
 
-// Generic dynamic loader for Recharts components
-function dynamicChart<T extends object>(importFn: () => Promise<{ default: ComponentType<T> }>) {
-  return dynamic(importFn, { ssr: false }) as ComponentType<T>;
-}
-
-// Charts
-export const ResponsiveContainer = dynamicChart<ResponsiveContainerProps>(() =>
-  import("recharts").then((m) => ({ default: m.ResponsiveContainer }))
+// Dynamically import Recharts components only on the client
+export const ResponsiveContainer = dynamic(
+  () => import("recharts").then((mod) => mod.ResponsiveContainer),
+  { ssr: false }
 );
 
-export const PieChart = dynamicChart<{}>(() =>
-  import("recharts").then((m) => ({ default: m.PieChart }))
+export const BarChart = dynamic(
+  () => import("recharts").then((mod) => mod.BarChart),
+  { ssr: false }
 );
-
-export const Pie = dynamicChart<PieProps>(() =>
-  import("recharts").then((m) => ({ default: m.Pie }))
+export const Bar = dynamic(() => import("recharts").then((mod) => mod.Bar), {
+  ssr: false,
+});
+export const XAxis = dynamic(
+  () => import("recharts").then((mod) => mod.XAxis),
+  { ssr: false }
 );
-
-export const Cell = dynamicChart<CellProps>(() =>
-  import("recharts").then((m) => ({ default: m.Cell }))
+export const YAxis = dynamic(
+  () => import("recharts").then((mod) => mod.YAxis),
+  { ssr: false }
 );
-
-export const Tooltip = dynamicChart<TooltipProps>(() =>
-  import("recharts").then((m) => ({ default: m.Tooltip }))
+export const LineChart = dynamic(
+  () => import("recharts").then((mod) => mod.LineChart),
+  { ssr: false }
 );
-
-export const BarChart = dynamicChart<BarProps>(() =>
-  import("recharts").then((m) => ({ default: m.BarChart }))
+export const Line = dynamic(() => import("recharts").then((mod) => mod.Line), {
+  ssr: false,
+});
+export const PieChart = dynamic(
+  () => import("recharts").then((mod) => mod.PieChart),
+  { ssr: false }
 );
-
-export const Bar = dynamicChart<BarProps>(() =>
-  import("recharts").then((m) => ({ default: m.Bar }))
-);
-
-export const XAxis = dynamicChart<XAxisProps>(() =>
-  import("recharts").then((m) => ({ default: m.XAxis }))
-);
-
-export const YAxis = dynamicChart<YAxisProps>(() =>
-  import("recharts").then((m) => ({ default: m.YAxis }))
-);
-
-export const LineChart = dynamicChart<LineProps>(() =>
-  import("recharts").then((m) => ({ default: m.LineChart }))
-);
-
-export const Line = dynamicChart<LineProps>(() =>
-  import("recharts").then((m) => ({ default: m.Line }))
+export const Pie = dynamic(() => import("recharts").then((mod) => mod.Pie), {
+  ssr: false,
+});
+export const Cell = dynamic(() => import("recharts").then((mod) => mod.Cell), {
+  ssr: false,
+});
+export const Tooltip = dynamic(
+  () => import("recharts").then((mod) => mod.Tooltip),
+  { ssr: false }
 );
