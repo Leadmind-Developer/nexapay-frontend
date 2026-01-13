@@ -1,30 +1,60 @@
+// components/charts/BudgetCharts.tsx
 "use client";
 
-import dynamic from "next/dynamic";
-import type { ComponentType } from "react";
-import * as Recharts from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import type { CategoryChartItem, TrendPoint, PieItem } from "@/types";
 
-// Helper to wrap named exports for dynamic import
-function dynamicRecharts<T extends ComponentType<any>>(Component: T) {
-  return dynamic(
-    async () => {
-      return {
-        default: (props: any) => <Component {...props} />,
-      };
-    },
-    { ssr: false }
-  );
+interface ChartsProps {
+  categoryData: CategoryChartItem[];
+  trendData: TrendPoint[];
+  pieData: PieItem[];
 }
 
-// Now export all components safely
-export const ResponsiveContainer = dynamicRecharts(Recharts.ResponsiveContainer);
-export const BarChart = dynamicRecharts(Recharts.BarChart);
-export const Bar = dynamicRecharts(Recharts.Bar);
-export const XAxis = dynamicRecharts(Recharts.XAxis);
-export const YAxis = dynamicRecharts(Recharts.YAxis);
-export const LineChart = dynamicRecharts(Recharts.LineChart);
-export const Line = dynamicRecharts(Recharts.Line);
-export const PieChart = dynamicRecharts(Recharts.PieChart);
-export const Pie = dynamicRecharts(Recharts.Pie);
-export const Cell = dynamicRecharts(Recharts.Cell);
-export const Tooltip = dynamicRecharts(Recharts.Tooltip);
+export default function BudgetCharts({ categoryData, trendData, pieData }: ChartsProps) {
+  const COLORS = ["#4B7BE5", "#F59E0B", "#10B981", "#EF4444", "#6366F1"];
+
+  return (
+    <div className="space-y-8">
+      {/* Bar Chart */}
+      <div className="bg-white rounded-lg p-4 shadow">
+        <h2 className="font-semibold mb-4">Budget vs Actual</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={categoryData}>
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="budget" fill="#CBD5E1" />
+            <Bar dataKey="spent" fill="#4B7BE5" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Line Chart */}
+      <div className="bg-white rounded-lg p-4 shadow">
+        <h2 className="font-semibold mb-4">Spending Trend (Last 30 Days)</h2>
+        <ResponsiveContainer width="100%" height={250}>
+          <LineChart data={trendData}>
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line type="monotone" dataKey="amount" stroke="#4B7BE5" strokeWidth={2} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Pie Chart */}
+      <div className="bg-white rounded-lg p-4 shadow">
+        <h2 className="font-semibold mb-4">Spending Distribution</h2>
+        <ResponsiveContainer width="100%" height={250}>
+          <PieChart>
+            <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={90} label>
+              {pieData.map((_, i) => (
+                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
