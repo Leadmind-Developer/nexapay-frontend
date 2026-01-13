@@ -15,7 +15,8 @@ import {
   YAxis,
   LineChart,
   Line,
-} from "recharts";
+} from "@/components/charts/RechartsClient";
+
 
 /* ---------------- TYPES ---------------- */
 
