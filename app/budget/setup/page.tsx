@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 
@@ -13,9 +13,10 @@ export default function BudgetSetupPage() {
   const router = useRouter();
   const [total, setTotal] = useState<number>(0);
   const [categories, setCategories] = useState<Category[]>([
-    { category: "Food", limit: 0 },
-    { category: "Transport", limit: 0 },
-    { category: "Utilities", limit: 0 },
+    { category: "Electricity", limit: 0 },
+    { category: "Airtime", limit: 0 },
+    { category: "Wallet", limit: 0 },
+    { category: "Data", limit: 0 },
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,6 +29,7 @@ export default function BudgetSetupPage() {
   };
 
   const addCategory = () => setCategories([...categories, { category: "", limit: 0 }]);
+
   const removeCategory = (index: number) => {
     const newCategories = [...categories];
     newCategories.splice(index, 1);
@@ -36,7 +38,7 @@ export default function BudgetSetupPage() {
 
   const handleSubmit = async () => {
     if (total <= 0) return setError("Total budget must be greater than 0");
-    if (categories.some((c) => !c.category || c.limit <= 0))
+    if (categories.some(c => !c.category || c.limit <= 0))
       return setError("All categories must have a name and positive limit");
 
     setLoading(true);
@@ -64,16 +66,18 @@ export default function BudgetSetupPage() {
 
       {error && <p className="text-red-600">{error}</p>}
 
+      {/* TOTAL */}
       <div className="space-y-2">
         <label className="font-semibold">Total Budget</label>
         <input
           type="number"
           value={total}
-          onChange={(e) => setTotal(Number(e.target.value))}
+          onChange={e => setTotal(Number(e.target.value))}
           className="w-full p-2 border rounded"
         />
       </div>
 
+      {/* CATEGORIES */}
       <h2 className="text-lg font-semibold mt-4">Categories</h2>
       {categories.map((c, idx) => (
         <div key={idx} className="flex space-x-2 items-center mb-2">
@@ -81,14 +85,14 @@ export default function BudgetSetupPage() {
             type="text"
             placeholder="Category"
             value={c.category}
-            onChange={(e) => handleCategoryChange(idx, "category", e.target.value)}
+            onChange={e => handleCategoryChange(idx, "category", e.target.value)}
             className="flex-1 p-2 border rounded"
           />
           <input
             type="number"
             placeholder="Limit"
             value={c.limit}
-            onChange={(e) => handleCategoryChange(idx, "limit", e.target.value)}
+            onChange={e => handleCategoryChange(idx, "limit", e.target.value)}
             className="w-32 p-2 border rounded"
           />
           {categories.length > 1 && (
