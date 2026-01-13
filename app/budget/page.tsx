@@ -1,8 +1,9 @@
+// app/budget/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import api from "@/lib/api";
 import Link from "next/link";
+import api from "@/lib/api";
 import {
   ResponsiveContainer,
   PieChart,
@@ -81,20 +82,16 @@ export default function BudgetPage() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [month]);
 
   if (loading) return <p className="p-6">Loading budget…</p>;
   if (error) return <p className="p-6 text-red-600">{error}</p>;
-
-  if (!budget) {
+  if (!budget)
     return (
       <div className="p-6 space-y-4">
         <h1 className="text-xl font-bold">Monthly Budget</h1>
-        <p className="text-gray-600">
-          You haven’t set a budget for this month yet.
-        </p>
+        <p className="text-gray-600">You haven’t set a budget for this month yet.</p>
         <Link
           href="/budget/setup"
           className="inline-block bg-blue-600 text-white px-4 py-2 rounded font-semibold"
@@ -103,7 +100,6 @@ export default function BudgetPage() {
         </Link>
       </div>
     );
-  }
 
   /* ---------------- CALCULATIONS ---------------- */
   const totalSpent = expenses?.total ?? 0;
@@ -115,24 +111,21 @@ export default function BudgetPage() {
       ? "warning"
       : null;
 
-  /* CATEGORY BAR DATA */
-  const categoryData: CategoryChartItem[] = budget.categories.map(c => ({
+  const categoryData: CategoryChartItem[] = budget.categories.map((c) => ({
     name: c.category,
     budget: c.limit,
     spent: expenses?.byCategory?.[c.category] ?? 0,
   }));
 
-  /* PIE DATA */
-  const pieData: PieItem[] = categoryData.map(c => ({
+  const pieData: PieItem[] = categoryData.map((c) => ({
     name: c.name,
     value: c.spent,
   }));
 
-  /* TREND (LAST 30 DAYS) */
   const trendData: TrendPoint[] = useMemo(() => {
     if (!expenses?.expenses) return [];
     const map: Record<string, number> = {};
-    expenses.expenses.forEach(e => {
+    expenses.expenses.forEach((e) => {
       const d = new Date(e.createdAt);
       const key = d.toISOString().slice(0, 10);
       map[key] = (map[key] || 0) + e.amount;
@@ -151,7 +144,7 @@ export default function BudgetPage() {
         <h1 className="text-xl font-bold">Monthly Budget</h1>
         <select
           value={month}
-          onChange={e => setMonth(Number(e.target.value))}
+          onChange={(e) => setMonth(Number(e.target.value))}
           className="border rounded px-3 py-2 text-sm"
         >
           {Array.from({ length: 12 }).map((_, i) => (
@@ -166,10 +159,8 @@ export default function BudgetPage() {
       <div className="bg-white rounded-lg p-4 shadow space-y-2">
         <p className="text-sm text-gray-600">Total Budget</p>
         <p className="text-2xl font-bold">₦{budget.total.toLocaleString()}</p>
-
         <p className="text-sm text-gray-600">Total Spent</p>
         <p className="text-xl font-semibold">₦{totalSpent.toLocaleString()}</p>
-
         <div className="mt-2">
           <div className="h-2 bg-gray-200 rounded">
             <div
