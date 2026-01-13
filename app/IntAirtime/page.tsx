@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
 import { useCheckout } from "@/hooks/useCheckout";
+import NotAvailable from "@/components/NotAvailable";
 
 /* ================= TYPES (Backend-aligned) ================= */
 type Country = {
@@ -32,7 +33,18 @@ type Variation = {
 type Stage = "form" | "review";
 
 /* ================= PAGE ================= */
-export default function IntAirtimePage() {
+export default function IntAirtimePage() {  
+
+  // 🔒 TEMPORARILY DISABLED
+  return (
+    <NotAvailable
+      title="International Airtime Not Available"
+      message="International Airtime is temporarily unavailable. Please try again later."
+    />
+  );
+
+  // ⛔ everything below remains unchanged
+  
   const [stage, setStage] = useState<Stage>("form");
 
   const [countries, setCountries] = useState<Country[]>([]);
