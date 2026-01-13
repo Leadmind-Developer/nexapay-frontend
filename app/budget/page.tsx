@@ -4,19 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
 import {
+  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
   Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  LineChart,
-  Line,
 } from "@/components/charts/RechartsClient";
-
 
 /* ---------------- TYPES ---------------- */
 
