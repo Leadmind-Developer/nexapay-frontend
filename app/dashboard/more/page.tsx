@@ -99,7 +99,7 @@ const MORE_SERVICES: ServiceItem[] = [
     color: "#0084FF",
   },
   {
-    name: "Betting Wallet Topup",
+    name: "Registration",
     screen: "/coming-soon",
     icon: "cash",
     color: "#FF6F61",
