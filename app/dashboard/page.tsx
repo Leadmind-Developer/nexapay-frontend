@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
   const quickActions = [
     { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26} /> },
-    { title: "Withdraw", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
+    { title: "Request Refund", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26} /> },
     { title: "Send Money", screen: "/dashboard/internaltransfer", icon: <IoPaperPlaneOutline size={26} /> },
   ];
 
