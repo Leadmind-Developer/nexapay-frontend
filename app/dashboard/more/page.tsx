@@ -93,7 +93,7 @@ const MORE_SERVICES: ServiceItem[] = [
 
   // ─────── Coming Soon ───────
   {
-    name: "IT Services",
+    name: "Internet Subscription",
     screen: "/coming-soon",
     icon: "globe",
     color: "#0084FF",
@@ -105,7 +105,7 @@ const MORE_SERVICES: ServiceItem[] = [
     color: "#FF6F61",
   },
   {
-    name: "International Transfer",
+    name: "IT Services",
     screen: "/coming-soon",
     icon: "globe",
     color: "#0F9D58",
