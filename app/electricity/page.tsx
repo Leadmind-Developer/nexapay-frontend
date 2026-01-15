@@ -84,7 +84,9 @@ export default function ElectricityPage() {
   const [stage, setStage] = useState<Stage>("verify");
   const [message, setMessage] = useState("");
   const [recentMeters, setRecentMeters] = useState<string[]>(getRecentMeters());
-  const [loadingVerify, setLoadingVerify] = useState(false);
+  const [loadingVerify, setLoadingVerify] = useState(false);  
+  const [showMore, setShowMore] = useState(false);
+
 
   /* ================= LOAD DISCOS ================= */
   useEffect(() => {
