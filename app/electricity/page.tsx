@@ -297,6 +297,38 @@ export default function ElectricityPage() {
           </div>
         )}
 
+        {/* ================= PROCESSING ================= */}
+{stage === "processing" && (
+  <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow space-y-3">
+    <div className="flex justify-center">
+      <svg
+        className="animate-spin h-8 w-8 text-yellow-500"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          className="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        />
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+        />
+      </svg>
+    </div>
+
+    <p className="font-medium">Processing payment…</p>
+    <p className="text-sm text-gray-500 dark:text-gray-400">
+      Please don’t refresh this page
+    </p>
+  </div>
+)}
         {/* SUCCESS */}
         {stage === "success" && receipt && (
           <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded-lg text-center space-y-4">
