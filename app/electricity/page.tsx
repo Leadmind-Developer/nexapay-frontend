@@ -16,8 +16,6 @@ interface MeterVerification {
   accountType?: string;
   canVend?: string;
   tariffRate?: string;
-  phone?: string;
-  email?: string;
 }
 
 interface Receipt {
@@ -26,19 +24,33 @@ interface Receipt {
   type: "prepaid" | "postpaid";
   customer_name: string;
   amount: number;
-  token?: string | null;
+  token?: string;
+  units?: string;
   status: "SUCCESS" | "PROCESSING" | "FAILED";
-  vtpass?: {
-    token?: string;
-    token_code?: string;
-    exchangeReference?: string;
-    units?: string;
-  };
 }
-/* ================= VTpass Normalizer ================= */
-function normalizeVtpassReceipt(raw: any, fallback: Partial<Receipt>): Receipt {
-  const statusRaw = String(raw?.status || raw?.transactionStatus || "").toLowerCase();
 
+/* ================= LOCAL STORAGE KEY ================= */
+const RECENT_KEY = "recent_electricity_meters";
+
+function saveRecentMeter(meter: string) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]") as string[];
+    const updated = [meter, ...existing.filter(m => m !== meter)].slice(0, 5);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+  } catch {}
+}
+
+function getRecentMeters() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
+/* ================= NORMALIZE RECEIPT ================= */
+function normalizeReceipt(raw: any, fallback: Partial<Receipt>): Receipt {
+  const statusRaw = String(raw?.status || "").toLowerCase();
   const status: Receipt["status"] =
     ["successful", "delivered", "success"].includes(statusRaw)
       ? "SUCCESS"
@@ -46,57 +58,17 @@ function normalizeVtpassReceipt(raw: any, fallback: Partial<Receipt>): Receipt {
       ? "FAILED"
       : "PROCESSING";
 
-  const token =
-    raw?.token ||
-    raw?.token_code ||
-    raw?.vtpass?.token ||
-    raw?.vtpass?.token_code ||
-    null;
-
   return {
     requestId: raw?.requestId || fallback.requestId!,
     meter_number: raw?.meter_number || raw?.meterNumber || fallback.meter_number!,
     type: fallback.type!,
-    customer_name:
-      raw?.customer_name || raw?.customerName || fallback.customer_name!,
+    customer_name: raw?.customer_name || fallback.customer_name!,
     amount: Number(raw?.amount || fallback.amount || 0),
-    token,
+    token: raw?.token || raw?.vtpass?.token || null,
+    units: raw?.vtpass?.units || null,
     status,
-    vtpass: {
-      token,
-      token_code: raw?.token_code,
-      exchangeReference: raw?.exchangeReference,
-      units: raw?.units,
-    },
   };
 }
-
-/* ================= COUNTDOWN TIMER COMPONENT ================= */
-interface CountdownTimerProps {
-  duration: number; // seconds
-  onExpire?: () => void;
-}
-
-const CountdownTimer: React.FC<CountdownTimerProps> = ({ duration, onExpire }) => {
-  const [timeLeft, setTimeLeft] = React.useState(duration);
-
-  React.useEffect(() => {
-    if (timeLeft <= 0) {
-      onExpire?.();
-      return;
-    }
-    const interval = setInterval(() => {
-      setTimeLeft(t => t - 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [timeLeft, onExpire]);
-
-  return (
-    <p className="text-xs text-gray-600 dark:text-gray-400">
-      Time remaining: {timeLeft}s
-    </p>
-  );
-};
 
 /* ================= PAGE ================= */
 export default function ElectricityPage() {
@@ -111,13 +83,12 @@ export default function ElectricityPage() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [stage, setStage] = useState<Stage>("verify");
   const [message, setMessage] = useState("");
+  const [recentMeters, setRecentMeters] = useState<string[]>(getRecentMeters());
   const [loadingVerify, setLoadingVerify] = useState(false);
-  const [showMore, setShowMore] = useState(false);
 
   /* ================= LOAD DISCOS ================= */
   useEffect(() => {
-    api
-      .get<Disco[]>("/vtpass/electricity/discos")
+    api.get<Disco[]>("/vtpass/electricity/discos")
       .then(res => {
         setDiscos(res.data || []);
         if (res.data?.length) setServiceId(res.data[0].code);
@@ -127,306 +98,140 @@ export default function ElectricityPage() {
 
   /* ================= VERIFY METER ================= */
   const verifyMeter = async () => {
-    if (!serviceId || !meterNumber) {
-      return setMessage("Enter meter number & select Disco");
-    }
+    if (!serviceId || !meterNumber) return setMessage("Enter meter & select Disco");
 
-    setMessage("");
-    setVerification(null);
-    setLoadingVerify(true);
-
+    setMessage(""); setVerification(null); setLoadingVerify(true);
     try {
-      const res = await api.post("/vtpass/electricity/verify", {
-        serviceId,
-        meterNumber,
-        type,
-      });
-
+      const res = await api.post("/vtpass/electricity/verify", { serviceId, meterNumber, type });
       if (res.data?.success && res.data?.verified && res.data?.details) {
         setVerification(res.data.details);
         setStage("review");
-        return;
-      }
-
-      throw new Error("Unable to verify meter");
+      } else throw new Error("Unable to verify meter");
     } catch (err: any) {
       setMessage(err?.response?.data?.error || err?.message || "Verification failed");
-    } finally {
-      setLoadingVerify(false);
-    }
+    } finally { setLoadingVerify(false); }
   };
 
-  /* ================= FETCH RECEIPT (ROBUST) ================= */
-const fetchReceipt = async (requestId: string, fallback: Partial<Receipt>) => {
-  try {
-    const res = await api.get(`/vtpass/electricity/receipt/${requestId}`);
+  /* ================= CHECKOUT ================= */
+  const handleCheckout = async () => {
+    if (!verification) return setMessage("Verify meter first");
+    if (!amount || !phone) return setMessage("Enter amount & phone");
 
-    const raw = res.data?.receipt || res.data;
-    if (!raw) throw new Error("Empty receipt");
+    setMessage(""); setStage("processing");
 
-    const normalized = normalizeVtpassReceipt(raw, fallback);
-    setReceipt(normalized);
+    try {
+      const res = await api.post("/vtpass/electricity/checkout", {
+        serviceId, meterNumber, amount: Number(amount), type, phone
+      });
 
-    if (normalized.status === "FAILED") {
+      const requestId = res.data.requestId;
+      if (!requestId) throw new Error("Transaction reference missing");
+
+      // Save recent meter immediately
+      saveRecentMeter(meterNumber);
+      setRecentMeters(getRecentMeters());
+
+      // Fetch receipt and show token/units immediately
+      const receiptRes = await api.get(`/vtpass/electricity/receipt/${requestId}`);
+      const normalized = normalizeReceipt(receiptRes.data?.receipt || receiptRes.data, {
+        requestId, meter_number: meterNumber, type, customer_name: verification.customer_name, amount: Number(amount)
+      });
+
+      setReceipt(normalized);
+
+      if (normalized.status === "SUCCESS") setStage("success");
+      else setStage("processing");
+
+    } catch (err: any) {
       setStage("error");
-      setMessage("Transaction failed");
-      return;
+      setMessage(err?.response?.data?.error || "Checkout failed");
     }
-
-    if (normalized.status === "SUCCESS") {
-      setStage("success");
-
-      // SUCCESS but token missing → keep polling
-      if (!normalized.token) {
-        setTimeout(() => fetchReceipt(requestId, fallback), 3000);
-      }
-      return;
-    }
-
-    // PROCESSING
-    setStage("processing");
-    setTimeout(() => fetchReceipt(requestId, fallback), 3000);
-
-  } catch {
-    // silent retry — VTpass is eventual
-    setTimeout(() => fetchReceipt(requestId, fallback), 4000);
-  }
-};
-
-/* ================= CHECKOUT (FINAL + SAFE) ================= */
-const handleCheckout = async () => {
-  if (!verification) return setMessage("Verify meter first");
-  if (!amount || !phone) return setMessage("Enter amount and phone number");
-
-  setMessage("");
-  setStage("processing");
-
-  try {
-    const res = await api.post("/vtpass/electricity/checkout", {
-      serviceId,
-      meterNumber,
-      amount: Number(amount),
-      type,
-      phone,
-    });
-
-    if (!res.data?.requestId) {
-      throw new Error("Transaction reference not returned");
-    }
-
-    // No polling, no receipt fetch
-    setStage("success");
-  } catch (err: any) {
-    setStage("error");
-    setMessage(err?.response?.data?.error || "Checkout failed");
-  }
-};
+  };
 
   /* ================= UI ================= */
   return (
     <BannersWrapper page="electricity">
       <div className="max-w-md mx-auto px-4 space-y-4 text-gray-900 dark:text-gray-100">
 
-        {/* ================= VERIFY ================= */}
+        {/* Recent meters */}
+        {recentMeters.length > 0 && stage === "verify" && (
+          <div className="flex flex-wrap gap-2">
+            {recentMeters.map(m => (
+              <button
+                key={m}
+                onClick={() => setMeterNumber(m)}
+                className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded"
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* VERIFY */}
         {stage === "verify" && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-5 space-y-4 shadow">
             <h2 className="text-lg font-bold">Verify Meter</h2>
-
-            <select
-              value={serviceId}
-              onChange={e => setServiceId(e.target.value)}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            >
-              {discos.map(d => (
-                <option key={d.code} value={d.code}>{d.label}</option>
-              ))}
+            <select value={serviceId} onChange={e => setServiceId(e.target.value)}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700">
+              {discos.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
             </select>
-
-            <input
-              value={meterNumber}
-              onChange={e => setMeterNumber(e.target.value)}
-              placeholder="Meter Number"
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            />
-
-            <select
-              value={type}
-              onChange={e => setType(e.target.value as any)}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-            >
+            <input value={meterNumber} onChange={e => setMeterNumber(e.target.value)}
+              placeholder="Meter Number" className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700" />
+            <select value={type} onChange={e => setType(e.target.value as any)}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700">
               <option value="prepaid">Prepaid</option>
               <option value="postpaid">Postpaid</option>
             </select>
-
             {message && <p className="text-red-600 text-sm">{message}</p>}
-
-            <button
-              onClick={verifyMeter}
-              disabled={loadingVerify}
-              className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
-            >
+            <button onClick={verifyMeter} disabled={loadingVerify}
+              className="w-full bg-yellow-500 text-white py-3 rounded font-semibold">
               {loadingVerify ? "Verifying…" : "Verify Meter"}
             </button>
-
-            {loadingVerify && (
-              <div className="space-y-3 animate-pulse">
-                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded" />
-                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-5/6" />
-                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-2/3" />
-              </div>
-            )}
           </div>
         )}
 
-        {/* ================= REVIEW + PAYMENT ================= */}
+        {/* REVIEW */}
         {stage === "review" && verification && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-5 shadow space-y-4">
             <h2 className="text-lg font-bold">Review & Pay ⚡</h2>
-
-            <div className="space-y-1 text-sm">
-              <p><b>Customer:</b> {verification.customer_name}</p>
-              <p><b>Meter:</b> {verification.meter_number}</p>
-            </div>
-
-            <button
-              onClick={() => setShowMore(v => !v)}
-              className="text-yellow-600 text-sm font-medium"
-            >
-              {showMore ? "Hide details ▲" : "More details ▼"}
-            </button>
-
-            {showMore && (
-              <div className="border rounded p-3 text-sm space-y-1">
-                <p><b>Address:</b> {verification.address || "-"}</p>
-                <p><b>Meter Type:</b> {verification.meterType || "-"}</p>
-                <p><b>Account Type:</b> {verification.accountType || "-"}</p>
-                <p><b>Can Vend:</b> {verification.canVend || "-"}</p>
-                <p><b>Tariff (₦/kWh):</b> {verification.tariffRate || "-"}</p>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <input
-                type="number"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                placeholder="Amount"
-                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-              />
-              <input
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="Phone Number"
-                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
-              />
-              {message && <p className="text-red-600 text-sm">{message}</p>}
-            </div>
-
+            <p><b>Customer:</b> {verification.customer_name}</p>
+            <p><b>Meter:</b> {verification.meter_number}</p>
+            <input type="number" placeholder="Amount" value={amount} onChange={e => setAmount(e.target.value)}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700" />
+            <input placeholder="Phone Number" value={phone} onChange={e => setPhone(e.target.value)}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700" />
+            {message && <p className="text-red-600 text-sm">{message}</p>}
             <div className="flex gap-3">
-              <button
-                onClick={() => setStage("verify")}
-                className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleCheckout}
-                className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold"
-              >
-                Pay
-              </button>
+              <button onClick={() => setStage("verify")} className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">Back</button>
+              <button onClick={handleCheckout} className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold">Pay</button>
             </div>
           </div>
         )}
 
-        {/* ================= PROCESSING ================= */}
-        {stage === "processing" && (
-  <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 text-center shadow space-y-2">
-    <p className="font-medium">Processing payment…</p>
-    <p className="text-sm text-gray-500">
-      Please do not refresh this page
-    </p>
-  </div>
-)}
-        {/* ================= SUCCESS ================= */}
-        {stage === "success" && (
-  <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded-lg text-center space-y-4">
-    <h2 className="text-lg font-bold">Payment Successful ⚡</h2>
-
-    <p className="text-sm">
-      Your electricity purchase was successful.
-    </p>
-
-    <p className="text-sm text-gray-700 dark:text-gray-300">
-      Token and receipt will be available on the{" "}
-      <a
-        href="/transactions"
-        className="text-green-700 dark:text-green-400 font-semibold underline"
-      >
-        Transactions page
-      </a>.
-    </p>
-
-    <div className="flex gap-3 pt-2">
-      <a
-        href="/transactions"
-        className="flex-1 bg-green-600 text-white py-3 rounded font-semibold"
-      >
-        View Transactions
-      </a>
-
-      <button
-        onClick={() => {
-          setStage("verify");
-          setMeterNumber("");
-          setAmount("");
-          setPhone("");
-          setVerification(null);
-        }}
-        className="flex-1 bg-white dark:bg-gray-800 border py-3 rounded font-semibold"
-      >
-        Buy Again
-      </button>
-    </div>
-  </div>
-)}
-        
-   {stage === "success" && (
-  <>
-    {/* existing success card stays exactly as-is */}
-
-    <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-sm text-yellow-800 dark:text-yellow-200">
-      <p className="font-medium mb-1">Didn’t get your token?</p>
-      <p>
-        Electricity tokens are usually delivered within a few minutes.
-        If your token does not appear in your{" "}
-        <a
-          href="/transactions"
-          className="underline font-semibold"
-        >
-          Transactions
-        </a>{" "}
-        after <b>10 minutes</b>, please contact our support team at{" "}
-        <a
-          href="/support"
-          className="underline font-semibold"
-        >
-          Support
-        </a>{" "}
-        and we’ll help you right away.
-      </p>
-    </div>
-  </>
-)}
-      
-      {/* ================= ERROR ================= */}
-        {stage === "error" && (
-          <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
-            <h2 className="text-lg font-bold">Something went wrong</h2>
-            <p className="text-sm">{message}</p>
+        {/* SUCCESS */}
+        {stage === "success" && receipt && (
+          <div className="bg-green-100 dark:bg-green-900 border dark:border-green-800 p-6 rounded-lg text-center space-y-4">
+            <h2 className="text-lg font-bold">Payment Successful ⚡</h2>
+            <p>Customer: {receipt.customer_name}</p>
+            <p>Meter: {receipt.meter_number}</p>
+            <p>Amount: ₦{receipt.amount}</p>
+            {receipt.token && <p>Token: <b>{receipt.token}</b> | Units: {receipt.units || "-"}</p>}
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => { setStage("verify"); setMeterNumber(""); setAmount(""); setPhone(""); setVerification(null); }}
+                className="flex-1 bg-white dark:bg-gray-800 border py-3 rounded font-semibold">
+                Buy Again
+              </button>
+              <a href="/transactions" className="flex-1 bg-green-600 text-white py-3 rounded font-semibold text-center">View Transactions</a>
+            </div>
           </div>
         )}
 
+        {/* ERROR */}
+        {stage === "error" && <div className="bg-red-100 dark:bg-red-900 border dark:border-red-800 p-6 rounded text-center space-y-3">
+          <h2 className="text-lg font-bold">Something went wrong</h2>
+          <p className="text-sm">{message}</p>
+        </div>}
       </div>
     </BannersWrapper>
   );
