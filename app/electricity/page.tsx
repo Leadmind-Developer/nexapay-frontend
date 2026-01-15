@@ -98,18 +98,33 @@ export default function ElectricityPage() {
 
   /* ================= VERIFY METER ================= */
   const verifyMeter = async () => {
-    if (!serviceId || !meterNumber) return setMessage("Enter meter & select Disco");
+    if (!serviceId || !meterNumber) {
+      return setMessage("Enter meter number & select Disco");
+    }
 
-    setMessage(""); setVerification(null); setLoadingVerify(true);
+    setMessage("");
+    setVerification(null);
+    setLoadingVerify(true);
+
     try {
-      const res = await api.post("/vtpass/electricity/verify", { serviceId, meterNumber, type });
+      const res = await api.post("/vtpass/electricity/verify", {
+        serviceId,
+        meterNumber,
+        type,
+      });
+
       if (res.data?.success && res.data?.verified && res.data?.details) {
         setVerification(res.data.details);
         setStage("review");
-      } else throw new Error("Unable to verify meter");
+        return;
+      }
+
+      throw new Error("Unable to verify meter");
     } catch (err: any) {
       setMessage(err?.response?.data?.error || err?.message || "Verification failed");
-    } finally { setLoadingVerify(false); }
+    } finally {
+      setLoadingVerify(false);
+    }
   };
 
   /* ================= CHECKOUT ================= */
@@ -168,43 +183,114 @@ export default function ElectricityPage() {
           </div>
         )}
 
-        {/* VERIFY */}
+        {/* ================= VERIFY ================= */}
         {stage === "verify" && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-5 space-y-4 shadow">
             <h2 className="text-lg font-bold">Verify Meter</h2>
-            <select value={serviceId} onChange={e => setServiceId(e.target.value)}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700">
-              {discos.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
+
+            <select
+              value={serviceId}
+              onChange={e => setServiceId(e.target.value)}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+            >
+              {discos.map(d => (
+                <option key={d.code} value={d.code}>{d.label}</option>
+              ))}
             </select>
-            <input value={meterNumber} onChange={e => setMeterNumber(e.target.value)}
-              placeholder="Meter Number" className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700" />
-            <select value={type} onChange={e => setType(e.target.value as any)}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700">
+
+            <input
+              value={meterNumber}
+              onChange={e => setMeterNumber(e.target.value)}
+              placeholder="Meter Number"
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+            />
+
+            <select
+              value={type}
+              onChange={e => setType(e.target.value as any)}
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+            >
               <option value="prepaid">Prepaid</option>
               <option value="postpaid">Postpaid</option>
             </select>
+
             {message && <p className="text-red-600 text-sm">{message}</p>}
-            <button onClick={verifyMeter} disabled={loadingVerify}
-              className="w-full bg-yellow-500 text-white py-3 rounded font-semibold">
+
+            <button
+              onClick={verifyMeter}
+              disabled={loadingVerify}
+              className="w-full bg-yellow-500 text-white py-3 rounded font-semibold"
+            >
               {loadingVerify ? "Verifying…" : "Verify Meter"}
             </button>
+
+            {loadingVerify && (
+              <div className="space-y-3 animate-pulse">
+                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded" />
+                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-5/6" />
+                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-2/3" />
+              </div>
+            )}
           </div>
         )}
 
-        {/* REVIEW */}
+        {/* ================= REVIEW + PAYMENT ================= */}
         {stage === "review" && verification && (
           <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-5 shadow space-y-4">
             <h2 className="text-lg font-bold">Review & Pay ⚡</h2>
-            <p><b>Customer:</b> {verification.customer_name}</p>
-            <p><b>Meter:</b> {verification.meter_number}</p>
-            <input type="number" placeholder="Amount" value={amount} onChange={e => setAmount(e.target.value)}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700" />
-            <input placeholder="Phone Number" value={phone} onChange={e => setPhone(e.target.value)}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700" />
-            {message && <p className="text-red-600 text-sm">{message}</p>}
+
+            <div className="space-y-1 text-sm">
+              <p><b>Customer:</b> {verification.customer_name}</p>
+              <p><b>Meter:</b> {verification.meter_number}</p>
+            </div>
+
+            <button
+              onClick={() => setShowMore(v => !v)}
+              className="text-yellow-600 text-sm font-medium"
+            >
+              {showMore ? "Hide details ▲" : "More details ▼"}
+            </button>
+
+            {showMore && (
+              <div className="border rounded p-3 text-sm space-y-1">
+                <p><b>Address:</b> {verification.address || "-"}</p>
+                <p><b>Meter Type:</b> {verification.meterType || "-"}</p>
+                <p><b>Account Type:</b> {verification.accountType || "-"}</p>
+                <p><b>Can Vend:</b> {verification.canVend || "-"}</p>
+                <p><b>Tariff (₦/kWh):</b> {verification.tariffRate || "-"}</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <input
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="Amount"
+                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+              />
+              <input
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="Phone Number"
+                className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+              />
+              {message && <p className="text-red-600 text-sm">{message}</p>}
+            </div>
+
             <div className="flex gap-3">
-              <button onClick={() => setStage("verify")} className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded">Back</button>
-              <button onClick={handleCheckout} className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold">Pay</button>
+              <button
+                onClick={() => setStage("verify")}
+                className="flex-1 bg-gray-200 dark:bg-gray-700 py-3 rounded"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleCheckout}
+                className="flex-1 bg-yellow-500 text-white py-3 rounded font-semibold"
+              >
+                Pay
+              </button>
             </div>
           </div>
         )}
