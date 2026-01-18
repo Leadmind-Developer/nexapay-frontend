@@ -5,21 +5,17 @@ import { redirect } from "next/navigation";
 /**
  * Mobile → Web auth bridge
  *
- * Flow:
- * RN WebView
- *  → https://nexa.com.ng/mobile-auth
- *    (Authorization: Bearer <mobile_jwt>)
- *  → backend verifies token
- *  → returns web session token
- *  → cookie set on nexa.com.ng
- *  → redirect to dashboard
+ * RN WebView:
+ *   → https://nexa.com.ng/mobile-auth
+ *   (Authorization: Bearer <mobile_jwt>)
  */
 export default async function MobileAuthPage() {
-  const headerList = headers();
+  // ✅ headers() is async in Next 16
+  const headerList = await headers();
   const authHeader = headerList.get("authorization");
 
+  // No mobile token → fallback to web login
   if (!authHeader) {
-    // No token → fallback to normal login
     redirect("/login");
   }
 
@@ -43,9 +39,10 @@ export default async function MobileAuthPage() {
     const data = await res.json();
 
     /**
-     * Expected backend response:
+     * Expected response:
      * {
-     *   accessToken: string;
+     *   success: true,
+     *   accessToken: string
      * }
      */
     const token = data?.accessToken;
@@ -54,16 +51,7 @@ export default async function MobileAuthPage() {
       redirect("/login");
     }
 
-    // Set HttpOnly cookie (EDGE SAFE)
-    const cookie = [
-      `nexa_token=${token}`,
-      "Path=/",
-      "HttpOnly",
-      "Secure",
-      "SameSite=None",
-    ].join("; ");
-
-    // Set cookie via response headers
+    // ✅ Correct way to set HttpOnly cookies in App Router
     const cookieStore = await cookies();
 
     cookieStore.set({
@@ -76,7 +64,7 @@ export default async function MobileAuthPage() {
       maxAge: 15 * 60, // 15 minutes
     });
 
-    // Success → go to dashboard
+    // ✅ Success → authenticated web session
     redirect("/dashboard");
   } catch (err) {
     console.error("Mobile auth bridge error:", err);
