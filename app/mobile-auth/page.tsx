@@ -1,62 +1,75 @@
-import { headers, cookies } from "next/headers";
+// app/mobile-auth/page.tsx
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-const API_URL = "https://api.nexa.com.ng/api/auth/mobile/mobile-auth";
-
+/**
+ * Mobile → Web auth bridge
+ *
+ * Flow:
+ * RN WebView
+ *  → https://nexa.com.ng/mobile-auth
+ *    (Authorization: Bearer <mobile_jwt>)
+ *  → backend verifies token
+ *  → returns web session token
+ *  → cookie set on nexa.com.ng
+ *  → redirect to dashboard
+ */
 export default async function MobileAuthPage() {
-  const headerStore = headers();
-  const cookieStore = cookies();
-
-  const authHeader = headerStore.get("authorization");
+  const headerList = headers();
+  const authHeader = headerList.get("authorization");
 
   if (!authHeader) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h2>Authentication failed</h2>
-        <p>Missing authorization header.</p>
-      </div>
-    );
+    // No token → fallback to normal login
+    redirect("/login");
   }
 
   try {
-    const res = await fetch(API_URL, {
-      method: "GET",
-      headers: {
-        Authorization: authHeader,
-        "x-platform": "mobile",
-      },
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE}/auth/mobile/mobile-auth`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: authHeader,
+          "x-platform": "mobile",
+        },
+        cache: "no-store",
+      }
+    );
 
     if (!res.ok) {
-      throw new Error("Mobile auth bridge failed");
+      redirect("/login");
     }
 
     const data = await res.json();
-    const { accessToken } = data;
 
-    if (!accessToken) {
-      throw new Error("Missing access token from API");
+    /**
+     * Expected backend response:
+     * {
+     *   accessToken: string;
+     * }
+     */
+    const token = data?.accessToken;
+
+    if (!token) {
+      redirect("/login");
     }
 
-    // ✅ Set cookie on nexa.com.ng (web domain)
-    cookieStore.set("nexa_token", accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-    });
+    // Set HttpOnly cookie (EDGE SAFE)
+    const cookie = [
+      `nexa_token=${token}`,
+      "Path=/",
+      "HttpOnly",
+      "Secure",
+      "SameSite=None",
+    ].join("; ");
 
-    // 🚀 Logged in → go to dashboard
+    // Set cookie via response headers
+    headerList.append("Set-Cookie", cookie);
+
+    // Success → go to dashboard
     redirect("/dashboard");
   } catch (err) {
-    console.error("Mobile web auth error:", err);
-
-    return (
-      <div style={{ padding: 24 }}>
-        <h2>Authentication error</h2>
-        <p>Please return to the app and try again.</p>
-      </div>
-    );
+    console.error("Mobile auth bridge error:", err);
+    redirect("/login");
   }
 }
