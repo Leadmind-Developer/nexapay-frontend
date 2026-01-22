@@ -64,7 +64,7 @@ export default function OrganizerEventsPage() {
 
         <Link
           href="/organizer/events/create"
-          className="rounded-xl bg-black dark:bg-white text-white dark:text-black px-5 py-2 font-medium hover:opacity-90 transition"
+          className="rounded-xl bg-black text-white px-5 py-2 font-medium hover:opacity-90"
         >
           + Create Event
         </Link>
