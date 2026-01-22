@@ -62,7 +62,7 @@ export default function OrganizerEventsPage() {
 
         <Link
           href="/organizer/events/create"
-          className="rounded-xl bg-black text-white px-5 py-2 font-medium hover:opacity-90"
+          className="rounded-xl bg-black dark:bg-gray-700 text-white px-5 py-2 font-medium hover:opacity-90"
         >
           + Create Event
         </Link>
@@ -107,7 +107,7 @@ function DashboardStat({
   value: number | string;
 }) {
   return (
-    <div className="bg-white border rounded-xl p-5 shadow-sm">
+    <div className="bg-white dark:bg-gray-700 border rounded-xl p-5 shadow-sm">
       <p className="text-sm text-gray-500 dark:text-gray-300">{label}</p>
       <p className="text-3xl font-bold mt-1">{value}</p>
     </div>
