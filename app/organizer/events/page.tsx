@@ -56,7 +56,7 @@ export default function OrganizerEventsPage() {
         <div>         
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Organizer Dashboard
-          <p className="text-gray-500 dark:text-black-300 mt-1">
+          <p className="text-gray-500 dark:text-gray-300 mt-1">
             Create events, add tickets, then publish.            
           </p>
         </div>
