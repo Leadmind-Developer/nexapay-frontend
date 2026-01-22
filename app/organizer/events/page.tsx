@@ -54,7 +54,7 @@ export default function OrganizerEventsPage() {
       {/* ================= TOP BAR ================= */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>         
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-black">
             Organizer Dashboard
             </h1>
           <p className="text-gray-500 dark:text-black-300 mt-1">
