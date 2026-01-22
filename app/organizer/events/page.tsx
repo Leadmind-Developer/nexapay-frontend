@@ -53,9 +53,9 @@ export default function OrganizerEventsPage() {
     <main className="max-w-7xl mx-auto px-6 py-8 text-gray-900 dark:text-gray-100">
       {/* ================= TOP BAR ================= */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-          <p className="text-gray-500 dark:text-black-300 mt-1">
-          <h1 className="text-3xl font-bold">Organizer Dashboard</h1>
+        <div>         
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Organizer Dashboard
           <p className="text-gray-500 dark:text-black-300 mt-1">
             Create events, add tickets, then publish.            
           </p>
