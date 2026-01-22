@@ -14,8 +14,8 @@ export default function OrganizerEventTopBar({
   onTogglePublish,
 }: Props) {
   return (
-    <div className="sticky top-0 z-40 bg-white border-b px-6 py-3 flex items-center justify-between">
-      <span className="text-sm text-gray-600">
+    <div className="sticky top-0 z-40 bg-white dark:bg-black border-b px-6 py-3 flex items-center justify-between">
+      <span className="text-sm text-gray-600 dark:text-black">
         Status:{" "}
         <span
           className={`font-medium ${
@@ -39,10 +39,10 @@ export default function OrganizerEventTopBar({
 
         <button
           onClick={onTogglePublish}
-          className={`rounded-lg px-4 py-2 text-sm font-medium ${
+          className={`text-xs px-2 py-1 rounded-full font-medium ${
             published
-              ? "bg-yellow-500 text-white hover:bg-yellow-600"
-              : "bg-green-600 text-white hover:bg-green-700"
+              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
           }`}
         >
           {published ? "Unpublish" : "Publish"}
