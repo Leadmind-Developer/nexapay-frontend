@@ -42,7 +42,7 @@ export default async function MobileAuthPage() {
                   document.cookie =
                     "nexa_token=" +
                     data.accessToken +
-                    "; Path=/; Secure; SameSite=None";
+                    "; Path=/; Domain=.nexa.com.ng; Max-Age=900; Secure; SameSite=None";
 
                   window.location.href = "/dashboard";
                 } catch (e) {
