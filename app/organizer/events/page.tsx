@@ -55,7 +55,7 @@ export default function OrganizerEventsPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Organizer Dashboard</h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-500 dark:text-gray-300 mt-1">
             Create events, add tickets, then publish.
           </p>
         </div>
@@ -108,7 +108,7 @@ function DashboardStat({
 }) {
   return (
     <div className="bg-white border rounded-xl p-5 shadow-sm">
-      <p className="text-sm text-gray-500">{label}</p>
+      <p className="text-sm text-gray-500 dark:text-gray-300">{label}</p>
       <p className="text-3xl font-bold mt-1">{value}</p>
     </div>
   );
@@ -119,7 +119,7 @@ function EventCard({ event }: { event: Event }) {
   const hasTickets = event.ticketTypes.length > 0;
 
   return (
-    <div className="bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+    <div className="bg-white dark:bg-gray-700 border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
       {/* IMAGE */}
       <div className="h-40 w-full bg-gray-100">
         {imageUrl ? (
@@ -150,12 +150,12 @@ function EventCard({ event }: { event: Event }) {
           </span>
         </div>
 
-        <p className="text-sm text-gray-500 mt-2">
+        <p className="text-sm text-gray-500 dark:text-gray-300 mt-2">
           {new Date(event.startAt).toLocaleDateString()} •{" "}
           {new Date(event.endAt).toLocaleDateString()}
         </p>
 
-        <div className="mt-3 text-sm text-gray-600">
+        <div className="mt-3 text-sm text-gray-600 dark:text-gray-300">
           <p>Ticket Types: {event.ticketTypes.length}</p>
           {!hasTickets && (
             <p className="mt-1 text-red-500 font-medium">
@@ -190,7 +190,7 @@ function EmptyState() {
   return (
     <div className="border border-dashed rounded-xl p-10 text-center">
       <h3 className="text-lg font-semibold mb-2">No events yet</h3>
-      <p className="text-gray-500 mb-4">
+      <p className="text-gray-500 dark:text-gray-300 mb-4">
         Create an event, then add ticket types before publishing.
       </p>
       <Link
