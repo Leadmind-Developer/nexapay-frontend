@@ -50,13 +50,13 @@ export default function OrganizerEventsPage() {
   if (loading) return <p className="p-6">Loading dashboard...</p>;
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8 text-gray-900 dark:text-black-100">
+    <main className="max-w-7xl mx-auto px-6 py-8 text-gray-900 dark:text-gray-100">
       {/* ================= TOP BAR ================= */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Organizer Dashboard</h1>
-          <p className="text-gray-500 dark:text-gray-300 mt-1">
-            Create events, add tickets, then publish.
+          <p className="text-gray-500 dark:text-black-300 mt-1">
+            Create events, add tickets, then publish.            
           </p>
         </div>
 
