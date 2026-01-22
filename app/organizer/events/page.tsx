@@ -50,7 +50,7 @@ export default function OrganizerEventsPage() {
   if (loading) return <p className="p-6">Loading dashboard...</p>;
 
   return (
-    <main className="max-w-7xl mx-auto px-6 py-8">
+    <main className="max-w-7xl mx-auto px-6 py-8 text-gray-900 dark:text-gray-100">
       {/* ================= TOP BAR ================= */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
@@ -62,7 +62,7 @@ export default function OrganizerEventsPage() {
 
         <Link
           href="/organizer/events/create"
-          className="rounded-xl bg-black dark:bg-gray-700 text-white px-5 py-2 font-medium hover:opacity-90"
+          className="rounded-xl bg-black dark:bg-white text-white dark:text-black px-5 py-2 font-medium hover:opacity-90 transition"
         >
           + Create Event
         </Link>
@@ -107,7 +107,7 @@ function DashboardStat({
   value: number | string;
 }) {
   return (
-    <div className="bg-white dark:bg-gray-700 border rounded-xl p-5 shadow-sm">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm">
       <p className="text-sm text-gray-500 dark:text-gray-300">{label}</p>
       <p className="text-3xl font-bold mt-1">{value}</p>
     </div>
@@ -119,7 +119,7 @@ function EventCard({ event }: { event: Event }) {
   const hasTickets = event.ticketTypes.length > 0;
 
   return (
-    <div className="bg-white dark:bg-gray-700 border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
       {/* IMAGE */}
       <div className="h-40 w-full bg-gray-100">
         {imageUrl ? (
@@ -129,7 +129,7 @@ function EventCard({ event }: { event: Event }) {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="h-full w-full flex items-center justify-center text-gray-400 text-sm">
+          <div className="h-full w-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm bg-gray-100 dark:bg-gray-900">
             No event image
           </div>
         )}
@@ -140,10 +140,10 @@ function EventCard({ event }: { event: Event }) {
         <div className="flex items-start justify-between">
           <h3 className="text-lg font-semibold">{event.title}</h3>
           <span
-            className={`text-xs px-2 py-1 rounded-full ${
+            className={`text-xs px-2 py-1 rounded-full font-medium ${
               event.published
-                ? "bg-green-100 text-green-700"
-                : "bg-yellow-100 text-yellow-700"
+                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
             }`}
           >
             {event.published ? "Published" : "Draft"}
@@ -158,7 +158,7 @@ function EventCard({ event }: { event: Event }) {
         <div className="mt-3 text-sm text-gray-600 dark:text-gray-300">
           <p>Ticket Types: {event.ticketTypes.length}</p>
           {!hasTickets && (
-            <p className="mt-1 text-red-500 font-medium">
+            <p className="mt-1 text-red-600 dark:text-red-400 font-medium">
               Setup required: add tickets
             </p>
           )}
@@ -179,7 +179,7 @@ function ActionLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-center rounded-lg border py-2 hover:bg-gray-50 transition"
+      className="flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
     >
       {label}
     </Link>
@@ -188,14 +188,14 @@ function ActionLink({ href, label }: { href: string; label: string }) {
 
 function EmptyState() {
   return (
-    <div className="border border-dashed rounded-xl p-10 text-center">
+    <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-10 text-center bg-gray-50 dark:bg-gray-900">
       <h3 className="text-lg font-semibold mb-2">No events yet</h3>
       <p className="text-gray-500 dark:text-gray-300 mb-4">
         Create an event, then add ticket types before publishing.
       </p>
       <Link
         href="/organizer/events/create"
-        className="inline-block bg-black text-white px-6 py-3 rounded-xl"
+        className="inline-block bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-xl"
       >
         Create Event
       </Link>
