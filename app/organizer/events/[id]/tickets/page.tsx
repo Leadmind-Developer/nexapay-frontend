@@ -44,6 +44,7 @@ export default function TicketTypesPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [showCTA, setShowCTA] = useState(false);
   const [eventLoading, setEventLoading] = useState(true);
+  const [isFree, setIsFree] = useState(false);
 
   const ticketsLocked = event && !event.published;
 
@@ -82,6 +83,7 @@ export default function TicketTypesPage() {
   const resetForm = () => {
     setForm({});
     setEditingId(null);
+    setIsFree(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,6 +119,7 @@ export default function TicketTypesPage() {
       return;
     }
     const { id, sold, ...editable } = tt;
+    setIsFree(editable.price === 0);
     setForm(editable);
     setEditingId(id);
     setSuccessMessage("");
@@ -301,7 +304,25 @@ export default function TicketTypesPage() {
             value={form.description || ""}
             onChange={handleChange}
             className="w-full p-2 border border-gray-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
-          />
+          /><div className="flex items-center gap-2">
+  <input
+    type="checkbox"
+    checked={isFree}
+    onChange={e => {
+      const checked = e.target.checked;
+      setIsFree(checked);
+
+      setForm(prev => ({
+        ...prev,
+        price: checked ? 0 : prev.price,
+      }));
+    }}
+  />
+
+  <span className="text-sm text-gray-700 dark:text-gray-300">
+    This ticket is FREE
+  </span>
+</div>          
 
           <div className="grid md:grid-cols-3 gap-4">
             <input
