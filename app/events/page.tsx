@@ -6,72 +6,163 @@ import Image from "next/image";
 import api from "@/lib/api";
 import { getEventImage } from "@/lib/getEventImage";
 
-interface EventImage {
-  id: string;
-  url: string;
-  isPrimary?: boolean;
-}
-
 interface Event {
   id: string;
   title: string;
   description: string;
   slug: string;
   startAt: string;
-  endAt: string;
-  images?: EventImage[];
+  category?: string;
+  city?: string;
+  country?: string;
+  minPrice?: number;
+  images?: { url: string }[];
   organizer: { name: string };
 }
+
+/* ===================== CONSTANTS ===================== */
+
+const CATEGORIES = [
+  "All",
+  "Entertainment",
+  "Food & Drink",
+  "Career & Business",
+  "Spirituality & Religion",
+  "Art & Culture",
+  "Community",
+];
+
+const PRICE_FILTERS = ["All", "Free", "Paid"];
+
+/* ===================== PAGE ===================== */
 
 export default function EventsLandingPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
+  const [price, setPrice] = useState("All");
+  const [location, setLocation] = useState("");
+  const [sort, setSort] = useState("latest");
+
+  /* ---------------- FETCH EVENTS ---------------- */
+
   useEffect(() => {
+    setLoading(true);
+
     api
-      .get<Event[]>("/events")
-      .then(res => setEvents(res.data))
+      .get("/events", {
+        params: {
+          q: search || undefined,
+          category: category !== "All" ? category : undefined,
+          price: price !== "All" ? price.toLowerCase() : undefined,
+          city: location || undefined,
+          sort,
+        },
+      })
+      .then((res) => setEvents(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [search, category, price, location, sort]);
 
   return (
-    <main className="min-h-screen">
-      {/* HERO */}
-      <section className="bg-black text-white py-20">
-        <div className="max-w-6xl mx-auto px-6 text-center">
+    <main className="min-h-screen bg-gray-50">
+
+      {/* ================= HERO ================= */}
+
+      <section className="bg-gradient-to-br from-black to-gray-900 text-white py-24">
+        <div className="max-w-7xl mx-auto px-6 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Discover & Attend Amazing Events
+            Discover Amazing Events Near You
           </h1>
-          <p className="text-lg text-gray-300 mb-6">
-            Buy tickets for conferences, concerts, workshops and more.
+          <p className="text-lg text-gray-300">
+            Concerts, workshops, conferences, parties and more 🎉
           </p>
-          <Link
-            href="#events"
-            className="inline-block bg-white text-black px-6 py-3 rounded-xl font-medium"
-          >
-            Browse Events
-          </Link>
+
+          {/* SEARCH BAR */}
+          <div className="mt-8 max-w-2xl mx-auto flex bg-white rounded-xl overflow-hidden shadow-lg">
+            <input
+              placeholder="Search events..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 px-4 py-3 text-black outline-none"
+            />
+            <button className="bg-black text-white px-6">
+              Search
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* EVENTS LIST */}
-      <section id="events" className="max-w-6xl mx-auto p-6">
-        <h2 className="text-2xl font-semibold mb-6">Upcoming Events</h2>
+      {/* ================= FILTER BAR ================= */}
 
-        {/* Skeleton Loader */}
+      <section className="max-w-7xl mx-auto px-6 py-6 space-y-4">
+
+        {/* CATEGORY TABS */}
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition
+                ${
+                  category === cat
+                    ? "bg-black text-white"
+                    : "bg-white border hover:bg-gray-100"
+                }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* FILTER ROW */}
+        <div className="flex flex-wrap gap-3">
+
+          {/* PRICE */}
+          <select
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            className="rounded-xl border px-4 py-2"
+          >
+            {PRICE_FILTERS.map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
+
+          {/* LOCATION */}
+          <input
+            placeholder="City or country"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="rounded-xl border px-4 py-2"
+          />
+
+          {/* SORT */}
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-xl border px-4 py-2"
+          >
+            <option value="latest">Latest</option>
+            <option value="upcoming">Upcoming</option>
+          </select>
+        </div>
+      </section>
+
+      {/* ================= EVENTS GRID ================= */}
+
+      <section className="max-w-7xl mx-auto px-6 pb-20">
+
         {loading && (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="border rounded-xl overflow-hidden animate-pulse"
-              >
+              <div key={i} className="rounded-xl overflow-hidden animate-pulse bg-white">
                 <div className="aspect-[16/9] bg-gray-200" />
-                <div className="p-5 space-y-3">
+                <div className="p-4 space-y-3">
                   <div className="h-4 bg-gray-200 rounded w-3/4" />
                   <div className="h-3 bg-gray-200 rounded w-full" />
-                  <div className="h-3 bg-gray-200 rounded w-2/3" />
                 </div>
               </div>
             ))}
@@ -79,42 +170,55 @@ export default function EventsLandingPage() {
         )}
 
         {!loading && events.length === 0 && (
-          <p className="text-gray-500">No upcoming events.</p>
+          <p className="text-gray-500">No events found.</p>
         )}
 
         {!loading && events.length > 0 && (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map(event => {
+
+            {events.map((event) => {
               const imageUrl = getEventImage(event);
+              const isFree = event.minPrice === 0;
 
               return (
                 <Link
                   key={event.id}
-                  href={`/events/${event.slug ?? event.id}`}
-                  className="group block border rounded-xl overflow-hidden hover:shadow-lg transition"
+                  href={`/events/${event.slug}`}
+                  className="group bg-white rounded-2xl overflow-hidden shadow hover:shadow-xl transition"
                 >
                   {/* IMAGE */}
                   <div className="relative aspect-[16/9] bg-gray-100">
-                    {imageUrl ? (
+                    {imageUrl && (
                       <Image
                         src={imageUrl}
                         alt={event.title}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform"
-                        loading="lazy"
-                        placeholder="blur"
-                        blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU3ZWIiLz48L3N2Zz4="
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                        No image
-                      </div>
                     )}
+
+                    {/* PRICE BADGE */}
+                    <div className="absolute top-3 left-3">
+                      {isFree ? (
+                        <span className="bg-green-600 text-white text-xs px-3 py-1 rounded-full">
+                          FREE
+                        </span>
+                      ) : (
+                        <span className="bg-black text-white text-xs px-3 py-1 rounded-full">
+                          Paid
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* CONTENT */}
-                  <div className="p-5">
-                    <h3 className="text-lg font-semibold mb-1">
+                  <div className="p-5 space-y-2">
+
+                    <p className="text-xs text-gray-500">
+                      {event.category}
+                    </p>
+
+                    <h3 className="text-lg font-semibold line-clamp-2">
                       {event.title}
                     </h3>
 
@@ -122,9 +226,15 @@ export default function EventsLandingPage() {
                       {event.description}
                     </p>
 
-                    <p className="text-xs text-gray-500 mt-3">
-                      {new Date(event.startAt).toLocaleDateString()}
-                    </p>
+                    <div className="flex justify-between items-center text-xs text-gray-500 pt-2">
+                      <span>
+                        {new Date(event.startAt).toLocaleDateString()}
+                      </span>
+
+                      <span>
+                        {event.city || event.country}
+                      </span>
+                    </div>
                   </div>
                 </Link>
               );
@@ -133,18 +243,19 @@ export default function EventsLandingPage() {
         )}
       </section>
 
-      {/* ORGANIZER CTA */}
-      <section className="bg-gray-50 py-16 mt-20">
+      {/* ================= CTA ================= */}
+
+      <section className="bg-black text-white py-20">
         <div className="max-w-5xl mx-auto px-6 text-center">
           <h3 className="text-2xl font-semibold mb-3">
-            Hosting an event?
+            Ready to host your own event?
           </h3>
-          <p className="text-gray-600 mb-6">
-            Create, sell tickets and manage attendees in one dashboard.
+          <p className="text-gray-300 mb-6">
+            Create events, sell tickets and manage attendees with Nexa Events.
           </p>
           <Link
             href="/organizer/events"
-            className="inline-block bg-black text-white px-6 py-3 rounded-xl"
+            className="inline-block bg-white text-black px-6 py-3 rounded-xl font-medium"
           >
             Go to Organizer Dashboard
           </Link>
