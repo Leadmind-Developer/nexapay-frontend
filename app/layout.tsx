@@ -10,6 +10,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
   // Routes that should NOT render the global NavBar
   const isOrganizer = pathname.startsWith("/organizer");
+  const isEvents = pathname.startsWith("/events");
   const isLanding = pathname === "/"; // Landing page
 
   const skipGlobalLayout = isOrganizer || isLanding;
