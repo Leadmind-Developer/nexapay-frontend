@@ -90,13 +90,18 @@ export default function TicketTypesPage() {
     e.preventDefault();
     if (!eventId) return toast.error("Event not found");
 
+    const payload = {
+      ...form,
+      price: isFree ? 0 : form.price,
+    };
+    
     setLoading(true);
     try {
       if (editingId) {
-        await api.patch(`/events/organizer/events/${eventId}/tickets/${editingId}`, form);
+        await api.patch(`/events/organizer/events/${eventId}/tickets/${editingId}`, payload);
         toast.success("Ticket type updated");
       } else {
-        await api.post(`/events/organizer/events/${eventId}/tickets`, form);
+        await api.post(`/events/organizer/events/${eventId}/tickets`, payload);
         setSuccessMessage(
           "Ticket type created successfully! You can create multiple types like Regular, VIP, Platinum..."
         );
@@ -329,9 +334,10 @@ export default function TicketTypesPage() {
               name="price"
               type="number"
               placeholder="Price"
-              value={form.price ?? ""}
+              value={isFree ? 0 : form.price ?? ""}
               onChange={handleChange}
               required
+              disabled={isFree}
               className="p-2 border border-gray-300 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
             />
             <input
@@ -403,7 +409,13 @@ export default function TicketTypesPage() {
                   {ticketTypes.map(tt => (
                     <tr key={tt.id} className="border-b border-gray-200 dark:border-neutral-800">
                       <td className="py-2 px-2">{tt.name}</td>
-                      <td className="py-2 px-2">{tt.price} {tt.currency}</td>
+                      <td className="py-2 px-2">
+                        {tt.price === 0 ? (
+                          <span className="text-green-600 font-semibold">FREE</span>
+                      ) : (
+                      `${tt.price} ${tt.currency}`
+                      )}
+                     </td>
                       <td className="py-2 px-2">{tt.quantity}</td>
                       <td className="py-2 px-2">{tt.sold}</td>
                       <td className="py-2 px-2 font-semibold">{(tt.price * tt.sold).toLocaleString()} {tt.currency}</td>
