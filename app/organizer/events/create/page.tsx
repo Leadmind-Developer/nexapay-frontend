@@ -24,7 +24,7 @@ const eventSchema = z
     type: z.enum(["PHYSICAL", "VIRTUAL"]),
     venue: z.string().optional(),
     address: z.string().optional(),
-    category: z.string().optional(),
+    category: z.string().min(1, "Category is required"),
     startAt: z.string().min(1, "Start date is required"),
     endAt: z.string().min(1, "End date is required"),
   })
@@ -44,6 +44,16 @@ const eventSchema = z
 
 type EventFormState = z.infer<typeof eventSchema>;
 type FormErrors = Partial<Record<keyof EventFormState, string>>;
+
+const EVENT_CATEGORIES = [
+  "Entertainment",
+  "Food & Drink",
+  "Career & Business",
+  "Spirituality & Religion",
+  "Art & Culture",
+  "Community",
+  "Other",
+];
 
 /* =====================================================
    Page
@@ -227,6 +237,22 @@ export default function EventCreatePage() {
             value={form.description}
             onChange={e => update("description", e.target.value)}
           />
+
+           <Select
+  value={form.category}
+  onChange={e => update("category", e.target.value)}
+  options={[
+    { label: "Select category", value: "" },
+    ...EVENT_CATEGORIES.map(c => ({
+      label: c,
+      value: c,
+    })),
+  ]}
+/>
+
+{errors.category && (
+  <p className="text-xs text-red-500">{errors.category}</p>
+)}
 
           <Select
             value={form.type}
