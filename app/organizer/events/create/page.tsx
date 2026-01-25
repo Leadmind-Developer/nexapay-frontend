@@ -16,18 +16,21 @@ type UploadState = "idle" | "uploading" | "success" | "error";
    Zod Schema (Single Source of Truth)
 ===================================================== */
 
-const eventSchema = z
-  .object({
-    title: z.string().min(3, "Event title is required"),
-    description: z.string().optional(),
-    email: z.string().email("Organizer email is missing"),
-    type: z.enum(["PHYSICAL", "VIRTUAL"]),
-    venue: z.string().optional(),
-    address: z.string().optional(),
-    category: z.string().min(1, "Category is required"),
-    startAt: z.string().min(1, "Start date is required"),
-    endAt: z.string().min(1, "End date is required"),
-  })
+const eventSchema = z.object({
+  title: z.string().min(3),
+  description: z.string().optional(),
+  email: z.string().email(),
+  type: z.enum(["PHYSICAL", "VIRTUAL"]),
+  venue: z.string().optional(),
+  address: z.string().optional(),
+
+  city: z.string().optional(),
+  country: z.string().optional(),
+
+  category: z.string().min(1),
+  startAt: z.string().min(1),
+  endAt: z.string().min(1),
+})
   .refine(data => new Date(data.endAt) > new Date(data.startAt), {
     message: "End date must be after start date",
     path: ["endAt"],
@@ -38,7 +41,7 @@ const eventSchema = z
       (!!data.venue?.trim() && !!data.address?.trim()),
     {
       message: "Venue and address are required for physical events",
-      path: ["venue"],
+      path: ["address"],
     }
   );
 
@@ -46,13 +49,13 @@ type EventFormState = z.infer<typeof eventSchema>;
 type FormErrors = Partial<Record<keyof EventFormState, string>>;
 
 const EVENT_CATEGORIES = [
-  "Entertainment",
-  "Food & Drink",
-  "Career & Business",
-  "Spirituality & Religion",
-  "Art & Culture",
-  "Community",
-  "Other",
+  { label: "Entertainment", value: "ENTERTAINMENT" },
+  { label: "Food & Drink", value: "FOOD_AND_DRINK" },
+  { label: "Career & Business", value: "CAREER_AND_BUSINESS" },
+  { label: "Spirituality & Religion", value: "SPIRITUALITY_AND_RELIGION" },
+  { label: "Art & Culture", value: "ART_AND_CULTURE" },
+  { label: "Community", value: "COMMUNITY" },
+  { label: "Other", value: "OTHER" },
 ];
 
 /* =====================================================
@@ -69,6 +72,8 @@ export default function EventCreatePage() {
     type: "PHYSICAL",
     venue: "",
     address: "",
+    "city": "Lagos",
+    "country": "Nigeria",
     category: "",
     startAt: "",
     endAt: "",
@@ -155,6 +160,8 @@ export default function EventCreatePage() {
         ...form,
         venue: form.type === "PHYSICAL" ? form.venue : null,
         address: form.type === "PHYSICAL" ? form.address : null,
+        city: form.type === "PHYSICAL" ? form.city : null,
+        country: form.type === "PHYSICAL" ? form.country : null,
         startAt: new Date(form.startAt).toISOString(),
         endAt: new Date(form.endAt).toISOString(),
         published: shouldPublish,
@@ -237,22 +244,15 @@ export default function EventCreatePage() {
             value={form.description}
             onChange={e => update("description", e.target.value)}
           />
-
+           
            <Select
-  value={form.category}
-  onChange={e => update("category", e.target.value)}
-  options={[
-    { label: "Select category", value: "" },
-    ...EVENT_CATEGORIES.map(c => ({
-      label: c,
-      value: c,
-    })),
-  ]}
-/>
-
-{errors.category && (
-  <p className="text-xs text-red-500">{errors.category}</p>
-)}
+              value={form.category}
+              onChange={e => update("category", e.target.value)}
+              options={[
+                 { label: "Select category", value: "" },
+                 ...EVENT_CATEGORIES,
+               ]}
+              />           
 
           <Select
             value={form.type}
