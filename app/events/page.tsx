@@ -275,8 +275,14 @@ function EventCard({ event }: { event: Event }) {
 
   const locationLabel =
     event.city || event.country
-      ? `📍 ${event.city ?? event.country}`
-      : "💻 Virtual";
+      ? `${event.city ?? event.country}`
+      : "Virtual";
+
+  const formattedDate = new Date(event.startAt).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <Link
@@ -298,11 +304,11 @@ function EventCard({ event }: { event: Event }) {
         {/* FREE / PAID BADGE */}
         <div className="absolute top-3 left-3">
           {free ? (
-            <span className="bg-green-600 text-white text-xs px-3 py-1 rounded-full">
+            <span className="bg-green-600 text-white text-xs px-3 py-1 rounded-full font-medium">
               FREE
             </span>
           ) : (
-            <span className="bg-black text-white text-xs px-3 py-1 rounded-full">
+            <span className="bg-purple-700 text-white text-xs px-3 py-1 rounded-full font-medium">
               PAID
             </span>
           )}
@@ -313,16 +319,19 @@ function EventCard({ event }: { event: Event }) {
       {/* CONTENT */}
       <div className="p-5 space-y-2">
 
+        {/* CATEGORY */}
         <p className="text-xs text-gray-500">
           {event.category}
         </p>
 
+        {/* TITLE */}
         <h3 className="text-lg font-semibold line-clamp-2">
           {event.title}
         </h3>
 
-        <p className="text-sm text-gray-600 line-clamp-2">
-          {event.description}
+        {/* LOCATION (replacing description) */}
+        <p className="text-sm text-green-600 font-medium flex items-center gap-1">
+          📍 {locationLabel}
         </p>
 
         <div className="flex justify-between items-center text-xs pt-2">
@@ -332,9 +341,9 @@ function EventCard({ event }: { event: Event }) {
             {free ? "Free" : `₦${minPrice.toLocaleString()}`}
           </span>
 
-          {/* LOCATION */}
-          <span className="font-medium text-green-600">
-            {locationLabel}
+          {/* DATE WITH ICON */}
+          <span className="font-medium text-gray-600 flex items-center gap-1">
+            📅 {formattedDate}
           </span>
 
         </div>
@@ -343,3 +352,4 @@ function EventCard({ event }: { event: Event }) {
     </Link>
   );
 }
+
