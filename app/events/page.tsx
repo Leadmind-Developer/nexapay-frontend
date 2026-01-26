@@ -19,6 +19,7 @@ interface Event {
   ticketTypes?: { price: number }[];
   images?: { url: string }[];
   organizer: { name: string };
+  type: "PHYSICAL" | "VIRTUAL";
 }
 
 /* ===================== CONSTANTS ===================== */
