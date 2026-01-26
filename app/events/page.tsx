@@ -112,10 +112,10 @@ export default function EventsLandingPage() {
               onChange={e => setSearch(e.target.value)}
               className="flex-1 px-4 py-3 text-black outline-none"
             />
-            <button className="bg-black text-white px-6">
+            <button className="bg-black text-white dark:text-black px-6">
               Search
             </button>
-          </div>
+          </div> 
 
         </div>
       </section>
@@ -152,7 +152,7 @@ export default function EventsLandingPage() {
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition
                 ${
                   category === cat.value
-                    ? "bg-black text-white"
+                    ? "bg-black text-white dark:text-black"
                     : "bg-white border hover:bg-gray-100"
                 }`}
             >
@@ -214,7 +214,7 @@ export default function EventsLandingPage() {
         )}
 
         {!loading && visibleEvents.length === 0 && (
-          <p className="text-gray-500">No events found.</p>
+          <p className="text-gray-500 dark:text-black">No events found.</p>
         )}
 
         {!loading && visibleEvents.length > 0 && (
@@ -323,7 +323,7 @@ function EventCard({ event }: { event: Event }) {
         <p className="text-xs text-gray-500">{event.category}</p>
 
         {/* TITLE */}
-        <h3 className="text-lg font-semibold line-clamp-2">{event.title}</h3>
+        <h3 className="text-lg dark:text-black font-semibold line-clamp-2">{event.title}</h3>
 
         {/* LOCATION */}
         <p className="text-sm text-green-600 font-medium flex items-center gap-1">
