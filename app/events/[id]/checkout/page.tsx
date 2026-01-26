@@ -4,8 +4,14 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import api from "@/lib/api";
 import Image from "next/image";
+import Link from "next/link";
 
 type PaymentMethod = "wallet" | "paystack";
+
+interface EventImage {
+  url: string;
+  isPrimary?: boolean;
+}
 
 interface TicketType {
   id: string;
@@ -21,8 +27,12 @@ interface Event {
   address?: string;
   city?: string;
   country?: string;
-  images?: { url: string; isPrimary?: boolean }[];
+  category?: string;
+  ticketTypes: TicketType[];
+  images?: EventImage[];
 }
+
+/* ================================================= */
 
 export default function CheckoutPage() {
   const params = useParams();
@@ -30,13 +40,17 @@ export default function CheckoutPage() {
 
   const eventId = params.id as string;
   const ticketTypeId = searchParams.get("ticketTypeId");
+  const reference = searchParams.get("reference");
 
   const [event, setEvent] = useState<Event | null>(null);
   const [ticket, setTicket] = useState<TicketType | null>(null);
+  const [relatedEvents, setRelatedEvents] = useState<Event[]>([]);
 
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+
+  const [quantity, setQuantity] = useState(1);
 
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethod>("paystack");
@@ -45,11 +59,11 @@ export default function CheckoutPage() {
     useState<"idle" | "sending" | "success" | "error">("idle");
 
   const [ticketCode, setTicketCode] = useState<string | null>(null);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  /* ================= FETCH EVENT + TICKET ================= */
-  const reference = searchParams.get("reference");
+/* ================================================= */
+/* RESUME EXISTING ORDER */
+/* ================================================= */
 
 useEffect(() => {
   if (!reference) return;
@@ -64,250 +78,309 @@ useEffect(() => {
       if (order.ticket) {
         setTicketCode(order.ticket.code);
         setStatus("success");
-      } else if (order.paymentStatus === "pending") {
-        setStatus("idle");
       } else {
         setStatus("idle");
       }
     })
-    .catch(err => {
-      console.error(err);
-      setStatus("idle");
-    });
+    .catch(() => setStatus("idle"));
 }, [reference]);
 
+/* ================================================= */
+/* FETCH EVENT + TICKET (MIMIC EVENT PAGE LOGIC) */
+/* ================================================= */
 
-  useEffect(() => {
-    if (!ticketTypeId) return;
+useEffect(() => {
+  if (!ticketTypeId) return;
 
-    const loadCheckoutData = async () => {
-      try {
-        const res = await api.get<any>(`/events/${eventId}`);
-
-        const eventData = res.data;
-        
-        setEvent(eventData);
-
-        const ticketRes = await api.get<TicketType>(
-          `/events/ticket-types/${ticketTypeId}`
-        );
-        setTicket(ticketRes.data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    loadData();
-  }, [eventId, ticketTypeId]);
-
-  if (!ticketTypeId)
-    return (
-      <div className="p-10 text-center text-red-500">
-        Ticket type not specified
-      </div>
-    );
-
-  if (!event || !ticket)
-    return (
-      <div className="p-10 text-center text-gray-500">
-        Loading checkout...
-      </div>
-    );
-
-  const heroImage =
-    event.images?.find((i) => i.isPrimary)?.url || event.images?.[0]?.url;
-
-  const isFree = ticket.price === 0;
-
-  const locationLabel =
-    event.type === "VIRTUAL"
-      ? "Virtual Event"
-      : [event.address, event.city, event.country].filter(Boolean).join(", ");
-
-  const formattedDate = new Date(event.startAt).toLocaleString();
-
-  /* ================= SUBMIT ================= */
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    setStatus("sending");
-    setErrorMessage(null);
-
+  const fetchCheckoutData = async () => {
     try {
-      const res = await api.post("/events/checkout", {
-        ticketTypeId,
-        buyerName,
-        buyerEmail,
-        buyerPhone,
-        paymentMethod: isFree ? "wallet" : paymentMethod,
-      });
+      const res = await api.get<Event>(`/events/${eventId}`);
+      const eventData = res.data;
 
-      const data = res.data;
+      setEvent(eventData);
 
-      // Free or wallet checkout → instant ticket
-      if (data.ticket) {
-        setTicketCode(data.ticket.code);
-        setStatus("success");
-        return;
-      }
-
-      // Paystack redirect
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-        return;
-      }
-
-      setStatus("success");
-    } catch (err: any) {
-      console.error(err);
-      setErrorMessage(
-        err.response?.data?.error || "Checkout failed"
+      const selectedTicket = eventData.ticketTypes.find(
+        t => t.id.toString() === ticketTypeId.toString()
       );
-      setStatus("error");
+
+      if (!selectedTicket) {
+        throw new Error("Ticket not found");
+      }
+
+      setTicket(selectedTicket);
+
+      if (eventData.category) {
+        const related = await api.get<Event[]>(
+          `/events?category=${eventData.category}&limit=6`
+        );
+
+        setRelatedEvents(
+          related.data.filter(e => e.id !== eventData.id).slice(0,6)
+        );
+      }
+
+    } catch (err) {
+      console.error(err);
+      setErrorMessage("Failed to load checkout details");
     }
   };
 
-  /* ================= RENDER ================= */
+  fetchCheckoutData();
+}, [eventId, ticketTypeId]);
 
-  return (
-    <div className="max-w-4xl mx-auto px-6 py-12 space-y-10">
+/* ================================================= */
 
-      {/* ===== EVENT SUMMARY ===== */}
+if (!ticketTypeId)
+  return <div className="p-10 text-center text-red-500">Ticket not specified</div>;
 
-      <div className="flex flex-col md:flex-row gap-6 bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow">
+if (!event || !ticket)
+  return <div className="p-10 text-center text-gray-500">Loading checkout...</div>;
 
-        {heroImage && (
-          <div className="relative w-full md:w-64 h-48 md:h-auto">
-            <Image
-              src={heroImage}
-              alt={event.title}
-              fill
-              className="object-cover"
-            />
-          </div>
-        )}
+const heroImage =
+  event.images?.find(i => i.isPrimary)?.url ||
+  event.images?.[0]?.url;
 
-        <div className="p-6 space-y-2 flex-1">
-          <h1 className="text-2xl font-bold">{event.title}</h1>
+const isFree = ticket.price === 0;
 
-          <p className="text-sm text-gray-500">
-            📅 {formattedDate}
-          </p>
+const locationLabel =
+  event.type === "VIRTUAL"
+    ? "Virtual Event"
+    : [event.address, event.city, event.country].filter(Boolean).join(", ");
 
-          <p className="text-sm text-gray-500">
-            📍 {locationLabel}
-          </p>
-        </div>
-      </div>
+const formattedDate = new Date(event.startAt).toLocaleString();
 
-      {/* ===== ORDER SUMMARY ===== */}
+const totalAmount = ticket.price * quantity;
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow space-y-4">
+/* ================================================= */
+/* SUBMIT */
+/* ================================================= */
 
-        <h2 className="text-xl font-semibold">Order summary</h2>
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-        <div className="flex justify-between">
-          <span>{ticket.name}</span>
-          <span>
-            {isFree ? "Free" : `₦${ticket.price.toLocaleString()}`}
-          </span>
-        </div>
+  setStatus("sending");
+  setErrorMessage(null);
 
-        <hr />
+  try {
+    const res = await api.post("/events/checkout", {
+      ticketTypeId,
+      quantity,
+      buyerName,
+      buyerEmail,
+      buyerPhone,
+      paymentMethod: isFree ? "wallet" : paymentMethod,
+    });
 
-        <div className="flex justify-between font-semibold text-lg">
-          <span>Total</span>
-          <span>
-            {isFree ? "Free" : `₦${ticket.price.toLocaleString()}`}
-          </span>
-        </div>
-      </div>
+    const data = res.data;
 
-      {/* ===== BUYER FORM ===== */}
+    if (data.ticket) {
+      setTicketCode(data.ticket.code);
+      setStatus("success");
+      return;
+    }
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow space-y-4"
-      >
-        <h2 className="text-xl font-semibold">Your details</h2>
+    if (data.paymentUrl) {
+      window.location.href = data.paymentUrl;
+      return;
+    }
 
-        <input
-          required
-          placeholder="Full name"
-          value={buyerName}
-          onChange={(e) => setBuyerName(e.target.value)}
-          className="w-full border rounded-xl px-4 py-3"
-        />
+  } catch (err: any) {
+    setErrorMessage(err.response?.data?.error || "Checkout failed");
+    setStatus("error");
+  }
+};
 
-        <input
-          required
-          type="email"
-          placeholder="Email address"
-          value={buyerEmail}
-          onChange={(e) => setBuyerEmail(e.target.value)}
-          className="w-full border rounded-xl px-4 py-3"
-        />
+/* ================================================= */
+/* RENDER */
+/* ================================================= */
 
-        <input
-          placeholder="Phone number"
-          value={buyerPhone}
-          onChange={(e) => setBuyerPhone(e.target.value)}
-          className="w-full border rounded-xl px-4 py-3"
-        />
+return (
+<div className="max-w-5xl mx-auto px-6 py-12 space-y-14">
 
-        {/* ===== PAYMENT METHOD (ONLY IF PAID) ===== */}
+{/* ================= EVENT SUMMARY ================= */}
 
-        {!isFree && (
-          <div className="space-y-2">
-            <p className="font-medium">Payment method</p>
+<div className="flex flex-col md:flex-row gap-6 bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow">
 
-            <select
-              value={paymentMethod}
-              onChange={(e) =>
-                setPaymentMethod(e.target.value as PaymentMethod)
-              }
-              className="w-full border rounded-xl px-4 py-3"
-            >
-              <option value="paystack">Paystack</option>
-              <option value="wallet">Wallet</option>
-            </select>
-          </div>
-        )}
-
-        <button
-          disabled={status === "sending"}
-          className="w-full bg-black text-white rounded-xl py-3 font-semibold hover:opacity-90 transition disabled:opacity-60"
-        >
-          {status === "sending"
-            ? "Processing..."
-            : isFree
-            ? "Get Free Ticket"
-            : "Proceed to Payment"}
-        </button>
-      </form>
-
-      {/* ===== SUCCESS ===== */}
-
-      {status === "success" && ticketCode && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
-          <p className="text-green-700 font-semibold">
-            🎉 Ticket issued successfully!
-          </p>
-          <p className="mt-2 text-sm">
-            Ticket Code:
-            <span className="ml-2 font-mono font-semibold">
-              {ticketCode}
-            </span>
-          </p>
-        </div>
-      )}
-
-      {/* ===== ERROR ===== */}
-
-      {status === "error" && errorMessage && (
-        <p className="text-red-500 text-center">{errorMessage}</p>
-      )}
+  {heroImage && (
+    <div className="relative w-full md:w-72 h-52 md:h-auto">
+      <Image src={heroImage} alt={event.title} fill className="object-cover"/>
     </div>
-  );
+  )}
+
+  <div className="p-6 space-y-2 flex-1">
+    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+      isFree ? "bg-green-600 text-white" : "bg-indigo-600 text-white"
+    }`}>
+      {isFree ? "Free Event" : "Paid Event"}
+    </span>
+
+    <h1 className="text-2xl font-bold">{event.title}</h1>
+
+    <p className="text-sm text-gray-500">📅 {formattedDate}</p>
+    <p className="text-sm text-gray-500">📍 {locationLabel}</p>
+  </div>
+</div>
+
+{/* ================= ORDER SUMMARY ================= */}
+
+<div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow space-y-4">
+
+<h2 className="text-xl font-semibold">Order Summary</h2>
+
+<div className="flex justify-between">
+  <span>{ticket.name}</span>
+  <span>{isFree ? "Free" : `₦${ticket.price.toLocaleString()}`}</span>
+</div>
+
+<div className="flex items-center justify-between">
+  <span>Attendees</span>
+
+  <input
+    type="number"
+    min={1}
+    value={quantity}
+    onChange={(e)=>setQuantity(Number(e.target.value))}
+    className="w-20 border rounded-lg px-2 py-1 text-center"
+  />
+</div>
+
+<hr/>
+
+<div className="flex justify-between text-lg font-semibold">
+  <span>Total</span>
+  <span>{isFree ? "Free" : `₦${totalAmount.toLocaleString()}`}</span>
+</div>
+
+</div>
+
+{/* ================= LOGIN CTA ================= */}
+
+<div className="bg-indigo-50 dark:bg-indigo-900/30 p-6 rounded-2xl text-center space-y-3">
+
+<p className="font-semibold">
+Have an account?
+</p>
+
+<div className="flex justify-center gap-4">
+<Link href="/login" className="text-indigo-600 font-medium hover:underline">
+Login
+</Link>
+<Link href="/register" className="text-indigo-600 font-medium hover:underline">
+Create account
+</Link>
+</div>
+</div>
+
+{/* ================= BUYER FORM ================= */}
+
+<form
+onSubmit={handleSubmit}
+className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow space-y-4"
+>
+
+<h2 className="text-xl font-semibold">Your Details</h2>
+
+<input
+required
+placeholder="Full name"
+value={buyerName}
+onChange={e=>setBuyerName(e.target.value)}
+className="w-full border rounded-xl px-4 py-3"
+/>
+
+<input
+required
+type="email"
+placeholder="Email address"
+value={buyerEmail}
+onChange={e=>setBuyerEmail(e.target.value)}
+className="w-full border rounded-xl px-4 py-3"
+/>
+
+<input
+placeholder="Phone number"
+value={buyerPhone}
+onChange={e=>setBuyerPhone(e.target.value)}
+className="w-full border rounded-xl px-4 py-3"
+/>
+
+{!isFree && (
+<select
+value={paymentMethod}
+onChange={e=>setPaymentMethod(e.target.value as PaymentMethod)}
+className="w-full border rounded-xl px-4 py-3"
+>
+<option value="paystack">Paystack</option>
+<option value="wallet">Wallet</option>
+</select>
+)}
+
+<button
+disabled={status==="sending"}
+className="w-full bg-black text-white rounded-xl py-3 font-semibold hover:opacity-90 disabled:opacity-60"
+>
+{status==="sending" ? "Processing..." : isFree ? "Get Free Ticket" : "Proceed to Payment"}
+</button>
+
+</form>
+
+{/* ================= SUCCESS ================= */}
+
+{status==="success" && ticketCode && (
+<div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+<p className="font-semibold text-green-700">🎉 Ticket issued!</p>
+<p className="mt-2 font-mono">{ticketCode}</p>
+</div>
+)}
+
+{/* ================= ERROR ================= */}
+
+{status==="error" && errorMessage && (
+<p className="text-red-500 text-center">{errorMessage}</p>
+)}
+
+{/* ================= SIMILAR EVENTS ================= */}
+
+{relatedEvents.length > 0 && (
+<section className="space-y-4">
+
+<h2 className="text-2xl font-semibold">Other Events You May Like</h2>
+
+<div className="flex gap-4 overflow-x-auto pb-4">
+
+{relatedEvents.map(ev => (
+<Link
+key={ev.id}
+href={`/events/${ev.id}`}
+className="min-w-[220px] border rounded-xl overflow-hidden bg-white dark:bg-gray-800 hover:shadow-lg transition"
+>
+
+<div className="h-32 relative bg-gray-200">
+{ev.images?.[0] && (
+<Image
+src={ev.images[0].url}
+alt={ev.title}
+fill
+className="object-cover"
+/>
+)}
+</div>
+
+<div className="p-3">
+<p className="text-sm text-indigo-600 font-semibold">
+{ev.category}
+</p>
+<p className="font-semibold line-clamp-2">
+{ev.title}
+</p>
+</div>
+
+</Link>
+))}
+</div>
+</section>
+)}
+
+</div>
+);
 }
