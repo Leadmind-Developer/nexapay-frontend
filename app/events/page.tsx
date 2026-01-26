@@ -125,7 +125,7 @@ export default function EventsLandingPage() {
       {!loading && featured.length > 0 && (
         <section className="max-w-7xl mx-auto px-6 py-12">
 
-          <h2 className="text-2xl font-bold mb-6">
+          <h2 className="text-2xl dark:text-black font-bold mb-6">
             Featured Events
           </h2>
 
