@@ -149,12 +149,10 @@ export default function EventsLandingPage() {
             <button
               key={cat.value}
               onClick={() => setCategory(cat.value)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition
-                ${
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition ${               
                   category === cat.value
                     ? "bg-black text-white dark:bg-white dark:text-black"
-                    : "bg-white text-gray-800 border border-gray-300 hover:bg-gray-100
-                      dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700"
+                    : "bg-white text-gray-800 border border-gray-300 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700"                     
                 }`}
             >
               {cat.label}
@@ -169,9 +167,7 @@ export default function EventsLandingPage() {
           <select
             value={price}
             onChange={e => setPrice(e.target.value)}
-            className="rounded-xl border px-4 py-2
-                       bg-white text-gray-800 border-gray-300
-                       dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+            className="rounded-xl border px-4 py-2 bg-white text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"                      
           >
             {PRICE_FILTERS.map(p => (
               <option key={p} className="bg-white dark:bg-gray-800">
@@ -184,18 +180,13 @@ export default function EventsLandingPage() {
             placeholder="City or country"
             value={location}
             onChange={e => setLocation(e.target.value)}
-            className="rounded-xl border px-4 py-2"
-                       bg-white text-gray-800 border-gray-300
-                       dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700
-                       placeholder-gray-400 dark:placeholder-gray-500"
+            className="rounded-xl border px-4 py-2 bg-white text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500"                     
           />
 
           <select
             value={sort}
             onChange={e => setSort(e.target.value)}
-            className="rounded-xl border px-4 py-2"
-                       bg-white text-gray-800 border-gray-300
-                       dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+            className="rounded-xl border px-4 py-2 bg-white text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"                      
           >
             <option className="bg-white dark:bg-gray-800" value="latest">
               Latest
