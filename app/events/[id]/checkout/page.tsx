@@ -118,8 +118,9 @@ export default function CheckoutPage() {
 
   /* ==================== CLIENT-SIDE USER FETCH ==================== */
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndWallet = async () => {
       try {
+    const fetchUser = async () => {      
         const res = await api.get("/user/me");
         const u = res.data.user;
         setUser(u || null);
@@ -128,14 +129,29 @@ export default function CheckoutPage() {
         setBuyerName(u?.name || "");
         setBuyerEmail(u?.email || "");
         setBuyerPhone(u?.phone || "");
+
+      // 2️⃣ Fetch wallet info if logged in
+      if (u) {
+        const walletRes = await api.get("/wallet");
+        const walletData = walletRes.data?.wallet;
+
+        if (walletData) {
+          // Auto-select wallet if balance sufficient
+          const totalCost = ticket?.price * quantity || 0;
+          if (walletData.balance >= totalCost && !isFree) {
+            setPaymentMethod("wallet");
+          }
+        }
+      }
       } catch {
         setUser(null);
       } finally {
         setLoadingUser(false);
       }
     };
-    fetchUser();
-  }, []);
+    
+    fetchUserAndWallet();
+  }, [ticket, quantity, isFree]);
 
   /* ==================== FORM SUBMIT ==================== */
   const handleSubmit = async (e: React.FormEvent) => {
