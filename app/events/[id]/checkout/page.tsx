@@ -137,7 +137,7 @@ export default function CheckoutPage() {
 
         if (walletData) {
           // Auto-select wallet if balance sufficient
-          const totalCost = ticket?.price * quantity || 0;
+          const totalCost = (ticket?.price ?? 0) * quantity;
           if (walletData.balance >= totalCost && !isFree) {
             setPaymentMethod("wallet");
           }
