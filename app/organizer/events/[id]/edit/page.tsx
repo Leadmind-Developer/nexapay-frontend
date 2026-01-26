@@ -117,9 +117,12 @@ export default function EventEditPage() {
         email: form.email,
         venue: form.venue,
         address: form.address,
+        type: form.type ?? "PHYSICAL",
+        category: form.category ?? "OTHER",
       };
 
       await api.patch(`/events/organizer/events/${eventId}`, payload);
+       console.log("PATCH payload", payload);
 
       // update local form state
       setForm(prev => prev ? { ...prev, published: publish ?? prev.published } : prev);
