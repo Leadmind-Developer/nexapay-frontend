@@ -143,7 +143,7 @@ export default function CheckoutPage() {
           }
         }
       }
-      } catch {
+      } catch (err) {
         setUser(null);
       } finally {
         setLoadingUser(false);
