@@ -119,10 +119,10 @@ export default function CheckoutPage() {
   /* ==================== CLIENT-SIDE USER FETCH ==================== */
   useEffect(() => {
     const fetchUserAndWallet = async () => {
-      try {
-    const fetchUser = async () => {      
+      try {        
         const res = await api.get("/user/me");
         const u = res.data.user;
+        
         setUser(u || null);
 
         // Autofill form
