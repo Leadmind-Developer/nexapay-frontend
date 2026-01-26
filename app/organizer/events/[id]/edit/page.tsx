@@ -242,13 +242,15 @@ export default function EventEditPage() {
           <Input
             placeholder="Event title"
             value={form.title}
-            onChange={e => update("title", e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+               update("title", e.target.value)
           />
 
           <Textarea
             placeholder="Describe your event"
             value={form.description}
-            onChange={e => update("description", e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+               update("description", e.target.value)  
           />
         </Card>
 
@@ -292,12 +294,14 @@ export default function EventEditPage() {
             <Input
               type="datetime-local"
               value={form.startAt}
-              onChange={e => update("startAt", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                 update("startAt", e.target.value)
             />
             <Input
               type="datetime-local"
               value={form.endAt}
-              onChange={e => update("endAt", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                update("endAt", e.target.value)
             />
           </div>
         </Card>
@@ -411,7 +415,7 @@ function Card({ title, children }: any) {
   );
 }
 
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+function Input(props: any) {
   return (
     <input
       {...props}
@@ -420,11 +424,11 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
-function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function Textarea(props: any) {
   return (
     <textarea
       {...props}
-     className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800"
+      className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800"
     />
   );
 }
