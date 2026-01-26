@@ -116,7 +116,7 @@ export default function CheckoutPage() {
     fetchCheckoutData();
   }, [eventId, ticketTypeId]);
 
-  /* ==================== CLIENT-SIDE USER FETCH ==================== */
+  /* ==================== CLIENT-SIDE USER FETCH ==================== */  
   const isFree = ticket?.price === 0;
   
   useEffect(() => {
@@ -193,8 +193,7 @@ export default function CheckoutPage() {
   if (!event || !ticket)
     return <div className="p-10 text-center text-gray-500">Loading checkout...</div>;
 
-  const heroImage = event.images?.find((i) => i.isPrimary)?.url || event.images?.[0]?.url;
-  const isFree = ticket.price === 0;
+  const heroImage = event.images?.find((i) => i.isPrimary)?.url || event.images?.[0]?.url;  
   const locationLabel =
     event.type === "VIRTUAL"
       ? "Virtual Event"
