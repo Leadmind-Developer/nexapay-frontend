@@ -49,14 +49,44 @@ export default function CheckoutPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   /* ================= FETCH EVENT + TICKET ================= */
+  const reference = searchParams.get("reference");
+
+useEffect(() => {
+  if (!reference) return;
+
+  setStatus("sending");
+
+  api
+    .get(`/events/orders/${reference}`)
+    .then(res => {
+      const order = res.data;
+
+      if (order.ticket) {
+        setTicketCode(order.ticket.code);
+        setStatus("success");
+      } else if (order.paymentStatus === "pending") {
+        setStatus("idle");
+      } else {
+        setStatus("idle");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      setStatus("idle");
+    });
+}, [reference]);
+
 
   useEffect(() => {
     if (!ticketTypeId) return;
 
-    const loadData = async () => {
+    const loadCheckoutData = async () => {
       try {
-        const eventRes = await api.get<Event>(`/events/${eventId}`);
-        setEvent(eventRes.data);
+        const res = await api.get<any>(`/events/${eventId}`);
+
+        const eventData = res.data;
+        
+        setEvent(eventData);
 
         const ticketRes = await api.get<TicketType>(
           `/events/ticket-types/${ticketTypeId}`
