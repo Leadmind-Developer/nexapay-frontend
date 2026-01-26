@@ -101,7 +101,7 @@ export default function EventsLandingPage() {
           </h1>
 
           <p className="text-lg text-gray-300">
-            Concerts, workshops, conferences, parties and more 🎉
+            Concerts, workshops, conferences, parties and more 
           </p>
 
           {/* SEARCH BAR */}
@@ -126,7 +126,7 @@ export default function EventsLandingPage() {
         <section className="max-w-7xl mx-auto px-6 py-12">
 
           <h2 className="text-2xl font-bold mb-6">
-            Featured Events 🔥
+            Featured Events
           </h2>
 
           <div className="grid md:grid-cols-3 gap-6">
