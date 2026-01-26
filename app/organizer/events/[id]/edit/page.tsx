@@ -244,6 +244,7 @@ export default function EventEditPage() {
             value={form.title}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                update("title", e.target.value)
+            }
           />
 
           <Textarea
@@ -251,6 +252,7 @@ export default function EventEditPage() {
             value={form.description}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                update("description", e.target.value)  
+            }
           />
         </Card>
 
@@ -296,12 +298,14 @@ export default function EventEditPage() {
               value={form.startAt}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                  update("startAt", e.target.value)
+               }
             />
             <Input
               type="datetime-local"
               value={form.endAt}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 update("endAt", e.target.value)
+               }
             />
           </div>
         </Card>
