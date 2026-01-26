@@ -411,7 +411,7 @@ function Card({ title, children }: any) {
   );
 }
 
-function Input(props: any) {
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
@@ -420,11 +420,11 @@ function Input(props: any) {
   );
 }
 
-function Textarea(props: any) {
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800"
+     className="w-full rounded-xl border px-4 py-2 bg-white dark:bg-neutral-800"
     />
   );
 }
