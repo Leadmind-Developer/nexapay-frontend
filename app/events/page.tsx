@@ -274,8 +274,8 @@ function EventCard({ event }: { event: Event }) {
   const free = isFreeEvent(event);
 
   const locationLabel =
-    event.city || event.country
-      ? `${event.city ?? event.country}`
+    (event.city || event.country) && event.type === "PHYSICAL"
+      ? `${event.city ?? ""}${event.city && event.country ? ", " : ""}${event.country ?? ""}`
       : "Virtual";
 
   const formattedDate = new Date(event.startAt).toLocaleDateString("en-US", {
