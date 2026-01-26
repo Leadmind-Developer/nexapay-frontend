@@ -60,8 +60,6 @@ export default function CheckoutPage() {
 
   const [ticketCode, setTicketCode] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [user, setUser] = useState<any | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
 
 /* ================================================= */
 /* RESUME EXISTING ORDER */
@@ -152,35 +150,6 @@ const locationLabel =
 const formattedDate = new Date(event.startAt).toLocaleString();
 
 const totalAmount = ticket.price * quantity;
-
-  /* ================================================= */
-/* FETCH LOGGED IN USER */
-/* ================================================= */
-
-useEffect(() => {
-  const fetchUser = async () => {
-    try {
-      const res = await api.get("/user/me");
-
-      const u = res.data.user;
-
-      setUser(u);
-
-      // Autofill buyer form
-      setBuyerName(u.name || "");
-      setBuyerEmail(u.email || "");
-      setBuyerPhone(u.phone || "");
-
-    } catch (err) {
-      // Not logged in → silently ignore
-      setUser(null);
-    } finally {
-      setLoadingUser(false);
-    }
-  };
-
-  fetchUser();
-}, []);
 
 /* ================================================= */
 /* SUBMIT */
@@ -284,30 +253,23 @@ return (
 
 </div>
 
-{/* ================= AUTH CTA / USER INFO ================= */}
+{/* ================= LOGIN CTA ================= */}
 
-{!loadingUser && !user && (
-  <div className="bg-indigo-50 dark:bg-indigo-900/30 p-6 rounded-2xl text-center space-y-3">
-    <p className="font-semibold">Have an account?</p>
+<div className="bg-indigo-50 dark:bg-indigo-900/30 p-6 rounded-2xl text-center space-y-3">
 
-    <div className="flex justify-center gap-4">
-      <Link href="/login">
-        <a className="text-indigo-600 font-medium hover:underline">Login</a>
-      </Link>
-      <Link href="/register">
-        <a className="text-indigo-600 font-medium hover:underline">Create account</a>
-      </Link>
-    </div>
-  </div>
-)}
+<p className="font-semibold">
+Have an account?
+</p>
 
-{!loadingUser && user && (
-  <div className="bg-green-50 dark:bg-green-900/30 p-6 rounded-2xl text-center space-y-1">
-    <p className="font-semibold text-green-700 dark:text-green-300">Logged in as</p>
-    <p className="font-medium">{user?.name ?? "N/A"}</p>
-    <p className="text-sm text-gray-600 dark:text-gray-400">{user?.email ?? "N/A"}</p>
-  </div>
-)}
+<div className="flex justify-center gap-4">
+<Link href="/login" className="text-indigo-600 font-medium hover:underline">
+Login
+</Link>
+<Link href="/register" className="text-indigo-600 font-medium hover:underline">
+Create account
+</Link>
+</div>
+</div>
 
 {/* ================= BUYER FORM ================= */}
 
