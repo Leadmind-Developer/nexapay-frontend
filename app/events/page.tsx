@@ -112,7 +112,7 @@ export default function EventsLandingPage() {
               onChange={e => setSearch(e.target.value)}
               className="flex-1 px-4 py-3 text-black outline-none"
             />
-            <button className="bg-black text-white dark:text-black px-6">
+            <button className="bg-black text-white px-6">
               Search
             </button>
           </div> 
@@ -152,7 +152,7 @@ export default function EventsLandingPage() {
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition
                 ${
                   category === cat.value
-                    ? "bg-black text-white dark:text-black"
+                    ? "bg-black text-white"
                     : "bg-white border hover:bg-gray-100"
                 }`}
             >
