@@ -117,6 +117,8 @@ export default function CheckoutPage() {
   }, [eventId, ticketTypeId]);
 
   /* ==================== CLIENT-SIDE USER FETCH ==================== */
+  const isFree = ticket?.price === 0;
+  
   useEffect(() => {
     const fetchUserAndWallet = async () => {
       try {        
