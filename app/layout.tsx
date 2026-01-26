@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const isEvents = pathname.startsWith("/events");
   const isLanding = pathname === "/"; // Landing page
 
-  const skipGlobalLayout = isOrganizer || isLanding;
+  const skipGlobalLayout = isOrganizer || isLanding || isEvents;
 
   return (
     <html lang="en">
