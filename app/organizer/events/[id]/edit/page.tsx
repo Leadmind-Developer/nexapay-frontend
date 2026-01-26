@@ -114,6 +114,9 @@ export default function EventEditPage() {
         startAt: form.startAt,
         endAt: form.endAt,
         published: publish ?? form.published,
+        email: form.email,
+        venue: form.venue,
+        address: form.address,
       };
 
       await api.patch(`/events/organizer/events/${eventId}`, payload);
