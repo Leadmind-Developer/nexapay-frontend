@@ -3,71 +3,106 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import api from "@/lib/api";
+import Image from "next/image";
 
 type PaymentMethod = "wallet" | "paystack";
+
+interface TicketType {
+  id: string;
+  name: string;
+  price: number;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  startAt: string;
+  type: "PHYSICAL" | "VIRTUAL";
+  address?: string;
+  city?: string;
+  country?: string;
+  images?: { url: string; isPrimary?: boolean }[];
+}
 
 export default function CheckoutPage() {
   const params = useParams();
   const searchParams = useSearchParams();
 
   const eventId = params.id as string;
-  const ticketTypeIdParam = searchParams.get("ticketTypeId");
-  const referenceParam = searchParams.get("reference");
+  const ticketTypeId = searchParams.get("ticketTypeId");
 
-  const [ticketTypeId, setTicketTypeId] = useState(ticketTypeIdParam);
-  const [reference, setReference] = useState(referenceParam);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [ticket, setTicket] = useState<TicketType | null>(null);
 
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+
   const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("wallet");
+    useState<PaymentMethod>("paystack");
 
   const [status, setStatus] =
     useState<"idle" | "sending" | "success" | "error">("idle");
+
   const [ticketCode, setTicketCode] = useState<string | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  /* ---------------- FETCH EXISTING ORDER ---------------- */
-  useEffect(() => {
-    if (reference) {
-      setStatus("sending");
-      api
-        .get(`/events/orders/${reference}`)
-        .then((res) => {
-          const order = res.data;
-          if (order.ticket) {
-            setTicketCode(order.ticket.code);
-            setStatus("success");
-          } else if (order.paymentStatus === "pending") {
-            // Payment pending via Paystack, user can continue
-            setStatus("idle");
-          } else {
-            setStatus("idle");
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-          setStatus("idle");
-        });
-    }
-  }, [reference]);
+  /* ================= FETCH EVENT + TICKET ================= */
 
-  /* ---------------- SUBMIT NEW ORDER ---------------- */
+  useEffect(() => {
+    if (!ticketTypeId) return;
+
+    const loadData = async () => {
+      try {
+        const eventRes = await api.get<Event>(`/events/${eventId}`);
+        setEvent(eventRes.data);
+
+        const ticketRes = await api.get<TicketType>(
+          `/events/ticket-types/${ticketTypeId}`
+        );
+        setTicket(ticketRes.data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadData();
+  }, [eventId, ticketTypeId]);
+
+  if (!ticketTypeId)
+    return (
+      <div className="p-10 text-center text-red-500">
+        Ticket type not specified
+      </div>
+    );
+
+  if (!event || !ticket)
+    return (
+      <div className="p-10 text-center text-gray-500">
+        Loading checkout...
+      </div>
+    );
+
+  const heroImage =
+    event.images?.find((i) => i.isPrimary)?.url || event.images?.[0]?.url;
+
+  const isFree = ticket.price === 0;
+
+  const locationLabel =
+    event.type === "VIRTUAL"
+      ? "Virtual Event"
+      : [event.address, event.city, event.country].filter(Boolean).join(", ");
+
+  const formattedDate = new Date(event.startAt).toLocaleString();
+
+  /* ================= SUBMIT ================= */
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!ticketTypeId) {
-      setErrorMessage("Ticket type not specified.");
-      setStatus("error");
-      return;
-    }
-
     setStatus("sending");
     setErrorMessage(null);
-    setTicketCode(null);
-    setPaymentUrl(null);
 
     try {
       const res = await api.post("/events/checkout", {
@@ -75,23 +110,20 @@ export default function CheckoutPage() {
         buyerName,
         buyerEmail,
         buyerPhone,
-        paymentMethod,
+        paymentMethod: isFree ? "wallet" : paymentMethod,
       });
 
       const data = res.data;
-      setReference(data.reference);
 
-      // Wallet → ticket issued immediately
-      if (paymentMethod === "wallet" && data.ticket) {
+      // Free or wallet checkout → instant ticket
+      if (data.ticket) {
         setTicketCode(data.ticket.code);
         setStatus("success");
         return;
       }
 
-      // Paystack → redirect user
-      if (paymentMethod === "paystack" && data.paymentUrl) {
-        setPaymentUrl(data.paymentUrl);
-        // Redirect immediately
+      // Paystack redirect
+      if (data.paymentUrl) {
         window.location.href = data.paymentUrl;
         return;
       }
@@ -100,102 +132,152 @@ export default function CheckoutPage() {
     } catch (err: any) {
       console.error(err);
       setErrorMessage(
-        err.response?.data?.error || "Checkout failed. Please try again."
+        err.response?.data?.error || "Checkout failed"
       );
       setStatus("error");
     }
   };
 
-  /* ---------------- GUARDS ---------------- */
-  if (!ticketTypeId) {
-    return (
-      <main className="max-w-md mx-auto p-6">
-        <p className="text-red-500 font-medium">
-          Ticket type not specified.
-        </p>
-      </main>
-    );
-  }
+  /* ================= RENDER ================= */
 
-  /* ---------------- RENDER ---------------- */
   return (
-    <main className="max-w-md mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Checkout</h1>
+    <div className="max-w-4xl mx-auto px-6 py-12 space-y-10">
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ===== EVENT SUMMARY ===== */}
+
+      <div className="flex flex-col md:flex-row gap-6 bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow">
+
+        {heroImage && (
+          <div className="relative w-full md:w-64 h-48 md:h-auto">
+            <Image
+              src={heroImage}
+              alt={event.title}
+              fill
+              className="object-cover"
+            />
+          </div>
+        )}
+
+        <div className="p-6 space-y-2 flex-1">
+          <h1 className="text-2xl font-bold">{event.title}</h1>
+
+          <p className="text-sm text-gray-500">
+            📅 {formattedDate}
+          </p>
+
+          <p className="text-sm text-gray-500">
+            📍 {locationLabel}
+          </p>
+        </div>
+      </div>
+
+      {/* ===== ORDER SUMMARY ===== */}
+
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow space-y-4">
+
+        <h2 className="text-xl font-semibold">Order summary</h2>
+
+        <div className="flex justify-between">
+          <span>{ticket.name}</span>
+          <span>
+            {isFree ? "Free" : `₦${ticket.price.toLocaleString()}`}
+          </span>
+        </div>
+
+        <hr />
+
+        <div className="flex justify-between font-semibold text-lg">
+          <span>Total</span>
+          <span>
+            {isFree ? "Free" : `₦${ticket.price.toLocaleString()}`}
+          </span>
+        </div>
+      </div>
+
+      {/* ===== BUYER FORM ===== */}
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow space-y-4"
+      >
+        <h2 className="text-xl font-semibold">Your details</h2>
+
         <input
+          required
           placeholder="Full name"
           value={buyerName}
           onChange={(e) => setBuyerName(e.target.value)}
-          required
-          className="w-full rounded-xl border px-4 py-2"
+          className="w-full border rounded-xl px-4 py-3"
         />
 
         <input
+          required
           type="email"
           placeholder="Email address"
           value={buyerEmail}
           onChange={(e) => setBuyerEmail(e.target.value)}
-          required
-          className="w-full rounded-xl border px-4 py-2"
+          className="w-full border rounded-xl px-4 py-3"
         />
 
         <input
           placeholder="Phone number"
           value={buyerPhone}
           onChange={(e) => setBuyerPhone(e.target.value)}
-          className="w-full rounded-xl border px-4 py-2"
+          className="w-full border rounded-xl px-4 py-3"
         />
 
-        <select
-          value={paymentMethod}
-          onChange={(e) =>
-            setPaymentMethod(e.target.value as PaymentMethod)
-          }
-          className="w-full rounded-xl border px-4 py-2"
-        >
-          <option value="wallet">Wallet</option>
-          <option value="paystack">Paystack</option>
-        </select>
+        {/* ===== PAYMENT METHOD (ONLY IF PAID) ===== */}
+
+        {!isFree && (
+          <div className="space-y-2">
+            <p className="font-medium">Payment method</p>
+
+            <select
+              value={paymentMethod}
+              onChange={(e) =>
+                setPaymentMethod(e.target.value as PaymentMethod)
+              }
+              className="w-full border rounded-xl px-4 py-3"
+            >
+              <option value="paystack">Paystack</option>
+              <option value="wallet">Wallet</option>
+            </select>
+          </div>
+        )}
 
         <button
-          type="submit"
           disabled={status === "sending"}
-          className="w-full rounded-xl border-2 border-black bg-white text-black py-2 font-medium hover:bg-black hover:text-white disabled:opacity-60 transition-colors"
+          className="w-full bg-black text-white rounded-xl py-3 font-semibold hover:opacity-90 transition disabled:opacity-60"
         >
-          {status === "sending" ? "Processing..." : "Pay"}
+          {status === "sending"
+            ? "Processing..."
+            : isFree
+            ? "Get Free Ticket"
+            : "Proceed to Payment"}
         </button>
       </form>
 
-      {/* ---------------- SUCCESS ---------------- */}
+      {/* ===== SUCCESS ===== */}
+
       {status === "success" && ticketCode && (
-        <div className="mt-6 rounded-xl bg-green-50 border border-green-200 p-4">
-          <p className="text-green-700 font-medium">
-            Payment successful 🎉
+        <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
+          <p className="text-green-700 font-semibold">
+            🎉 Ticket issued successfully!
           </p>
-          <p className="mt-1 text-sm">
+          <p className="mt-2 text-sm">
             Ticket Code:
-            <span className="ml-2 font-mono font-semibold">{ticketCode}</span>
+            <span className="ml-2 font-mono font-semibold">
+              {ticketCode}
+            </span>
           </p>
         </div>
       )}
 
-      {/* ---------------- PAYSTACK REDIRECT ---------------- */}
-      {paymentUrl && (
-        <a
-          href={paymentUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 block text-center rounded-xl bg-blue-600 text-white py-2 font-medium hover:opacity-90"
-        >
-          Complete Payment on Paystack →
-        </a>
-      )}
+      {/* ===== ERROR ===== */}
 
-      {/* ---------------- ERROR ---------------- */}
       {status === "error" && errorMessage && (
-        <p className="mt-4 text-red-500">{errorMessage}</p>
+        <p className="text-red-500 text-center">{errorMessage}</p>
       )}
-    </main>
+    </div>
   );
 }
