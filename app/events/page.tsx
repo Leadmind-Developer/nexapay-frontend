@@ -273,11 +273,13 @@ function EventCard({ event }: { event: Event }) {
   const minPrice = getMinPrice(event);
   const free = isFreeEvent(event);
 
+  // ✅ Location helper
   const locationLabel =
-    (event.city || event.country) && event.type === "PHYSICAL"
-      ? `${event.city ?? ""}${event.city && event.country ? ", " : ""}${event.country ?? ""}`
-      : "Virtual";
+    event.type === "VIRTUAL"
+      ? "Virtual"
+      : [event.city, event.country].filter(Boolean).join(", ") || "Physical Event";
 
+  // ✅ Format start date
   const formattedDate = new Date(event.startAt).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -291,7 +293,6 @@ function EventCard({ event }: { event: Event }) {
     >
       {/* IMAGE */}
       <div className="relative aspect-[16/9] bg-gray-100">
-
         {imageUrl && (
           <Image
             src={imageUrl}
@@ -313,43 +314,34 @@ function EventCard({ event }: { event: Event }) {
             </span>
           )}
         </div>
-
       </div>
 
       {/* CONTENT */}
       <div className="p-5 space-y-2">
-
         {/* CATEGORY */}
-        <p className="text-xs text-gray-500">
-          {event.category}
-        </p>
+        <p className="text-xs text-gray-500">{event.category}</p>
 
         {/* TITLE */}
-        <h3 className="text-lg font-semibold line-clamp-2">
-          {event.title}
-        </h3>
+        <h3 className="text-lg font-semibold line-clamp-2">{event.title}</h3>
 
-        {/* LOCATION (replacing description) */}
+        {/* LOCATION */}
         <p className="text-sm text-green-600 font-medium flex items-center gap-1">
           📍 {locationLabel}
         </p>
 
+        {/* PRICE + DATE */}
         <div className="flex justify-between items-center text-xs pt-2">
-
           {/* PRICE */}
           <span className="font-semibold text-indigo-600">
             {free ? "Free" : `₦${minPrice.toLocaleString()}`}
           </span>
 
-          {/* DATE WITH ICON */}
+          {/* DATE WITH CALENDAR ICON */}
           <span className="font-medium text-gray-600 flex items-center gap-1">
             📅 {formattedDate}
           </span>
-
         </div>
-
       </div>
     </Link>
   );
 }
-
