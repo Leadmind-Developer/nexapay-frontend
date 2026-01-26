@@ -262,7 +262,9 @@ export default function EventEditPage() {
           {!preview ? (
             <FileInput
               accept="image/*"
-              onChange={e => setImage(e.target.files?.[0] ?? null)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                 setImage(e.target.files?.[0] ?? null)
+              }
             />
           ) : (
             <div className="flex items-center gap-4">
