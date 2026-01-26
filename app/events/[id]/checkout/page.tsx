@@ -288,41 +288,26 @@ return (
 
 {!loadingUser && !user && (
   <div className="bg-indigo-50 dark:bg-indigo-900/30 p-6 rounded-2xl text-center space-y-3">
-
-    <p className="font-semibold">
-      Have an account?
-    </p>
+    <p className="font-semibold">Have an account?</p>
 
     <div className="flex justify-center gap-4">
-      <Link href="/login" className="text-indigo-600 font-medium hover:underline">
-        Login
+      <Link href="/login">
+        <a className="text-indigo-600 font-medium hover:underline">Login</a>
       </Link>
-      <Link href="/register" className="text-indigo-600 font-medium hover:underline">
-        Create account
+      <Link href="/register">
+        <a className="text-indigo-600 font-medium hover:underline">Create account</a>
       </Link>
     </div>
-
   </div>
 )}
 
 {!loadingUser && user && (
-  <div className="bg-green-50 dark:bg-green-900/30 p-6 rounded-2xl text-center space-y-1 rounded-2xl">
-
-    <p className="font-semibold text-green-700 dark:text-green-300">
-      Logged in as
-    </p>
-
-    <p className="font-medium">
-      {user.name}
-    </p>
-
-    <p className="text-sm text-gray-600 dark:text-gray-400">
-      {user.email}
-    </p>
-
+  <div className="bg-green-50 dark:bg-green-900/30 p-6 rounded-2xl text-center space-y-1">
+    <p className="font-semibold text-green-700 dark:text-green-300">Logged in as</p>
+    <p className="font-medium">{user?.name ?? "N/A"}</p>
+    <p className="text-sm text-gray-600 dark:text-gray-400">{user?.email ?? "N/A"}</p>
   </div>
 )}
-
 
 {/* ================= BUYER FORM ================= */}
 
