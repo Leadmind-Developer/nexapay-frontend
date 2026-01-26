@@ -277,8 +277,20 @@ export default function EventCreatePage() {
                 onChange={e => update("address", e.target.value)}
                 error={errors.address}
               />
-            </>
-          )}
+            <Input
+      placeholder="City"
+      value={form.city}
+      onChange={e => update("city", e.target.value)}
+      error={errors.city}
+    />
+    <Input
+      placeholder="Country"
+      value={form.country}
+      onChange={e => update("country", e.target.value)}
+      error={errors.country}
+    />
+  </>
+)}
         </Card>
 
         <Card title="Event Image">
