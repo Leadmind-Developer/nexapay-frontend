@@ -64,7 +64,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("paystack");
 
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
-  const [ticketCode, setTicketCode] = useState<string | null>(null);
+  const [ticketCodes, setTicketCodes] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [user, setUser] = useState<any | null>(null);
@@ -173,10 +173,9 @@ export default function CheckoutPage() {
 
       const data = res.data;
 
-      if (data.ticket) {
-        setTicketCode(data.ticket.code);
-        setStatus("success");
-        return;
+      if (data.tickets?.length) {
+        setTicketCodes(data.tickets.map((t:any)=>t.code));
+        setStatus("success");        
       }
 
       if (data.paymentUrl) window.location.href = data.paymentUrl;
@@ -321,10 +320,12 @@ export default function CheckoutPage() {
       </ClientOnly>
 
       {/* ================= SUCCESS ================= */}
-      {status === "success" && ticketCode && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
-          <p className="font-semibold text-green-700">🎉 Ticket issued!</p>
-          <p className="mt-2 font-mono">{ticketCode}</p>
+      status === "success" && ticketCodes.length > 0 && (
+        <div className="bg-green-50 border rounded-xl p-6 text-center space-y-2">
+          <p className="font-semibold text-green-700">🎉 Tickets issued!</p>
+          {ticketCodes.map(code => (
+          <p key={code} className="font-mono">{code}</p>
+       ))}
         </div>
       )}
 
