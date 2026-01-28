@@ -342,8 +342,8 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
               className="w-full p-3 border rounded-lg"
               placeholder="Email / Phone / Username"
               value={identifier}
-              onChange={(e) 
-                => setIdentifier(e.target.value.toLowerCase().replace(/\s/g, ""))
+              onChange={(e)=>
+                setIdentifier(e.target.value.toLowerCase().replace(/\s/g, ""))
               }
             />
             <div className="relative">
