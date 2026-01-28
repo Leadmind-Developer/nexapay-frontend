@@ -289,7 +289,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
               placeholder="Email"
               value={email}
               onChange={(e) =>
-                setEmail(e.target.value.toLowerCase()).replace(/\s/g, ""))
+                setEmail(e.target.value.toLowerCase().replace(/\s/g, ""))
               }
             />
             <div className="relative">
@@ -343,7 +343,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
               placeholder="Email / Phone / Username"
               value={identifier}
               onChange={(e) 
-                => setIdentifier(e.target.value.toLowerCase()).replace(/\s/g, ""))
+                => setIdentifier(e.target.value.toLowerCase().replace(/\s/g, ""))
               }
             />
             <div className="relative">
