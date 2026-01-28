@@ -80,7 +80,7 @@ export default function CheckoutPage() {
       .then((res) => {
         const order = res.data;
         if (order.ticket) {
-          setTicketCode(order.ticket.code);
+          setTicketCodes([order.ticket.code]);
           setStatus("success");
         } else setStatus("idle");
       })
@@ -320,12 +320,15 @@ export default function CheckoutPage() {
       </ClientOnly>
 
       {/* ================= SUCCESS ================= */}
-      status === "success" && ticketCodes.length > 0 && (
+      {status === "success" && ticketCodes.length > 0 && (
         <div className="bg-green-50 border rounded-xl p-6 text-center space-y-2">
           <p className="font-semibold text-green-700">🎉 Tickets issued!</p>
-          {ticketCodes.map(code => (
-          <p key={code} className="font-mono">{code}</p>
-       ))}
+          
+          {ticketCodes.map((code) => (
+          <p key={code} className="font-mono">
+            {code}
+       </p>
+        ))}
         </div>
       )}
 
