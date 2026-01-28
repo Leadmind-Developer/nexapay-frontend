@@ -168,7 +168,7 @@ export default function CheckoutPage() {
         buyerName,
         buyerEmail,
         buyerPhone,
-        paymentMethod: ticket?.price === 0 ? "wallet" : paymentMethod,
+        paymentMethod,
       });
 
       const data = res.data;
