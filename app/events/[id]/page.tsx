@@ -15,6 +15,8 @@ interface TicketType {
   id: string;
   name: string;
   price: number;
+  quantity: number;
+  sold: number;
 }
 
 interface Event {
@@ -182,12 +184,65 @@ export default function EventPage() {
 
           <h2 className="text-2xl font-semibold">Tickets</h2>
 
-          {event.ticketTypes.map((ticket) => (
-            <Link
-              key={ticket.id}
-              href={`/events/${event.id}/checkout?ticketTypeId=${ticket.id}`}
-              className="block border rounded-2xl p-5 bg-white dark:bg-gray-800 hover:border-indigo-600 hover:shadow-lg transition"
-            >
+          {event.ticketTypes.map((ticket) => {
+  const isSoldOut = ticket.sold >= ticket.quantity;
+
+  const content = (
+    <div
+      className={`block border rounded-2xl p-5 transition
+        ${
+          isSoldOut
+            ? "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-70"
+            : "bg-white dark:bg-gray-800 hover:border-indigo-600 hover:shadow-lg"
+        }
+      `}
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="font-semibold text-lg">
+            {ticket.name}
+          </p>
+
+          <p
+            className={`text-sm ${
+              isSoldOut ? "text-red-500 font-semibold" : "text-gray-500"
+            }`}
+          >
+            {isSoldOut
+              ? "Sold out"
+              : `${ticket.quantity - ticket.sold} left`}
+          </p>
+        </div>
+
+        <p
+          className={`text-xl font-bold ${
+            isSoldOut ? "text-gray-400" : "text-indigo-600"
+          }`}
+        >
+          {ticket.price === 0
+            ? "Free"
+            : `₦${ticket.price.toLocaleString()}`}
+        </p>
+      </div>
+    </div>
+  );
+
+  // If sold out → no link
+  if (isSoldOut) {
+    return <div key={ticket.id}>{content}</div>;
+  }
+
+  // If available → clickable
+  return (
+    <Link
+      key={ticket.id}
+      href={`/events/${event.id}/checkout?ticketTypeId=${ticket.id}`}
+    >
+      {content}
+    </Link>
+  );
+})}
+
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-semibold text-lg">
