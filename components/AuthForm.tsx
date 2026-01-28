@@ -85,15 +85,15 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         payload = {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-          userID: userID.trim(),
+          userID: userID.trim().toLowerCase(),
           phone: phone.trim(),
-          email: email.trim(),
+          email: email.trim().toLowerCase(),
           password: password.trim(),
         };
       } else {
         endpoint = "/auth/web/login";
         payload = {
-          identifier: identifier.trim(),
+          identifier: identifier.trim().toLowerCase(),
           password: password.trim(),
         };
       }
@@ -274,7 +274,9 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
               className="w-full p-3 border rounded-lg"
               placeholder="Username"
               value={userID}
-              onChange={(e) => setUserID(e.target.value)}
+              onChange={(e) =>
+                setUserID(e.target.value.toLowerCase().replace(/\s/g, ""))
+              }
             />
             <input
               className="w-full p-3 border rounded-lg"
@@ -286,7 +288,9 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
               className="w-full p-3 border rounded-lg"
               placeholder="Email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) =>
+                setEmail(e.target.value.toLowerCase()).replace(/\s/g, ""))
+              }
             />
             <div className="relative">
               <input
@@ -338,7 +342,9 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
               className="w-full p-3 border rounded-lg"
               placeholder="Email / Phone / Username"
               value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
+              onChange={(e) 
+                => setIdentifier(e.target.value.toLowerCase()).replace(/\s/g, ""))
+              }
             />
             <div className="relative">
               <input
