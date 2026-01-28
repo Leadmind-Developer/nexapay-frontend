@@ -288,7 +288,7 @@ export function EventCard({ event }: { event: Event }) {
             </button>
             <button
               onClick={handleShare}
-              className="flex-1 bg-white dark:bg-grey-100 text-black dark:white rounded-lg py-2 text-sm hover:opacity-90 transition"
+              className="flex-1 border rounded-lg py-2 text-sm hover:bg-gray-50 transition"
             >
               Share
             </button>
