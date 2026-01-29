@@ -40,7 +40,7 @@ export default function VerifyTicketPage() {
 
     setCheckingIn(true);
     try {
-      const res = await api.post("/events/tickets/check-in", { code });
+      const res = await api.post("/events/tickets/checkin", { code });
       setTicket(res.data);
     } catch (err: any) {
       alert(err.response?.data?.error || "Failed to check in");
