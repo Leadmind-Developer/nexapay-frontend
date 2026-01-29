@@ -22,7 +22,7 @@ export default function WithdrawalModal({ goal, onClose }: WithdrawalModalProps)
   // Request OTP when modal mounts
   const requestOtp = async () => {
     try {
-      await api.post("/savings/break/request", { goalId: goal.id });
+      await api.post(`/savings/goals/${goal.id}/break`);
     } catch (err) {
       console.error("Failed to request OTP", err);
     }
@@ -31,7 +31,7 @@ export default function WithdrawalModal({ goal, onClose }: WithdrawalModalProps)
   // Confirm withdrawal with OTP
   const confirm = async () => {
     try {
-      await api.post("/savings/break/confirm", { goalId: goal.id, otp });
+      await api.post(`/savings/goals/${goal.id}/break/confirm`, { otp });
       onClose();
     } catch (err) {
       console.error("Failed to confirm withdrawal", err);
