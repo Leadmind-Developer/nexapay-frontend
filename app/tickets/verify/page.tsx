@@ -5,7 +5,8 @@ import api from "@/lib/api";
 
 interface TicketResult {
   code: string;
-  checkedInAt?: string | null;
+  checkedAt?: string | null;
+  checkedIn: boolean;
   event: {
     title: string;
   };
@@ -17,6 +18,31 @@ export default function VerifyTicketPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  /* ---------------------------------------------
+     Helpers
+  ----------------------------------------------*/
+
+  function showToast(message: string) {
+    setToast(message);
+    setTimeout(() => setToast(null), 2500);
+  }
+
+  function normalizeTicket(data: any): TicketResult {
+    return {
+      code: data.code,
+      checkedIn: Boolean(data.checkedIn),
+      checkedAt: data.checkedAt || null,
+      event: {
+        title: data.event?.title || "Event",
+      },
+    };
+  }
+
+  /* ---------------------------------------------
+     Verify Ticket
+  ----------------------------------------------*/
 
   async function handleVerify() {
     if (!code) return;
@@ -27,7 +53,7 @@ export default function VerifyTicketPage() {
 
     try {
       const res = await api.post("/events/tickets/verify", { code });
-      setTicket(res.data);
+      setTicket(normalizeTicket(res.data));
     } catch (err: any) {
       setError(err.response?.data?.error || "Invalid ticket");
     } finally {
@@ -35,22 +61,42 @@ export default function VerifyTicketPage() {
     }
   }
 
+  /* ---------------------------------------------
+     Check In Ticket
+  ----------------------------------------------*/
+
   async function handleCheckIn() {
-    if (!code) return;
+    if (!code || !ticket) return;
 
     setCheckingIn(true);
+
     try {
       const res = await api.post("/events/tickets/checkin", { code });
-      setTicket(res.data);
+
+      const updated = normalizeTicket(res.data);
+      setTicket(updated);
+
+      showToast("✅ Ticket checked in successfully!");
     } catch (err: any) {
-      alert(err.response?.data?.error || "Failed to check in");
+      setError(err.response?.data?.error || "Failed to check in");
     } finally {
       setCheckingIn(false);
     }
   }
 
+  /* ---------------------------------------------
+     UI
+  ----------------------------------------------*/
+
   return (
-    <div className="max-w-md mx-auto mt-20 p-6 border rounded-xl shadow-sm bg-white dark:bg-gray-900">
+    <div className="relative max-w-md mx-auto mt-20 p-6 border rounded-xl shadow-sm bg-white dark:bg-gray-900">
+
+      {/* TOAST */}
+      {toast && (
+        <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg animate-bounce">
+          {toast}
+        </div>
+      )}
 
       <h1 className="text-2xl font-bold mb-4 text-center">
         Ticket Verification
@@ -67,7 +113,7 @@ export default function VerifyTicketPage() {
       <button
         onClick={handleVerify}
         disabled={loading}
-        className="w-full bg-black text-white py-2 rounded-lg hover:opacity-90"
+        className="w-full bg-black text-white py-2 rounded-lg hover:opacity-90 disabled:opacity-60"
       >
         {loading ? "Verifying..." : "Verify Ticket"}
       </button>
@@ -91,7 +137,7 @@ export default function VerifyTicketPage() {
             Code: {ticket.code}
           </p>
 
-          {ticket.checkedInAt ? (
+          {ticket.checkedIn ? (
             <span className="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
               Already Checked In
             </span>
@@ -101,12 +147,12 @@ export default function VerifyTicketPage() {
             </span>
           )}
 
-          {/* ORGANIZER ACTION */}
-          {!ticket.checkedInAt && (
+          {/* CHECK-IN ACTION */}
+          {!ticket.checkedIn && (
             <button
               onClick={handleCheckIn}
               disabled={checkingIn}
-              className="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:opacity-90"
+              className="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:opacity-90 disabled:opacity-60"
             >
               {checkingIn ? "Checking in..." : "Check In Ticket"}
             </button>
