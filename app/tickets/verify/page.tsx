@@ -7,6 +7,7 @@ interface TicketResult {
   code: string;
   checkedAt?: string | null;
   checkedIn: boolean;
+  canCheckIn: boolean;
   event: {
     title: string;
   };
@@ -34,6 +35,7 @@ export default function VerifyTicketPage() {
       code: data.code,
       checkedIn: Boolean(data.checkedIn),
       checkedAt: data.checkedAt || null,
+      canCheckIn: Boolean(data.canCheckIn),
       event: {
         title: data.event?.title || "Event",
       },
@@ -151,10 +153,18 @@ export default function VerifyTicketPage() {
           {!ticket.checkedIn && (
             <button
               onClick={handleCheckIn}
-              disabled={checkingIn}
-              className="mt-4 w-full bg-green-600 text-white py-2 rounded-lg hover:opacity-90 disabled:opacity-60"
+              disabled={checkingIn || !ticket.canCheckIn}
+              className={`mt-4 w-full py-2 rounded-lg text-white
+              ${ticket.canCheckIn
+                ? "bg-green-600 hover:opacity-90" 
+                : "bg-gray-400 cursor-not-allowed"
+              } disabled:opacity-60`}             
             >
-              {checkingIn ? "Checking in..." : "Check In Ticket"}
+              {checkingIn
+                  ? "Checking in..."
+                  : ticket.canCheckIn
+                  ? "Check In Ticket"
+                  : "Organizer only"}
             </button>
           )}
         </div>
