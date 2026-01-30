@@ -1,12 +1,40 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function OrganizerPayoutsPage() {
-  // UI-only placeholders (safe until backend is ready)
-  const balance = 0;
-  const pending = 0;
-  const paidOut = 0;
+  const [balance, setBalance] = useState(0);
+  const [pending, setPending] = useState(0);
+  const [paidOut, setPaidOut] = useState(0);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function fetchPayouts() {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/organizer/payouts", {
+          credentials: "include", // for cookies
+        });
+        if (!res.ok) throw new Error("Failed to fetch payouts");
+        const data = await res.json();
+
+        setBalance(data.balance || 0);
+        setPending(data.pending?.length || 0);
+        setPaidOut(data.paidOut || 0);
+        setHistory(data.history || []);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || "Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPayouts();
+  }, []);
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-8">
@@ -53,11 +81,34 @@ export default function OrganizerPayoutsPage() {
       <section>
         <h2 className="text-lg font-semibold mb-4">Payout History</h2>
 
-        <div className="border border-dashed rounded-xl p-10 text-center">
-          <p className="text-gray-500">
-            No payouts yet. Your completed payouts will appear here.
-          </p>
-        </div>
+        {loading ? (
+          <p className="text-gray-500 text-center">Loading...</p>
+        ) : error ? (
+          <p className="text-red-500 text-center">{error}</p>
+        ) : history.length === 0 ? (
+          <div className="border border-dashed rounded-xl p-10 text-center">
+            <p className="text-gray-500">
+              No payouts yet. Your completed payouts will appear here.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-4">
+            {history.map((h, i) => (
+              <li
+                key={i}
+                className="border rounded-xl p-4 flex justify-between items-center"
+              >
+                <div>
+                  <p className="font-medium">{h.type.replace("_", " ")}</p>
+                  <p className="text-gray-500 text-sm">
+                    {new Date(h.createdAt).toLocaleDateString()} | ₦
+                    {h.amount.toLocaleString()}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );
@@ -81,15 +132,11 @@ function BalanceCard({
       }`}
     >
       <p
-        className={`text-sm ${
-          highlight ? "text-gray-300" : "text-gray-500"
-        }`}
+        className={`text-sm ${highlight ? "text-gray-300" : "text-gray-500"}`}
       >
         {label}
       </p>
-      <p className="text-3xl font-bold mt-1">
-        ₦{value.toLocaleString()}
-      </p>
+      <p className="text-3xl font-bold mt-1">₦{value.toLocaleString()}</p>
     </div>
   );
 }
