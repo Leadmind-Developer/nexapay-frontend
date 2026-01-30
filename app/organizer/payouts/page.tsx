@@ -70,10 +70,12 @@ export default function OrganizerPayoutsPage() {
         </p>
 
         <button
-          disabled
-          className="rounded-xl bg-black text-white px-6 py-3 font-medium opacity-40 cursor-not-allowed"
+          disabled={balance <= 0}
+          className={`rounded-xl px-6 py-3 font-medium ${
+            balance > 0 ? "bg-black text-white cursor-pointer" : "bg-black text-white opacity-40 cursor-not-allowed"
+          }`}
         >
-          Withdraw (Coming soon)
+          Withdraw
         </button>
       </section>
 
