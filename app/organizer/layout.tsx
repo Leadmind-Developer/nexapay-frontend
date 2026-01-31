@@ -3,40 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-export const metadata = {
-  title: "Nexa Events Organizer",
-  description:
-    "Manage your events with Nexa. Create, track, and optimize your events easily. Perfect for organizers looking to grow their audience and manage ticketing.",
-  keywords:
-    "Nexa Events, event organizer, ticketing, event management, dashboard, create events, Nigeria, Lagos, Abuja, global world",
-  alternates: {
-    canonical: "https://nexa.com.ng/organizer/events",
-  },
-  openGraph: {
-    title: "Nexa Events Organizer",
-    description:
-      "Create and manage events, track attendees, and handle ticketing seamlessly with Nexa Events.",
-    url: "https://nexa.com.ng/organizer/events",
-    images: [
-      {
-        url: "https://nexa.com.ng/event-og.png",
-        width: 1200,
-        height: 630,
-        alt: "Nexa Events - Organizer Dashboard",
-      },
-    ],
-    type: "website",
-    siteName: "Nexa Events",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Nexa Events Organizer",
-    description:
-      "Manage your events, track attendees, and create tickets with Nexa Events. Fast, secure, and user-friendly.",
-    images: ["https://nexa.com.ng/event-twitter.png"],
-  },
-};
+import { ReactNode } from "react";
 
 const navItems = [
   { label: "Dashboard", href: "/organizer/events" },
@@ -45,7 +12,7 @@ const navItems = [
   { label: "Analytics", href: "/organizer/events/analytics" },
 ];
 
-export default function OrganizerLayout({ children }: { children: React.ReactNode }) {
+export default function OrganizerLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
