@@ -1,39 +1,37 @@
-// app/(app)/layout.tsx
-import "../globals.css";
+// app/(events)/events/layout.tsx
 import { ReactNode } from "react";
-import NavBar from "@/components/NavBar";
+import "../globals.css";
 
 export const metadata = {
-  title: "Nexa - Payments, Utilities & Event Management",
+  title: "Nexa Events - Explore & Attend Events",
   description:
-    "Simplify payments, manage events, pay bills, buy airtime, track expenses and more with Nexa. Fast, secure, and all-in-one platform.",
-  keywords:
-    "Nexa, payments, bills, airtime, events, utilities, expense tracking, finance, dashboard, Nigerian fintech",
+    "Discover and attend amazing events with Nexa. Fast, secure, and all-in-one platform for event discovery and ticketing.",
+  keywords: "Nexa, events, tickets, discover events, attend events, Nigerian events",
   alternates: {
-    canonical: "https://nexa.com.ng",
+    canonical: "https://nexa.com.ng/events",
   },
   openGraph: {
-    title: "Nexa - All-in-One Payments & Event Platform",
+    title: "Nexa Events - Explore & Attend Events",
     description:
-      "Instantly pay bills, manage events, buy airtime, track expenses, and more. Fast, secure, and user-friendly.",
-    url: "https://nexa.com.ng",
+      "Find events you love, get tickets instantly, and join the experience with Nexa.",
+    url: "https://nexa.com.ng/events",
     images: [
       {
-        url: "https://nexa.com.ng/og-image.png",
+        url: "https://nexa.com.ng/og-events.png",
         width: 1200,
         height: 630,
-        alt: "Nexa App - Payments & Events",
+        alt: "Nexa Events - Explore & Attend",
       },
     ],
     type: "website",
-    siteName: "Nexa",
+    siteName: "Nexa Events",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nexa - Payments, Utilities & Event Platform",
+    title: "Nexa Events - Explore & Attend Events",
     description:
-      "All-in-one platform to pay bills, manage events, buy airtime, and track finances. Fast, secure, no signup required.",
-    images: ["https://nexa.com.ng/twitter-image.png"],
+      "Instantly discover events and get tickets with Nexa. Safe, fast, and hassle-free.",
+    images: ["https://nexa.com.ng/twitter-events.png"],
   },
   icons: {
     icon: "/logo.png",
@@ -42,23 +40,18 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function EventsLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <div className="min-h-screen flex flex-col md:flex-row">
-          {/* Global navigation */}
-          <NavBar />
-
+        <div className="min-h-screen flex flex-col">
           {/* Main content */}
-          <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
-            <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 w-full">{children}</main>
 
-            {/* Footer */}
-            <footer className="text-center py-4 text-sm text-gray-500">
-              © {new Date().getFullYear()} Nexa
-            </footer>
-          </div>
+          {/* Footer */}
+          <footer className="text-center py-6 text-sm text-gray-500 border-t border-gray-200 dark:border-gray-700">
+            © {new Date().getFullYear()} Nexa Events
+          </footer>
         </div>
       </body>
     </html>
