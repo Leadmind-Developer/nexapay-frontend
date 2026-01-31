@@ -1,5 +1,5 @@
 // app/(marketing)/layout.tsx
-import "./globals.css";
+import "../globals.css";
 import Script from "next/script";
 import { ReactNode } from "react";
 
