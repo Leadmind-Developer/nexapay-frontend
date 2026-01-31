@@ -1,6 +1,6 @@
 // app/(events)/events/layout.tsx
 import { ReactNode } from "react";
-import "../globals.css";
+import "../../globals.css";
 
 export const metadata = {
   title: "Nexa Events - Explore & Attend Events",
