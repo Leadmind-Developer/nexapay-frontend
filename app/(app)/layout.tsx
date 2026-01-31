@@ -1,40 +1,65 @@
-"use client";
-
+// app/(app)/layout.tsx
 import "./globals.css";
 import { ReactNode } from "react";
-import { usePathname } from "next/navigation";
 import NavBar from "@/components/NavBar";
 
+export const metadata = {
+  title: "Nexa - Payments, Utilities & Event Management",
+  description:
+    "Simplify payments, manage events, pay bills, buy airtime, track expenses and more with Nexa. Fast, secure, and all-in-one platform.",
+  keywords:
+    "Nexa, payments, bills, airtime, events, utilities, expense tracking, finance, dashboard, Nigerian fintech",
+  alternates: {
+    canonical: "https://nexa.com.ng",
+  },
+  openGraph: {
+    title: "Nexa - All-in-One Payments & Event Platform",
+    description:
+      "Instantly pay bills, manage events, buy airtime, track expenses, and more. Fast, secure, and user-friendly.",
+    url: "https://nexa.com.ng",
+    images: [
+      {
+        url: "https://nexa.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Nexa App - Payments & Events",
+      },
+    ],
+    type: "website",
+    siteName: "Nexa",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nexa - Payments, Utilities & Event Platform",
+    description:
+      "All-in-one platform to pay bills, manage events, buy airtime, and track finances. Fast, secure, no signup required.",
+    images: ["https://nexa.app/twitter-image.png"],
+  },
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
+};
+
 export default function RootLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-
-  // Routes that should NOT render the global NavBar
-  const isOrganizer = pathname.startsWith("/organizer");
-  const isEvents = pathname.startsWith("/events");
-  const isLanding = pathname === "/"; // Landing page
-
-  const skipGlobalLayout = isOrganizer || isLanding || isEvents;
-
   return (
     <html lang="en">
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        {skipGlobalLayout ? (
-          // ORGANIZER OR LANDING PAGE CONTROL THEIR OWN LAYOUT
-          children
-        ) : (
-          // GLOBAL APP LAYOUT
-          <div className="min-h-screen flex flex-col md:flex-row">
-            <NavBar />
+        <div className="min-h-screen flex flex-col md:flex-row">
+          {/* Global navigation */}
+          <NavBar />
 
-            <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
-              <main className="flex-1 overflow-auto">{children}</main>
+          {/* Main content */}
+          <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+            <main className="flex-1 overflow-auto">{children}</main>
 
-              <footer className="text-center py-4 text-sm text-gray-500">
-                © {new Date().getFullYear()} NexaApp
-              </footer>
-            </div>
+            {/* Footer */}
+            <footer className="text-center py-4 text-sm text-gray-500">
+              © {new Date().getFullYear()} Nexa
+            </footer>
           </div>
-        )}
+        </div>
       </body>
     </html>
   );
