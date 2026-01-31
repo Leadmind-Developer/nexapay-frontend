@@ -1,231 +1,45 @@
-"use client";
-
-import { useEffect, useState, useMemo } from "react";
-import api from "@/lib/api";
-import SavingsCreateModal from "./SavingsCreateModal";
-import WithdrawalModal from "./WithdrawalModal";
-import SavingsAI from "./SavingsAI";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 
-type GoalStatus = "ACTIVE" | "MATURED" | "BROKEN";
+type ServiceType = "AIRTIME" | "DATA" | "CABLE" | "ELECTRICITY" | "EDUCATION";
 
-type SavingsGoal = {
-  id: string;
-  title: string;
-  status: GoalStatus;
-  currentBalance: number;
-  targetAmount: number;
-  durationDays: number;
-};
+const SERVICE_CATEGORIES: { type: ServiceType; label: string; path: string; options: string[] }[] = [
+  { type: "AIRTIME", label: "Buy Phone Airtime", path: "/airtime", options: ["MTN", "GLO", "Airtel", "9Mobile"] },
+  { type: "DATA", label: "Buy Internet Data", path: "/data", options: ["MTN", "GLO", "Airtel", "9Mobile", "SMILE"] },
+  { type: "CABLE", label: "Pay TV Subscription", path: "/cable", options: ["DSTV", "GOTV", "STARTIMES"] },
+  { type: "ELECTRICITY", label: "Pay Electricity Bill", path: "/electricity", options: ["IKEDC", "EKEDC", "PHED", "AEDC", "KEDCO", "IBEDC", "JED", "KAEDCO"] },
+  { type: "EDUCATION", label: "Buy Education PIN", path: "/education", options: ["WAEC", "JAMB", "NECO", "NABTEB"] },
+];
 
-type SavingsSummary = {
-  totalSaved: number;
-  totalInterest: number;
-};
-
-type SavingsTip = {
-  message: string;
-};
-
-export default function Savings() {
-  const [tab, setTab] = useState<GoalStatus>("ACTIVE");
-  const [goals, setGoals] = useState<SavingsGoal[]>([]);
-  const [summary, setSummary] = useState<SavingsSummary | null>(null);
-  const [tips, setTips] = useState<SavingsTip[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [withdrawGoal, setWithdrawGoal] = useState<SavingsGoal | null>(null);
+export default function Services() {
   const router = useRouter();
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-
-        const [analyticsRes, goalsRes, aiRes] = await Promise.all([
-          api.get("/savings/analytics"),
-          api.get("/savings/goals"),
-          api.get("/savings/ai/recommendations"),
-        ]);
-
-        // <-- FIX: convert Prisma Decimal to number here
-       const summaryData = analyticsRes.data?.data;
-
-       setSummary({
-         totalSaved: Number(summaryData?.totalSaved ?? 0),
-         totalInterest: Number(summaryData?.totalInterest ?? 0),
-     });
-
-
-        setGoals(goalsRes.data?.goals ?? []);
-        setTips(aiRes.data?.tips ?? []);
-      } catch (err) {
-        console.error("Savings load error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };    
-
-    load();
-  }, []);
-
-  const filteredGoals = useMemo(
-    () =>
-      goals.filter(
-        (g) => g.status?.toUpperCase() === tab
-    ),
-    [goals, tab]
-  );
-
-  const formatMoney = (v = 0) => `₦${Number(v).toLocaleString()}`;
-
   return (
-    <div className="p-6 space-y-6">
-      {/* SUMMARY */}
-      <div className="bg-white rounded-xl p-4 shadow">
-        <div className="flex flex-wrap justify-between gap-4">
-          <div>
-            <p className="text-sm text-gray-500">Total Saved</p>
-            <p className="text-xl font-bold">
-              {formatMoney(summary?.totalSaved)}
-            </p>
-          </div>
+    <section className="py-20 bg-gray-50 text-center" aria-labelledby="services-heading">
+      <h2 id="services-heading" className="text-3xl font-bold mb-6">Pay Bills & Buy Airtime/Data/Education</h2>
 
-          <div>
-            <p className="text-sm text-gray-500">Interest Earned</p>
-            <p className="text-xl font-bold text-green-600">
-              {formatMoney(summary?.totalInterest)}
-            </p>
-          </div>
-
-          <span className="self-start rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
-            Up to 23% p.a
-          </span>
-        </div>
-      </div>
-
-      {/* AI RECOMMENDATIONS */}
-      {tips.length > 0 && <SavingsAI tips={tips} />}
-
-      {/* TABS */}
-      <div className="flex gap-6 border-b">
-        {(["ACTIVE", "MATURED", "BROKEN"] as GoalStatus[]).map((status) => (
-          <button
-            key={status}
-            onClick={() => setTab(status)}
-            className={`pb-2 transition-colors ${
-              tab === status
-                ? "border-b-2 border-black font-semibold"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-10 px-4">
+        {SERVICE_CATEGORIES.map((s, idx) => (
+          <motion.div
+            key={s.type}
+            onClick={() => router.push(s.path)}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: idx * 0.05 }}
+            className="cursor-pointer p-4 w-full rounded-lg shadow-md bg-white text-gray-800 hover:scale-105 hover:bg-indigo-50 transition transform"
+            role="button"
+            aria-label={`Go to ${s.label}`}
           >
-            {status.toLowerCase()}
-          </button>
+            <h3 className="text-base font-semibold mb-1">{s.label}</h3>
+            <ul className="text-xs space-y-0.5">
+              {s.options.map((opt) => (
+                <li key={opt} className="py-1 px-2 rounded hover:bg-indigo-100 hover:text-indigo-700">{opt}</li>
+              ))}
+            </ul>
+          </motion.div>
         ))}
       </div>
-
-      {/* GOALS */}
-      {loading ? (
-        <p className="text-sm text-gray-500">Loading savings…</p>
-      ) : filteredGoals.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          No {tab.toLowerCase()} savings goals.
-        </p>
-      ) : (
-        <div className="grid gap-4">
-          {filteredGoals.map((goal) => {
-            const progress =
-              goal.targetAmount > 0
-                ? Math.min(
-                    (goal.currentBalance / goal.targetAmount) * 100,
-                    100
-                  )
-                : 0;
-
-            return (
-              <div
-                key={goal.id}
-                className="p-4 bg-white rounded-xl shadow space-y-3"
-              >
-                <div className="flex justify-between">
-                  <h3 className="font-semibold">{goal.title}</h3>
-                  <span className="text-xs text-gray-400">
-                    {goal.durationDays} days
-                  </span>
-                </div>
-
-                <p className="text-sm">
-                  {formatMoney(goal.currentBalance)} /{" "}
-                  {formatMoney(goal.targetAmount)}
-                </p>
-
-                {/* ANIMATED PROGRESS BAR */}
-                <div>
-                  <div className="h-2 bg-gray-200 rounded overflow-hidden">
-                    <div
-                      className="h-2 bg-green-500 rounded transition-all duration-700 ease-out"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <p className="text-xs mt-1 text-gray-500">
-                    {progress.toFixed(1)}% complete
-                  </p>
-                </div>
-
-                {tab === "ACTIVE" && (
-                  <button
-                    onClick={() => setWithdrawGoal(goal)}
-                    className="text-red-500 text-sm hover:underline"
-                  >
-                    Request Withdrawal
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* FLOATING CTA */}
-<div className="fixed bottom-6 right-6 flex flex-col gap-2 z-40">
-  {/* Regular Savings */}
-  <button
-    onClick={() => setCreateOpen(true)}
-    className="
-      px-5 py-3 rounded-full shadow-lg transition-transform hover:scale-105
-      bg-green-600 text-white
-      dark:bg-green-500 dark:text-black
-    "
-  >
-    Create Savings Goal
-  </button>
-
-  {/* Strict Daily */}
-<button
-  onClick={() => router.push("/dashboard/savings/strict-daily")}
-  className="
-    px-5 py-3 rounded-full shadow transition
-    bg-white text-black border border-gray-200
-    hover:bg-gray-100
-    dark:bg-zinc-900 dark:text-white dark:border-zinc-700 dark:hover:bg-zinc-800
-  "
->
-  Strict Daily Savings
-</button>
-</div>
-
-      {/* MODALS (Headless-UI-free) */}
-      {createOpen && (
-        <SavingsCreateModal onClose={() => setCreateOpen(false)} />
-      )}
-
-      {withdrawGoal && (
-        <WithdrawalModal
-          goal={withdrawGoal}
-          onClose={() => setWithdrawGoal(null)}
-        />
-      )}
-    </div>
+    </section>
   );
 }
