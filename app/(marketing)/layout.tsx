@@ -19,7 +19,7 @@ export const metadata = {
     url: "https://nexa.com.ng/",
     images: [
       {
-        url: "https://nexa.app/og-image.png",
+        url: "https://nexa.com.ng/og-image.png",
         width: 1200,
         height: 630,
         alt: "Nexa App - Payments & Events",
@@ -33,7 +33,7 @@ export const metadata = {
     title: "Nexa - Payments, Utilities & Event Platform",
     description:
       "All-in-one platform to pay bills, manage events, buy airtime, and track finances. Fast, secure, no signup required.",
-    images: ["https://nexa.app/twitter-image.png"],
+    images: ["https://nexa.com.ng/twitter-image.png"],
   },
   icons: {
     icon: "/logo.png",
