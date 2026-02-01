@@ -93,15 +93,7 @@ export default function EventsLandingPage() {
 
       {/* ================= HERO ================= */}
 
-      <section className="relative bg-gradient-to-br from-black to-gray-900 text-white py-24 overflow-hidden">
-         <div className="absolute top-0 right-0 w-64 h-64 opacity-10 pointer-events-none">
-            <Image
-              src="/nexa-events.png"
-              alt="Nexa Events Logo"
-              fill
-              className="object-contain"
-             />
-          </div>
+      <section className="bg-gradient-to-br from-black to-gray-900 text-white py-24">
         <div className="max-w-7xl mx-auto px-6 text-center">
 
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
