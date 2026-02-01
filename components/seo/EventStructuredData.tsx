@@ -1,61 +1,58 @@
-import Script from "next/script";
-
-interface EventSEOProps {
-  name: string;
-  description: string;
-  startDate: string;
-  endDate?: string;
-  location: string;
-  image: string;
-  url: string;
-  price?: string;
+interface EventStructuredDataProps {
+  event: any;
 }
 
-export default function EventStructuredData({
-  name,
-  description,
-  startDate,
-  endDate,
-  location,
-  image,
-  url,
-  price,
-}: EventSEOProps) {
-  const data = {
+export default function EventStructuredData({ event }: EventStructuredDataProps) {
+  const isFree = event.ticketTypes.every((t: any) => t.price === 0);
+
+  const location =
+    event.type === "VIRTUAL"
+      ? {
+          "@type": "VirtualLocation",
+          url: "https://nexa.com/events/" + event.id,
+        }
+      : {
+          "@type": "Place",
+          name: event.address || "Event venue",
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: event.city,
+            addressCountry: event.country,
+          },
+        };
+
+  const schema = {
     "@context": "https://schema.org",
     "@type": "Event",
-    name,
-    description,
-    startDate,
-    endDate,
-    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-    eventStatus: "https://schema.org/EventScheduled",
-    location: {
-      "@type": "Place",
-      name: location,
-      address: location,
-    },
-    image: [image],
-    url,
-    offers: {
-      "@type": "Offer",
-      url,
-      price: price || "0",
-      priceCurrency: "NGN",
-      availability: "https://schema.org/InStock",
-    },
+    name: event.title,
+    description: event.description,
+    startDate: event.startAt,
+    endDate: event.endAt,
+    eventAttendanceMode:
+      event.type === "VIRTUAL"
+        ? "https://schema.org/OnlineEventAttendanceMode"
+        : "https://schema.org/OfflineEventAttendanceMode",
+    location,
     organizer: {
       "@type": "Organization",
-      name: "Nexa Events",
-      url: "https://nexa.com.ng",
+      name: event.organizer?.name,
+    },
+    image: event.images?.map((i: any) => i.url),
+    offers: {
+      "@type": "Offer",
+      price: isFree ? "0" : event.ticketTypes[0]?.price,
+      priceCurrency: "NGN",
+      availability: "https://schema.org/InStock",
+      url: `https://nexa.com.ng/events/${event.id}`,
     },
   };
 
   return (
-    <Script
-      id="event-structured-data"
+    <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(schema),
+      }}
     />
   );
 }
