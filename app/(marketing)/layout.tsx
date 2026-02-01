@@ -61,7 +61,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
         />
 
         {/* Favicon */}
-        <link rel="icon" href="/logo.png" />
+        <link rel="icon" href="/favicon.png" />
 
         {/* Facebook App ID */}
         <meta property="fb:app_id" content="914988614312614" />
