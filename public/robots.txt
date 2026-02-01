@@ -1,0 +1,41 @@
+User-agent: *
+Allow: /
+
+# Block private app areas
+Disallow: /dashboard
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /otp
+Disallow: /auth
+Disallow: /mobile-auth
+
+# Block finance & user sections
+Disallow: /transactions
+Disallow: /wallet
+Disallow: /withdraw
+Disallow: /addmoney
+Disallow: /funds
+Disallow: /profile
+Disallow: /settings
+Disallow: /security
+Disallow: /kyc
+Disallow: /receipt/
+
+# Block organizer internal panel
+Disallow: /organizer/
+
+# Block APIs & webhooks
+Disallow: /api/
+Disallow: /webhooks/
+
+# Allow public marketing & events pages
+Allow: /events
+Allow: /about
+Allow: /contact
+Allow: /faq
+Allow: /support
+Allow: /landing
+
+Sitemap: https://nexa.com.ng/sitemap.xml
