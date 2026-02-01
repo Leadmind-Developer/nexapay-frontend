@@ -3,17 +3,17 @@ import { ReactNode } from "react";
 import "../../globals.css";
 
 export const metadata = {
-  title: "Nexa Events - Explore & Attend Events",
+  title: "Discover Events in Nigeria | Nexa Events",
   description:
-    "Discover and attend amazing events with Nexa. Fast, secure, and all-in-one platform for event discovery and ticketing.",
-  keywords: "Nexa, events, tickets, discover events, attend events, Nigerian events",
+    "Find concerts, workshops, conferences, and more. Attend events or start your own with Nexa Events, the all-in-one event platform in Nigeria.",
+  keywords: "Nexa, events, Nigeria, concerts, workshops, conferences, parties, ticketing",
   alternates: {
     canonical: "https://nexa.com.ng/events",
   },
   openGraph: {
-    title: "Nexa Events - Explore & Attend Events",
+    title: "Discover Events in Nigeria | Nexa Events",
     description:
-      "Find events you love, get tickets instantly, and join the experience with Nexa.",
+      "Attend amazing events or start your own. Nexa Events makes it easy for organizers to create and sell tickets online.",
     url: "https://nexa.com.ng/events",
     images: [
       {
@@ -28,10 +28,10 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nexa Events - Explore & Attend Events",
+    title: "Discover Events in Nigeria | Nexa Events",
     description:
-      "Instantly discover events and get tickets with Nexa. Safe, fast, and hassle-free.",
-    images: ["https://nexa.com.ng/twitter-events.png"],
+      "Attend amazing events or start your own with Nexa Events.",
+    images: ["https://nexa.com.ng/og-events.png"],
   },
   icons: {
     icon: "/logo.png",
