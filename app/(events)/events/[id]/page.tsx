@@ -17,20 +17,27 @@ interface Event {
   ticketTypes: { price: number }[];
 }
 
-/* ================= FETCH EVENT (SERVER) ================= */
+/* ================= FETCH EVENT BY SLUG (SERVER) ================= */
 
-async function getEvent(id: string): Promise<Event | null> {
+async function getEventBySlug(slug: string): Promise<Event | null> {
   try {
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE}/events/${id}`,
+      `${process.env.NEXT_PUBLIC_API_BASE}/events?slug=${slug}`,
       {
-        cache: "no-store", // always fresh for SEO
+        cache: "no-store",
       }
     );
 
     if (!res.ok) return null;
 
-    return await res.json();
+    const data = await res.json();
+
+    // Assuming your API returns an array
+    if (Array.isArray(data) && data.length > 0) {
+      return data[0];
+    }
+
+    return null;
   } catch (error) {
     console.error("SEO fetch failed:", error);
     return null;
@@ -39,12 +46,8 @@ async function getEvent(id: string): Promise<Event | null> {
 
 /* ================= SEO METADATA ================= */
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const event = await getEvent(params.id);
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  const event = await getEventBySlug(params.id);
 
   if (!event) {
     return {
@@ -56,7 +59,6 @@ export async function generateMetadata({
   return {
     title: `${event.title} | Nexa Events`,
     description: event.description?.slice(0, 160) || "",
-
     openGraph: {
       title: event.title,
       description: event.description,
@@ -68,12 +70,8 @@ export async function generateMetadata({
 
 /* ================= PAGE ================= */
 
-export default async function EventPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const event = await getEvent(params.id);
+export default async function EventPage({ params }: { params: { id: string } }) {
+  const event = await getEventBySlug(params.id);
 
   if (!event) {
     return (
@@ -85,10 +83,7 @@ export default async function EventPage({
 
   return (
     <>
-      {/* ✅ Google Rich Results */}
       <EventStructuredData event={event} />
-
-      {/* ✅ Your existing working UI */}
       <EventClient />
     </>
   );
