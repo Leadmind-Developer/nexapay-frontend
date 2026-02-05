@@ -17,7 +17,7 @@ interface Event {
   ticketTypes: { price: number }[];
 }
 
-async function getEvent(id: string): Promise<Event> {
+async function getEvent(id: string): Promise<Event | null> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/events/${id}`, {
     cache: "no-store",
   });
