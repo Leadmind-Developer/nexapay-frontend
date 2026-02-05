@@ -36,9 +36,7 @@ interface Event {
   images?: EventImage[];
 }
 
-export default function EventPage() {
-  const params = useParams();
-
+export default function EventClient({ clientSlug }: { clientSlug: string }) {
   const [event, setEvent] = useState<Event | null>(null);
   const [relatedEvents, setRelatedEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +44,7 @@ export default function EventPage() {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        const res = await api.get<Event>(`/events/${params.id}`);
+        const res = await api.get<Event>(`/events/${clientSlug}`);
         setEvent(res.data);
 
         if (res.data.category) {
@@ -65,7 +63,7 @@ export default function EventPage() {
     };
 
     fetchEvent();
-  }, [params.id]);
+  }, [clientSlug]);
 
   if (loading)
     return <div className="p-10 text-center text-gray-500">Loading event...</div>;
