@@ -18,13 +18,14 @@ interface Event {
 }
 
 async function getEvent(id: string): Promise<Event | null> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/events/${id}`, {
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${process.env.API_URL}/events/${id}`, {
+      cache: "no-store",
+    });
 
-  if (!res.ok) return null;
+    if (!res.ok) return null;
 
-  return res.json();
+    return res.json();
   } catch {
     return null;
   }
@@ -35,9 +36,16 @@ async function getEvent(id: string): Promise<Event | null> {
 export async function generateMetadata({ params }: { params: { id: string } }) {
   const event = await getEvent(params.id);
 
+  if (!event) {
+    return {
+      title: "Event | Nexa Events",
+      description: "Discover events on Nexa",
+    };
+  }
+
   return {
     title: `${event.title} | Nexa Events`,
-    description: event.description.slice(0, 160),
+    description: event.description?.slice(0, 160) || "",
 
     openGraph: {
       title: event.title,
@@ -52,12 +60,17 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 export default async function EventPage({ params }: { params: { id: string } }) {
   const event = await getEvent(params.id);
 
+  if (!event) {
+    return (
+      <div className="p-10 text-center text-red-500">
+        Event not found
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Google Rich Results */}
       <EventStructuredData event={event} />
-
-      {/* Client UI */}
       <EventClient />
     </>
   );
