@@ -39,7 +39,7 @@ export default function AttendeesPage() {
     const rows = attendees.map(t => [
       t.order.buyerName,
       t.order.buyerEmail,
-      t.order.buyerPhone || "",
+      `="${t.order.buyerPhone || ""}"`,
       t.order.ticketType.name,
       t.code,
     ]);
