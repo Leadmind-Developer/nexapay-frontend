@@ -25,7 +25,7 @@ async function getEvent(id: string): Promise<Event | null> {
   if (!res.ok) return null;
 
   return res.json();
-  } catch 
+  } catch {
     return null;
   }
 }
