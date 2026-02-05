@@ -3,7 +3,7 @@ interface EventStructuredDataProps {
 }
 
 export default function EventStructuredData({ event }: EventStructuredDataProps) {
-  const isFree = event.ticketTypes.every((t: any) => t.price === 0);
+  const isFree = event.ticketTypes?.every((t: any) => t.price === 0) ?? true;
 
   const location =
     event.type === "VIRTUAL"
