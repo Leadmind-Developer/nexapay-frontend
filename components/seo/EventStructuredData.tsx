@@ -1,58 +1,43 @@
+// components/seo/EventStructuredData.tsx
 interface EventStructuredDataProps {
-  event: any;
+  slug: string; // new prop instead of full event
 }
 
-export default function EventStructuredData({ event }: EventStructuredDataProps) {
-  const isFree = event.ticketTypes?.every((t: any) => t.price === 0) ?? true;
+export default function EventStructuredData({ slug }: EventStructuredDataProps) {
+  // Generate a readable title from slug
+  const title = slug.replace(/-/g, " ");
 
-  const location =
-    event.type === "VIRTUAL"
-      ? {
-          "@type": "VirtualLocation",
-          url: "https://nexa.com/events/" + event.id,
-        }
-      : {
-          "@type": "Place",
-          name: event.address || "Event venue",
-          address: {
-            "@type": "PostalAddress",
-            addressLocality: event.city,
-            addressCountry: event.country,
-          },
-        };
-
+  // Minimal structured data for SEO
   const schema = {
     "@context": "https://schema.org",
     "@type": "Event",
-    name: event.title,
-    description: event.description,
-    startDate: event.startAt,
-    endDate: event.endAt,
-    eventAttendanceMode:
-      event.type === "VIRTUAL"
-        ? "https://schema.org/OnlineEventAttendanceMode"
-        : "https://schema.org/OfflineEventAttendanceMode",
-    location,
+    name: title,
+    description: `Join ${title} on Nexa Events. Discover details, tickets, and more.`,
+    startDate: new Date().toISOString(), // placeholder
+    endDate: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString(), // +1 hour
+    eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode", // default to virtual
+    location: {
+      "@type": "VirtualLocation",
+      url: `https://www.nexa.com.ng/events/${slug}`,
+    },
     organizer: {
       "@type": "Organization",
-      name: event.organizer?.name,
+      name: "Nexa Events",
     },
-    image: event.images?.map((i: any) => i.url),
+    image: [`https://www.nexa.com.ng/images/events/${slug}.jpg`], // optional placeholder
     offers: {
       "@type": "Offer",
-      price: isFree ? "0" : event.ticketTypes[0]?.price,
+      price: "0", // default free for SEO
       priceCurrency: "NGN",
       availability: "https://schema.org/InStock",
-      url: `https://nexa.com.ng/events/${event.id}`,
+      url: `https://www.nexa.com.ng/events/${slug}`,
     },
   };
 
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{
-        __html: JSON.stringify(schema),
-      }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
   );
 }
