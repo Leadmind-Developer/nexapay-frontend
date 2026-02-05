@@ -18,13 +18,16 @@ interface Event {
 }
 
 async function getEvent(id: string): Promise<Event> {
-  const res = await fetch(`${process.env.API_URL}/events/${id}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/events/${id}`, {
     cache: "no-store",
   });
 
-  if (!res.ok) throw new Error("Failed to fetch event");
+  if (!res.ok) return null;
 
   return res.json();
+  } catch 
+    return null;
+  }
 }
 
 /* ================= SEO METADATA ================= */
