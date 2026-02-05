@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable"; // 📦 npm install jspdf jspdf-autotable
 
 interface Ticket {
   id: string;
@@ -26,9 +27,7 @@ export default function AttendeesPage() {
     if (!eventId) return;
 
     api
-      .get<{ data: Ticket[] }>(
-        `/events/organizer/events/${eventId}/attendees`
-      )
+      .get<{ data: Ticket[] }>(`/events/organizer/events/${eventId}/attendees`)
       .then((res) => setAttendees(res.data.data))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -44,33 +43,37 @@ export default function AttendeesPage() {
       t.order.ticketType.name,
       t.code,
     ]);
-    const csvContent =
-      [headers, ...rows].map(e => e.join(",")).join("\n");
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, "attendees.csv");
   };
 
-  // ---------- PDF Export ----------
+  // ---------- PDF Export using autoTable ----------
   const exportPDF = () => {
     const doc = new jsPDF();
-    doc.setFontSize(12);
+
+    doc.setFontSize(16);
     doc.text("Attendees List", 14, 15);
 
+    // Table headers
     const tableColumn = ["Name", "Email", "Phone", "Ticket Type", "Code"];
-    const tableRows: string[][] = attendees.map(t => [
+
+    // Table rows
+    const tableRows = attendees.map(t => [
       t.order.buyerName,
       t.order.buyerEmail,
-      t.order.buyerPhone || "",
+      t.order.buyerPhone || "-",
       t.order.ticketType.name,
       t.code,
     ]);
 
-    // Simple table
-    let startY = 25;
-    tableRows.forEach((row, i) => {
-      row.forEach((cell, j) => {
-        doc.text(cell, 14 + j * 40, startY + i * 8);
-      });
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 25,
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255] },
+      theme: "grid",
     });
 
     doc.save("attendees.pdf");
