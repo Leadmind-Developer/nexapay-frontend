@@ -1,89 +1,42 @@
+// app/(events)/events/[id]/page.tsx
 import EventClient from "./EventClient";
 import EventStructuredData from "@/components/seo/EventStructuredData";
 
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  startAt: string;
-  endAt: string;
-  type: "PHYSICAL" | "VIRTUAL";
-  address?: string;
-  city?: string;
-  country?: string;
-  category?: string;
-  organizer: { name: string };
-  images?: { url: string }[];
-  ticketTypes: { price: number }[];
-}
-
-/* ================= FETCH EVENT BY SLUG (SERVER) ================= */
-
-async function getEventBySlug(slug: string): Promise<Event | null> {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE}/events?slug=${slug}`,
-      {
-        cache: "no-store",
-      }
-    );
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-
-    // Assuming your API returns an array
-    if (Array.isArray(data) && data.length > 0) {
-      return data[0];
-    }
-
-    return null;
-  } catch (error) {
-    console.error("SEO fetch failed:", error);
-    return null;
-  }
-}
-
-/* ================= SEO METADATA ================= */
-
+// You can use `params.id` as slug
 export async function generateMetadata({ params }: { params: { id: string } }) {
-  const event = await getEventBySlug(params.id);
-
-  if (!event) {
-    return {
-      title: "Event | Nexa Events",
-      description: "Discover amazing events on Nexa Events",
-    };
-  }
-
+  // Minimal SEO metadata, without fetching
   return {
-    title: `${event.title} | Nexa Events`,
-    description: event.description?.slice(0, 160) || "",
+    title: `${params.id.replace(/-/g, " ")} | Nexa Events`,
+    description: "Discover amazing events on Nexa Events",
     openGraph: {
-      title: event.title,
-      description: event.description,
-      images: event.images?.[0]?.url ? [event.images[0].url] : [],
+      title: `${params.id.replace(/-/g, " ")} | Nexa Events`,
+      description: "Discover amazing events on Nexa Events",
       type: "event",
+      // image: optional, static fallback
     },
   };
 }
 
-/* ================= PAGE ================= */
-
-export default async function EventPage({ params }: { params: { id: string } }) {
-  const event = await getEventBySlug(params.id);
-
-  if (!event) {
-    return (
-      <div className="p-10 text-center text-gray-500">
-        Event not found
-      </div>
-    );
-  }
-
+export default function EventPage({ params }: { params: { id: string } }) {
+  // No server fetch needed
   return (
     <>
-      <EventStructuredData event={event} />
+      {/* SEO structured data - minimal for now */}
+      <EventStructuredData
+        event={{
+          id: params.id,
+          title: params.id.replace(/-/g, " "),
+          description: "Discover amazing events on Nexa Events",
+          startAt: new Date().toISOString(),
+          endAt: new Date().toISOString(),
+          type: "VIRTUAL",
+          organizer: { name: "Nexa Events" },
+          ticketTypes: [{ price: 0 }],
+          images: [],
+        }}
+      />
+
+      {/* Client-side fetching and full UI */}
       <EventClient />
     </>
   );
