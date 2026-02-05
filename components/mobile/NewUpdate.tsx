@@ -96,7 +96,7 @@ export default function NewUpdate({
           <motion.img
             src="/logo.png"
             alt="NexaApp Logo"
-            className="w-6 h-6 rounded-full flex-shrink-0 mr-3" // ⬅ added margin-right for spacing
+            className="h-6 w-auto object-contain flex-shrink-0" // ⬅ added margin-right for spacing
             initial={{ y: -5 }}
             animate={{ y: [0, -5, 0] }}
             transition={{ duration: 0.6, ease: "easeOut" }}
