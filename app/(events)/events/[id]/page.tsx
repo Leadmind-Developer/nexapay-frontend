@@ -1,42 +1,28 @@
-// app/(events)/events/[id]/page.tsx
 import EventClient from "./EventClient";
 import EventStructuredData from "@/components/seo/EventStructuredData";
 
-// You can use `params.id` as slug
 export async function generateMetadata({ params }: { params: { id: string } }) {
-  // Minimal SEO metadata, without fetching
+  const title = params.id.replace(/-/g, " ");
   return {
-    title: `${params.id.replace(/-/g, " ")} | Nexa Events`,
-    description: "Discover amazing events on Nexa Events",
+    title: `${title} | Nexa Events`,
+    description: `Join ${title} on Nexa Events. Discover details, tickets, and more.`,
     openGraph: {
-      title: `${params.id.replace(/-/g, " ")} | Nexa Events`,
-      description: "Discover amazing events on Nexa Events",
+      title,
+      description: `Join ${title} on Nexa Events. Discover details, tickets, and more.`,
       type: "event",
-      // image: optional, static fallback
+      // optional image placeholder
+      images: [`https://www.nexa.com.ng/images/events/${params.id}.jpg`],
     },
   };
 }
 
 export default function EventPage({ params }: { params: { id: string } }) {
-  // No server fetch needed
   return (
     <>
-      {/* SEO structured data - minimal for now */}
-      <EventStructuredData
-        event={{
-          id: params.id,
-          title: params.id.replace(/-/g, " "),
-          description: "Discover amazing events on Nexa Events",
-          startAt: new Date().toISOString(),
-          endAt: new Date().toISOString(),
-          type: "VIRTUAL",
-          organizer: { name: "Nexa Events" },
-          ticketTypes: [{ price: 0 }],
-          images: [],
-        }}
-      />
+      {/* ✅ SEO structured data */}
+      <EventStructuredData slug={params.id} />
 
-      {/* Client-side fetching and full UI */}
+      {/* ✅ Client-side fetching for live data */}
       <EventClient />
     </>
   );
