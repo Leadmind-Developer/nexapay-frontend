@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import api from "@/lib/api";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
 
 interface Ticket {
   id: string;
@@ -10,13 +12,13 @@ interface Ticket {
   order: {
     buyerName: string;
     buyerEmail: string;
+    buyerPhone?: string;
     ticketType: { name: string };
   };
 }
 
 export default function AttendeesPage() {
   const { id: eventId } = useParams<{ id: string }>();
-
   const [attendees, setAttendees] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,6 +33,48 @@ export default function AttendeesPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [eventId]);
+
+  // ---------- CSV Export ----------
+  const exportCSV = () => {
+    const headers = ["Name", "Email", "Phone", "Ticket Type", "Code"];
+    const rows = attendees.map(t => [
+      t.order.buyerName,
+      t.order.buyerEmail,
+      t.order.buyerPhone || "",
+      t.order.ticketType.name,
+      t.code,
+    ]);
+    const csvContent =
+      [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, "attendees.csv");
+  };
+
+  // ---------- PDF Export ----------
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(12);
+    doc.text("Attendees List", 14, 15);
+
+    const tableColumn = ["Name", "Email", "Phone", "Ticket Type", "Code"];
+    const tableRows: string[][] = attendees.map(t => [
+      t.order.buyerName,
+      t.order.buyerEmail,
+      t.order.buyerPhone || "",
+      t.order.ticketType.name,
+      t.code,
+    ]);
+
+    // Simple table
+    let startY = 25;
+    tableRows.forEach((row, i) => {
+      row.forEach((cell, j) => {
+        doc.text(cell, 14 + j * 40, startY + i * 8);
+      });
+    });
+
+    doc.save("attendees.pdf");
+  };
 
   if (loading)
     return <p className="p-4 text-gray-500 dark:text-gray-400">Loading attendees…</p>;
@@ -48,12 +92,28 @@ export default function AttendeesPage() {
         Attendees
       </h1>
 
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={exportCSV}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Download CSV
+        </button>
+        <button
+          onClick={exportPDF}
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+        >
+          Download PDF
+        </button>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
               <Th>Name</Th>
               <Th>Email</Th>
+              <Th>Phone</Th>
               <Th>Ticket Type</Th>
               <Th>Code</Th>
             </tr>
@@ -66,6 +126,7 @@ export default function AttendeesPage() {
               >
                 <Td>{ticket.order.buyerName}</Td>
                 <Td>{ticket.order.buyerEmail}</Td>
+                <Td>{ticket.order.buyerPhone || "-"}</Td>
                 <Td>{ticket.order.ticketType.name}</Td>
                 <Td>{ticket.code}</Td>
               </tr>
