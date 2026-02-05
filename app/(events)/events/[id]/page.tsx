@@ -10,7 +10,6 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
       title,
       description: `Join ${title} on Nexa Events. Discover details, tickets, and more.`,
       type: "event",
-      // optional image placeholder
       images: [`https://www.nexa.com.ng/images/events/${params.id}.jpg`],
     },
   };
@@ -23,7 +22,7 @@ export default function EventPage({ params }: { params: { id: string } }) {
       <EventStructuredData slug={params.id} />
 
       {/* ✅ Client-side fetching for live data */}
-      <EventClient />
+      <EventClient clientSlug={params.id} />
     </>
   );
 }
