@@ -28,6 +28,7 @@
     "chart.js": "^4.5.0",
     "react-chartjs-2": "^5.2.0",
     "file-saver": "^2.0.5",
+    "jspdf-autotable": "^3.5.28",
     "swr": "^2.3.6"
   },
   "devDependencies": {
