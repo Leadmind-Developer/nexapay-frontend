@@ -27,7 +27,7 @@
     "dayjs": "^1.11.10",
     "chart.js": "^4.5.0",
     "react-chartjs-2": "^5.2.0",
-     "file-saver": "2.0.5",
+    "file-saver": "^2.0.5",
     "swr": "^2.3.6"
   },
   "devDependencies": {
