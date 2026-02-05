@@ -1,6 +1,5 @@
 import EventClient from "./EventClient";
 import EventStructuredData from "@/components/seo/EventStructuredData";
-import { headers } from "next/headers";
 
 interface Event {
   id: string;
@@ -22,16 +21,10 @@ interface Event {
 
 async function getEvent(id: string): Promise<Event | null> {
   try {
-    const headersList = headers();
-
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_BASE}/events/${id}`,
       {
-        cache: "no-store",
-        headers: {
-          cookie: headersList.get("cookie") || "",
-          "x-platform": "web",
-        },
+        cache: "no-store", // always fresh for SEO
       }
     );
 
@@ -82,7 +75,6 @@ export default async function EventPage({
 }) {
   const event = await getEvent(params.id);
 
-  // If somehow not found (API down etc)
   if (!event) {
     return (
       <div className="p-10 text-center text-gray-500">
