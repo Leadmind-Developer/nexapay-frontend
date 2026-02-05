@@ -1,5 +1,4 @@
-"use client";
-
+// Remove "use client"
 import React from "react";
 import Link from "next/link";
 
@@ -27,7 +26,6 @@ export default function EventImageGuidelinesPage() {
   return (
     <main className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-6">
-
         <h1 className="text-4xl font-bold mb-6 text-center">
           Event Image Guidelines
         </h1>
@@ -37,7 +35,6 @@ export default function EventImageGuidelinesPage() {
           follow these recommendations.
         </p>
 
-        {/* Recommended Sizes */}
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Recommended Sizes</h2>
           <ul className="list-disc pl-5 space-y-2 text-gray-700">
@@ -49,7 +46,6 @@ export default function EventImageGuidelinesPage() {
           </ul>
         </section>
 
-        {/* Tips */}
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Tips for Best Results</h2>
           <ul className="list-disc pl-5 space-y-2 text-gray-700">
@@ -59,7 +55,6 @@ export default function EventImageGuidelinesPage() {
           </ul>
         </section>
 
-        {/* Example */}
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Example</h2>
           <div className="border border-gray-300 rounded-lg overflow-hidden max-w-md mx-auto">
@@ -74,7 +69,6 @@ export default function EventImageGuidelinesPage() {
           </p>
         </section>
 
-        {/* Back to events */}
         <div className="text-center mt-10">
           <Link
             href="/organizer/events/create"
@@ -83,7 +77,6 @@ export default function EventImageGuidelinesPage() {
             Back to Create Event
           </Link>
         </div>
-
       </div>
     </main>
   );
