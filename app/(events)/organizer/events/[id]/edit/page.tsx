@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import api from "@/lib/api";
 import OrganizerEventTopBar from "@/components/OrganizerEventTopBar";
 import { getEventImage } from "@/lib/getEventImage";
@@ -58,7 +57,6 @@ export default function EventEditPage() {
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [aspectWarning, setAspectWarning] = useState(false);
 
   /* ------------------------------
      Fetch existing event
@@ -261,75 +259,37 @@ export default function EventEditPage() {
         {/* ================= IMAGE ================= */}
 
         <Card title="Event Image">
-  {!preview ? (
-    <FileInput
-      accept="image/*"
-      onChange={e => {
-        const file = e.target.files?.[0] ?? null;
-        setImage(file);
+          {!preview ? (
+            <FileInput
+              accept="image/*"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                 setImage(e.target.files?.[0] ?? null)
+              }
+            />
+          ) : (
+            <div className="flex items-center gap-4">
+              <img
+                src={preview}
+                className="h-20 w-20 rounded-lg object-cover border"
+              />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setImage(null);
+                  setPreview(null);
+                }}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
 
-        if (file) {
-          const img = new Image();
-          img.src = URL.createObjectURL(file);
-          img.onload = () => {
-            const ratio = img.width / img.height;
-            // Check if ratio is approximately 16:9 (tolerance 0.05)
-            if (Math.abs(ratio - 16 / 9) > 0.05) {
-              setAspectWarning(true);
-            } else {
-              setAspectWarning(false);
-            }
-            URL.revokeObjectURL(img.src);
-          };
-        } else {
-          setAspectWarning(false);
-        }
-      }}
-    />
-  ) : (
-    <div className="flex items-center gap-4">
-      <img
-        src={preview}
-        className="h-20 w-20 rounded-lg object-cover border"
-      />
-      <Button
-        variant="outline"
-        onClick={() => {
-          setImage(null);
-          setAspectWarning(false);
-        }}
-      >
-        Remove
-      </Button>
-    </div>
-  )}
-
-  {/* Upload progress */}
-  {uploadState === "uploading" && (
-    <p className="text-sm text-gray-500">
-      Uploading… {uploadProgress}%
-    </p>
-  )}
-
-  {/* 🔹 Image Guidelines link */}
-  <p className="text-xs text-gray-500 mt-2">
-    Recommended size: 1200×675 px (16:9).{" "}
-    <Link
-      href="/events/image-guidelines"
-      className="text-blue-600 underline"
-      target="_blank"
-    >
-      See full image guidelines
-    </Link>
-  </p>
-
-  {/* ⚠️ Aspect ratio warning */}
-  {aspectWarning && (
-    <p className="text-xs text-red-600 mt-1">
-      ⚠️ Image may be cropped if not 16:9
-    </p>
-  )}
-</Card>
+          {uploadState === "uploading" && (
+            <p className="text-sm text-gray-500">
+              Uploading… {uploadProgress}%
+            </p>
+          )}
+        </Card>
 
         {/* ================= SCHEDULE ================= */}
 
