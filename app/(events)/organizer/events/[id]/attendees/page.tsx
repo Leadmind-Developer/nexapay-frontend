@@ -22,6 +22,7 @@ export default function AttendeesPage() {
   const { id: eventId } = useParams<{ id: string }>();
   const [attendees, setAttendees] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [revokingCode, setRevokingCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -55,10 +56,7 @@ export default function AttendeesPage() {
     doc.setFontSize(16);
     doc.text("Attendees List", 14, 15);
 
-    // Table headers
     const tableColumn = ["Name", "Email", "Phone", "Ticket Type", "Code"];
-
-    // Table rows
     const tableRows = attendees.map(t => [
       t.order.buyerName,
       t.order.buyerEmail,
@@ -79,14 +77,27 @@ export default function AttendeesPage() {
     doc.save("attendees.pdf");
   };
 
+  // ---------- Revoke Ticket ----------
+  const revokeTicket = async (code: string) => {
+    if (!confirm("Revoke this ticket? This cannot be undone.")) return;
+    setRevokingCode(code);
+
+    try {
+      await api.post(`/events/tickets/${code}/revoke`);
+      setAttendees(prev => prev.filter(ticket => ticket.code !== code));
+    } catch (err) {
+      alert("Failed to revoke ticket");
+    } finally {
+      setRevokingCode(null);
+    }
+  };
+
   if (loading)
     return <p className="p-4 text-gray-500 dark:text-gray-400">Loading attendees…</p>;
 
   if (attendees.length === 0)
     return (
-      <p className="p-4 text-gray-500 dark:text-gray-400">
-        No attendees yet.
-      </p>
+      <p className="p-4 text-gray-500 dark:text-gray-400">No attendees yet.</p>
     );
 
   return (
@@ -119,10 +130,11 @@ export default function AttendeesPage() {
               <Th>Phone</Th>
               <Th>Ticket Type</Th>
               <Th>Code</Th>
+              <Th>Actions</Th>
             </tr>
           </thead>
           <tbody>
-            {attendees.map((ticket) => (
+            {attendees.map(ticket => (
               <tr
                 key={ticket.id}
                 className="hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -132,6 +144,15 @@ export default function AttendeesPage() {
                 <Td>{ticket.order.buyerPhone || "-"}</Td>
                 <Td>{ticket.order.ticketType.name}</Td>
                 <Td>{ticket.code}</Td>
+                <Td>
+                  <button
+                    onClick={() => revokeTicket(ticket.code)}
+                    disabled={revokingCode === ticket.code}
+                    className="text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    {revokingCode === ticket.code ? "Revoking…" : "Revoke"}
+                  </button>
+                </Td>
               </tr>
             ))}
           </tbody>
