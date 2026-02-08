@@ -8,8 +8,14 @@ interface TicketResult {
   checkedAt?: string | null;
   checkedIn: boolean;
   canCheckIn: boolean;
+  status: "ACTIVE" | "CHECKED_IN" | "REVOKED";
   event: {
     title: string;
+  };
+  buyer?: {
+    name?: string;
+    email?: string;
+    phone?: string;
   };
 }
 
@@ -19,11 +25,9 @@ export default function VerifyTicketPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-
-  /* ---------------------------------------------
-     Helpers
-  ----------------------------------------------*/
 
   function showToast(message: string) {
     setToast(message);
@@ -31,24 +35,20 @@ export default function VerifyTicketPage() {
   }
 
   function normalizeTicket(data: any): TicketResult {
+    const status = data.status || (data.checkedIn ? "CHECKED_IN" : "ACTIVE");
     return {
       code: data.code,
-      checkedIn: Boolean(data.checkedIn),
+      checkedIn: status === "CHECKED_IN",
       checkedAt: data.checkedAt || null,
-      canCheckIn: Boolean(data.canCheckIn),
-      event: {
-        title: data.event?.title || "Event",
-      },
+      canCheckIn: status === "ACTIVE",
+      status,
+      event: { title: data.event?.title || "Event" },
+      buyer: data.buyer || undefined,
     };
   }
 
-  /* ---------------------------------------------
-     Verify Ticket
-  ----------------------------------------------*/
-
   async function handleVerify() {
     if (!code) return;
-
     setLoading(true);
     setError(null);
     setTicket(null);
@@ -63,21 +63,14 @@ export default function VerifyTicketPage() {
     }
   }
 
-  /* ---------------------------------------------
-     Check In Ticket
-  ----------------------------------------------*/
-
   async function handleCheckIn() {
     if (!code || !ticket) return;
-
     setCheckingIn(true);
+    setError(null);
 
     try {
       const res = await api.post("/events/tickets/checkin", { code });
-
-      const updated = normalizeTicket(res.data);
-      setTicket(updated);
-
+      setTicket(normalizeTicket(res.data));
       showToast("✅ Ticket checked in successfully!");
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to check in");
@@ -86,9 +79,24 @@ export default function VerifyTicketPage() {
     }
   }
 
-  /* ---------------------------------------------
-     UI
-  ----------------------------------------------*/
+  async function handleRevoke() {
+    if (!code) return;
+    setRevoking(true);
+    setError(null);
+
+    try {
+      await api.post(`/events/tickets/revoke/${code}`, { reason: "manual_revoke" });
+      setTicket((t) =>
+        t ? { ...t, status: "REVOKED", checkedIn: false, canCheckIn: false } : t
+      );
+      setConfirmRevoke(false);
+      showToast("✅ Ticket revoked successfully!");
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Failed to revoke ticket");
+    } finally {
+      setRevoking(false);
+    }
+  }
 
   return (
     <div className="relative max-w-md mx-auto mt-20 p-6 border rounded-xl shadow-sm bg-white dark:bg-gray-900">
@@ -100,9 +108,7 @@ export default function VerifyTicketPage() {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold mb-4 text-center">
-        Ticket Verification
-      </h1>
+      <h1 className="text-2xl font-bold mb-4 text-center">Ticket Verification</h1>
 
       <input
         type="text"
@@ -120,28 +126,22 @@ export default function VerifyTicketPage() {
         {loading ? "Verifying..." : "Verify Ticket"}
       </button>
 
-      {/* ERROR */}
       {error && (
-        <p className="mt-4 text-center text-red-600 font-medium">
-          {error}
-        </p>
+        <p className="mt-4 text-center text-red-600 font-medium">{error}</p>
       )}
 
-      {/* RESULT */}
       {ticket && (
         <div className="mt-6 p-4 rounded-lg border dark:border-gray-700">
-
-          <p className="font-semibold text-lg mb-1">
-            🎉 {ticket.event.title}
-          </p>
-
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-            Code: {ticket.code}
-          </p>
+          <p className="font-semibold text-lg mb-1">🎉 {ticket.event.title}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">Code: {ticket.code}</p>
 
           {ticket.checkedIn ? (
             <span className="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
               Already Checked In
+            </span>
+          ) : ticket.status === "REVOKED" ? (
+            <span className="inline-block bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
+              Revoked
             </span>
           ) : (
             <span className="inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
@@ -149,23 +149,50 @@ export default function VerifyTicketPage() {
             </span>
           )}
 
-          {/* CHECK-IN ACTION */}
-          {!ticket.checkedIn && (
-            <button
-              onClick={handleCheckIn}
-              disabled={checkingIn || !ticket.canCheckIn}
-              className={`mt-4 w-full py-2 rounded-lg text-white
-              ${ticket.canCheckIn
-                ? "bg-green-600 hover:opacity-90" 
-                : "bg-gray-400 cursor-not-allowed"
-              } disabled:opacity-60`}             
-            >
-              {checkingIn
-                  ? "Checking in..."
-                  : ticket.canCheckIn
-                  ? "Check In Ticket"
-                  : "Organizer only"}
-            </button>
+          {!ticket.checkedIn && ticket.canCheckIn && (
+            <>
+              <button
+                onClick={handleCheckIn}
+                disabled={checkingIn}
+                className="mt-4 w-full py-2 rounded-lg bg-green-600 text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {checkingIn ? "Checking in..." : "Check In Ticket"}
+              </button>
+
+              {/* REVOKE */}
+              <button
+                onClick={() => setConfirmRevoke(true)}
+                className="mt-3 w-full py-2 rounded-lg border border-red-600 text-red-600 hover:bg-red-50"
+              >
+                Revoke Ticket
+              </button>
+            </>
+          )}
+
+          {confirmRevoke && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-xl w-full max-w-sm shadow-lg">
+                <h3 className="text-lg font-bold mb-2 text-red-600">Revoke Ticket?</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                  This action will invalidate the ticket and free up a slot. This cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmRevoke(false)}
+                    className="flex-1 border rounded-lg py-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRevoke}
+                    disabled={revoking}
+                    className="flex-1 bg-red-600 text-white rounded-lg py-2 hover:opacity-90 disabled:opacity-60"
+                  >
+                    {revoking ? "Revoking…" : "Yes, Revoke"}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
