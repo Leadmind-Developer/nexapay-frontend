@@ -98,16 +98,15 @@ export default function NavBar() {
     <>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50">
-        <div className="px-6 py-4 flex items-center gap-2">
-          <motion.img
-            src="/logo.png"
-            alt="NexaApp Logo"
-            className="h-6 w-auto object-contain flex-shrink-0"
-            initial={{ y: -5 }}
-            animate={{ y: [0, -5, 0] }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          />
-          <span className="font-bold text-lg text-gray-900 dark:text-gray-100">NexaApp</span>
+        <div className="px-6 py-5 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
+       <motion.img
+         src="/logo.png"
+         alt="Nexa Logo"
+         className="h-10 w-auto object-contain"
+         initial={{ scale: 0.95 }}
+         animate={{ scale: 1 }}
+         transition={{ duration: 0.4, ease: "easeOut" }}
+      />
         </div>
         <nav className="flex-1 overflow-y-auto px-2">
           {dashboardLinks.map((link) => (
@@ -170,9 +169,12 @@ export default function NavBar() {
 
       {/* Mobile Top Navbar */}
       <header className="md:hidden flex items-center justify-between bg-white dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="NexaApp" className="w-8 h-8 object-contain" />
-          <span className="font-bold text-lg text-gray-900 dark:text-gray-100">NexaApp</span>
+        <div className="flex items-center">
+          <img
+            src="/logo.png"
+            alt="Nexa Logo"
+            className="h-9 w-auto object-contain"
+          />
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -189,9 +191,12 @@ export default function NavBar() {
         }`}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="NexaApp" className="w-8 h-8 object-contain" />
-            <span className="font-bold text-lg text-gray-900 dark:text-gray-100">NexaApp</span>
+          <div className="flex items-center">
+             <img
+               src="/logo.png"
+               alt="Nexa Logo"
+               className="h-9 w-auto object-contain"
+              />
           </div>
           <button onClick={() => setSidebarOpen(false)} className="text-gray-600 dark:text-gray-300">
             <IoCloseOutline size={26} />
