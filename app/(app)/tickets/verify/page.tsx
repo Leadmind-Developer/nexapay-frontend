@@ -85,7 +85,9 @@ export default function VerifyTicketPage() {
     setError(null);
 
     try {
-      await api.post(`/events/tickets/revoke/${code}`, { reason: "manual_revoke" });
+      await api.post(`/tickets/${code}/revoke`, {
+        reason: "manual_revoke",
+      });
       setTicket((t) =>
         t ? { ...t, status: "REVOKED", checkedIn: false, canCheckIn: false } : t
       );
