@@ -7,6 +7,7 @@ import api from "@/lib/api";
 interface EventStats {
   totalRevenue: number;
   ticketsSold: number;
+  ticketsRevoked: number;
   capacity: number;
 }
 
@@ -45,6 +46,7 @@ export default function StatsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Stat label="Revenue" value={`₦${stats.totalRevenue.toLocaleString()}`} />
         <Stat label="Tickets Sold" value={stats.ticketsSold} />
+        <Stat label="Revoked" value={stats.ticketsRevoked} />
         <Stat label="Capacity" value={stats.capacity} />
       </div>
     </div>
