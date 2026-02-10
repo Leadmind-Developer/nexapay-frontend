@@ -9,6 +9,10 @@ import "../../globals.css";
 const navItems = [
   { label: "Dashboard", href: "/organizer/events" },
   { label: "Create Event", href: "/organizer/events/create" },
+  { label: "Payouts", href: "/organizer/payouts" },
+  { label: "Explore Events", href: "/events" },
+  { label: "Image Guidelines", href: "/events/image-guidelines" },
+  { label: "Verify Ticket", href: "/tickets/verify" },
 ];
 
 export default function OrganizerLayout({
