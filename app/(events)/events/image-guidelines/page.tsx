@@ -59,7 +59,7 @@ export default function EventImageGuidelinesPage() {
           <h2 className="text-2xl font-semibold mb-4">Example</h2>
           <div className="border border-gray-300 rounded-lg overflow-hidden max-w-md mx-auto">
             <img
-              src="/example-event-image.jpg"
+              src="/images/example-event-image.jpg"
               alt="Example Event Image"
               className="w-full"
             />
