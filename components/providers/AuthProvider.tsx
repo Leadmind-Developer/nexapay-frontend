@@ -9,6 +9,11 @@ type User = {
   email: string;
 };
 
+type VerifySessionResponse = {
+  success: boolean;
+  user: User;
+};
+
 type AuthContextType = {
   user: User | null;
   loading: boolean;
@@ -26,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const res = await AuthAPI.verify();
+        const res = await AuthAPI.verify<VerifySessionResponse>();
         setUser(res.data.user);
       } catch {
         setUser(null);
