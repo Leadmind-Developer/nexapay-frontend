@@ -224,6 +224,81 @@ export default function DashboardPage() {
           ))}
         </div>
 
+        {/* Services */}
+<div>
+  <h2 className="text-lg font-bold mb-3 text-gray-900 dark:text-gray-100">
+    Services
+  </h2>
+
+  <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+    {services.map((s) => (
+      <motion.div key={s.title} whileHover={{ scale: 1.05 }}>
+        <Link
+          href={s.screen}
+          className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl shadow"
+        >
+          <div
+            className="w-12 h-12 rounded-lg flex items-center justify-center mb-2"
+            style={{ backgroundColor: s.color }}
+          >
+            {s.icon}
+          </div>
+
+          <p className="text-xs font-semibold text-center">
+            {s.title}
+          </p>
+        </Link>
+      </motion.div>
+    ))}
+  </div>
+</div>
+
+{/* Shortcuts */}
+<p className="text-sm text-gray-500 mt-2">
+  See all your transactions, events, and expenses below
+</p>
+
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <Link
+    href="/transactions"
+    className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow hover:shadow-lg transition flex flex-col justify-between"
+  >
+    <div>
+      <p className="text-lg font-bold">Transactions</p>
+      <p className="text-sm text-gray-500">
+        All wallet, bills & transfers
+      </p>
+    </div>
+    <span className="mt-2 text-blue-600 font-semibold">Go</span>
+  </Link>
+
+  <Link
+    href="/events"
+    className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow hover:shadow-lg transition flex flex-col justify-between"
+  >
+    <div>
+      <p className="text-lg font-bold">Events</p>
+      <p className="text-sm text-gray-500">
+        View & manage your events
+      </p>
+    </div>
+    <span className="mt-2 text-blue-600 font-semibold">Go</span>
+  </Link>
+
+  <Link
+    href="/expenses"
+    className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow hover:shadow-lg transition flex flex-col justify-between"
+  >
+    <div>
+      <p className="text-lg font-bold">Expenses</p>
+      <p className="text-sm text-gray-500">
+        Track & manage your expenses
+      </p>
+    </div>
+    <span className="mt-2 text-blue-600 font-semibold">Go</span>
+  </Link>
+</div>
+
       </div>
     </div>
   );
