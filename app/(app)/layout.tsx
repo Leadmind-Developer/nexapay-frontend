@@ -2,6 +2,7 @@
 import "../globals.css";
 import { ReactNode } from "react";
 import NavBar from "@/components/NavBar";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 
 export const metadata = {
   title: "Nexa - Payments, Utilities & Event Management",
@@ -45,7 +46,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+       <body
+          className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+       <AuthProvider>
         <div className="min-h-screen flex flex-col md:flex-row">
           {/* Global navigation */}
           <NavBar />
@@ -60,6 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </footer>
           </div>
         </div>
+         </AuthProvider>
       </body>
     </html>
   );
