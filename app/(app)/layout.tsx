@@ -1,4 +1,5 @@
 // app/(app)/layout.tsx
+
 import "../globals.css";
 import { ReactNode } from "react";
 import NavBar from "@/components/NavBar";
@@ -33,7 +34,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Nexa - Payments, Utilities & Event Platform",
     description:
-      "All-in-one platform to pay bills, manage events, buy airtime, and track finances. Fast, secure, no signup required.",
+      "All-in-one platform to pay bills, manage events, buy airtime, and track finances.",
     images: ["https://nexa.com.ng/twitter-image.png"],
   },
   icons: {
@@ -43,27 +44,33 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function AppLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
-    <html lang="en">
-       <body
-          className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-       <AuthProvider>
-        <div className="min-h-screen flex flex-col md:flex-row">
-          {/* Global navigation */}
-          <NavBar />
+    <html lang="en" suppressHydrationWarning>
+      <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        {/* ✅ Auth session bootstrap */}
+        <AuthProvider>
+          <div className="min-h-screen flex flex-col md:flex-row">
+            {/* Sidebar / Navigation */}
+            <NavBar />
 
-          {/* Main content */}
-          <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
-            <main className="flex-1 overflow-auto">{children}</main>
+            {/* Main App Area */}
+            <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+              <main className="flex-1 overflow-auto">
+                {children}
+              </main>
 
-            {/* Footer */}
-            <footer className="text-center py-4 text-sm text-gray-500">
-              © {new Date().getFullYear()} Nexa
-            </footer>
+              {/* Footer */}
+              <footer className="text-center py-4 text-sm text-gray-500">
+                © {new Date().getFullYear()} Nexa
+              </footer>
+            </div>
           </div>
-        </div>
-         </AuthProvider>
+        </AuthProvider>
       </body>
     </html>
   );
