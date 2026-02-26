@@ -117,6 +117,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
       // 2FA required
       if (data.method === "totp") {
+        setOtpIdentifier(data.identifier);
         setTotpRequired(true);
         setStep("2fa");
         return;
@@ -126,7 +127,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       if (mode === "login") {
         setMessage("Login successful. Redirecting…");
         await verifyLogin(); // ✅ no args needed for cookie-based login
-        setTimeout(() => router.push("/dashboard"), 700);
+        router.replace("/dashboard");
       } else {
         setMessage("Registration successful. Please login.");
         setTimeout(() => {
@@ -178,7 +179,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
       setMessage("Login successful. Redirecting…");
       await verifyLogin(); // ✅ cookie-based login
-      setTimeout(() => router.push("/dashboard"), 700);
+      router.replace("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "OTP verification failed");
     } finally {
@@ -208,7 +209,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
       setMessage("Login successful. Redirecting…");
       await verifyLogin(); // ✅ cookie-based login
-      setTimeout(() => router.push("/dashboard"), 700);
+      router.replace("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "2FA verification failed");
     } finally {
@@ -327,7 +328,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
             <button
               onClick={handleStart}
-              disabled={loading}
+              disabled={loading || !identifier || !password}
               className="w-full py-3 rounded-lg bg-blue-600 text-white"
             >
               {loading ? "Please wait…" : "Create Account"}
@@ -365,7 +366,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
             <button
               onClick={handleStart}
-              disabled={loading}
+              disabled={loading || !identifier || !password}
               className="w-full py-3 rounded-lg bg-blue-600 text-white"
             >
               {loading ? "Please wait…" : "Login"}
