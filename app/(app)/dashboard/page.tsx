@@ -2,6 +2,8 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/components/providers/AuthProvider";
+import { useRouter } from "next/navigation";
 import {
   IoAddCircleOutline,
   IoSwapHorizontalOutline,
@@ -31,6 +33,14 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+  if (!loading && !user) {
+    router.replace("/login");
+  }
+}, [loading, user]);
 
   const fetchWallet = useCallback(async () => {
     try {
