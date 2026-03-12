@@ -5,7 +5,7 @@ import React from "react";
 export default function TopNavBar() {
   const navItems = [
     "Make Payment",
-    "Become an Agent",
+    "Events Explorer",
     "Start Earning",
     "Quick Tools",
     "Loan",
