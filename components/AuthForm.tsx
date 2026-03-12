@@ -341,7 +341,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           <>
             <input
               className="w-full p-3 border rounded-lg"
-              placeholder="Email / Phone / Username"
+              placeholder="Email"
               value={identifier}
               onChange={(e)=>
                 setIdentifier(e.target.value.toLowerCase().replace(/\s/g, ""))
