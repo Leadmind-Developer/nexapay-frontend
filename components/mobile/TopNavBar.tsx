@@ -5,7 +5,7 @@ import React, { useState } from "react";
 export default function TopNavBar() {
   const allNavItems = [
     "Make Payment",
-    "Become an Agent",
+    "Events Explorer",
     "Start Earning",
     "Quick Tools",
     "Loan",
