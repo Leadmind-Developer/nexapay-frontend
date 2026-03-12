@@ -1,23 +1,26 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 
 export default function TopNavBar() {
   const allNavItems = [
-    "Make Payment",
-    "Events Explorer",
-    "Start Earning",
-    "Quick Tools",
-    "Loan",
-    "Savings",
-    "Nexa FundMe",
-  ];
+  { label: "Make Payment", href: "#" },
+  { label: "Events Explorer", href: "/events" },
+  { label: "Start Earning", href: "#" },
+  { label: "Quick Tools", href: "#" },
+  { label: "Loan", href: "#" },
+  { label: "Savings", href: "#" },
+  { label: "Nexa FundMe", href: "#" },
+];
 
   // Items to hide
   const hiddenItems = ["Loan", "Savings", "Nexa FundMe"];
 
   // Filtered nav items for display
-  const navItems = allNavItems.filter((item) => !hiddenItems.includes(item));
+  const navItems = allNavItems.filter(
+    item) => !hiddenItems.includes(item.label)
+);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
