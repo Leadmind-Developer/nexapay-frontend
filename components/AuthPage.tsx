@@ -4,14 +4,16 @@ import { ReactNode, useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 interface AuthPageProps {
-  videoSrc: string;
-  imageSrc: string;
+  videoSrc?: string;
+  imageSrc?: string;
+  plainBackground?: boolean;
   children: ReactNode;
 }
 
 export default function AuthPage({
   videoSrc,
   imageSrc,
+  plainBackground = false,
   children,
 }: AuthPageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -22,15 +24,13 @@ export default function AuthPage({
   const [isOverflowing, setIsOverflowing] = useState(false);
 
   /* -------------------------------------------------------------------------- */
-  /* 📱 Detect mobile + dynamic viewport height (keyboard safe)                  */
+  /* 📱 Detect mobile + dynamic viewport height                                 */
   /* -------------------------------------------------------------------------- */
   useEffect(() => {
     const updateViewport = () => {
       setIsMobile(window.innerWidth < 768);
 
-      // Use visualViewport when available (iOS Safari keyboard fix)
-      const height =
-        window.visualViewport?.height || window.innerHeight;
+      const height = window.visualViewport?.height || window.innerHeight;
 
       setViewportHeight(height);
     };
@@ -59,7 +59,7 @@ export default function AuthPage({
   }, [videoSrc]);
 
   /* -------------------------------------------------------------------------- */
-  /* 📏 Auto-detect long forms → enable scroll                                    */
+  /* 📏 Detect overflowing forms                                                 */
   /* -------------------------------------------------------------------------- */
   useEffect(() => {
     if (!containerRef.current) return;
@@ -75,7 +75,10 @@ export default function AuthPage({
 
   return (
     <div
-      className="relative w-full overflow-hidden bg-gray-900"
+      className={`
+        relative w-full overflow-hidden
+        ${plainBackground ? "bg-indigo-700" : "bg-gray-900"}
+      `}
       style={{
         height: viewportHeight ? `${viewportHeight}px` : "100vh",
       }}
@@ -83,25 +86,29 @@ export default function AuthPage({
       {/* ---------------------------------------------------------------------- */}
       {/* Desktop background image                                                */}
       {/* ---------------------------------------------------------------------- */}
-      <div
-        className="hidden md:block absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${imageSrc})` }}
-      />
+      {!plainBackground && imageSrc && (
+        <div
+          className="hidden md:block absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${imageSrc})` }}
+        />
+      )}
 
       {/* ---------------------------------------------------------------------- */}
       {/* Mobile video background                                                 */}
       {/* ---------------------------------------------------------------------- */}
-      <video
-        ref={videoRef}
-        src={videoSrc}
-        muted
-        loop
-        autoPlay
-        playsInline
-        className={`block md:hidden absolute inset-0 object-cover ${
-          isMobile ? "object-top" : "object-center"
-        }`}
-      />
+      {!plainBackground && videoSrc && (
+        <video
+          ref={videoRef}
+          src={videoSrc}
+          muted
+          loop
+          autoPlay
+          playsInline
+          className={`block md:hidden absolute inset-0 object-cover ${
+            isMobile ? "object-top" : "object-center"
+          }`}
+        />
+      )}
 
       {/* ---------------------------------------------------------------------- */}
       {/* Auth content                                                            */}
@@ -126,7 +133,6 @@ export default function AuthPage({
             w-full max-w-md
             bg-black/30 backdrop-blur-md
             p-6 rounded-2xl shadow-lg
-
             ${isOverflowing ? "overflow-y-auto overscroll-contain" : ""}
             max-h-full
           `}
