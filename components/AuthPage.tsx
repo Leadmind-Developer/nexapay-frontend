@@ -77,7 +77,7 @@ export default function AuthPage({
     <div
       className={`
         relative w-full overflow-hidden
-        ${plainBackground ? "bg-indigo-700" : "bg-gray-900"}
+        ${plainBackground ? "bg-indigo-900" : "bg-gray-900"}
       `}
       style={{
         height: viewportHeight ? `${viewportHeight}px` : "100vh",
