@@ -69,7 +69,7 @@ export default function Header() {
               className="bg-indigo-900/95 dark:bg-indigo-950/90 border-t border-indigo-800 shadow-lg backdrop-blur-md md:hidden"
             >
               <nav className="flex flex-col items-center gap-4 py-5">
-                {["Services", "Agents", "Developer API"].map((item) => (
+                {["Services", "Events", "Developer API"].map((item) => (
                   <Link
                     key={item}
                     href={`#${item.toLowerCase().replace(" ", "")}`}
