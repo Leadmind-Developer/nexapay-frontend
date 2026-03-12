@@ -63,7 +63,7 @@ export default function Header() {
             <Link href="#services" className="text-gray-200 hover:text-white transition">
               Services
             </Link>
-            <Link href="events" className="text-gray-200 hover:text-white transition">
+            <Link href="/events" className="text-gray-200 hover:text-white transition">
               Events
             </Link>
             <Link href="#api" className="text-gray-200 hover:text-white transition">
