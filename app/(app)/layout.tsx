@@ -4,6 +4,7 @@ import "../globals.css";
 import { ReactNode } from "react";
 import NavBar from "@/components/NavBar";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import Script from "next/script";
 
 export const metadata = {
   title: "Nexa - Payments, Utilities & Event Management",
@@ -51,20 +52,32 @@ export default function AppLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* ✅ Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-ZDKP54Y9FL"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-ZDKP54Y9FL');
+          `}
+        </Script>
+      </head>
+
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        {/* ✅ Auth session bootstrap */}
         <AuthProvider>
           <div className="min-h-screen flex flex-col md:flex-row">
-            {/* Sidebar / Navigation */}
             <NavBar />
 
-            {/* Main App Area */}
             <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
               <main className="flex-1 overflow-auto">
                 {children}
               </main>
 
-              {/* Footer */}
               <footer className="text-center py-4 text-sm text-gray-500">
                 © {new Date().getFullYear()} Nexa
               </footer>
