@@ -1,12 +1,14 @@
 // app/(events)/events/layout.tsx
 import { ReactNode } from "react";
+import Script from "next/script";
 import "../../globals.css";
 
 export const metadata = {
   title: "Discover Events in Nigeria | Nexa Events",
   description:
     "Find concerts, workshops, conferences, and more. Attend events or start your own with Nexa Events, the all-in-one event platform in Nigeria.",
-  keywords: "Nexa, events, Nigeria, concerts, workshops, conferences, parties, ticketing",
+  keywords:
+    "Nexa, events, Nigeria, concerts, workshops, conferences, parties, ticketing",
   alternates: {
     canonical: "https://nexa.com.ng/events",
   },
@@ -43,6 +45,22 @@ export const metadata = {
 export default function EventsLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-ZDKP54Y9FL"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-ZDKP54Y9FL');
+          `}
+        </Script>
+      </head>
+
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <div className="min-h-screen flex flex-col">
           {/* Main content */}
