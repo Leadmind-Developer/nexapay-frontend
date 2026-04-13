@@ -1,4 +1,5 @@
 import EventsClient from "./EventsClient";
+import api from "@/lib/api";
 
 export const metadata = {
   title: "Discover Events Near You | Nexa",
@@ -8,14 +9,13 @@ export const metadata = {
 
 async function getEvents() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/events?limit=50`, {
-      cache: "no-store", // or 'force-cache' if you want caching
+    const res = await api.get("/events", {
+      params: { limit: 50 },
     });
 
-    if (!res.ok) return [];
-
-    return res.json();
-  } catch {
+    return res.data;
+  } catch (err) {
+    console.error("SSR error:", err);
     return [];
   }
 }
