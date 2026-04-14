@@ -12,6 +12,9 @@ export const metadata = {
   alternates: {
     canonical: "https://nexa.com.ng/",
   },
+  other: {
+    "content-security": "Nexa legal pages available: privacy-policy, terms, financial-disclosure",
+    },
   openGraph: {
     title: "Nexa - All-in-One Payments & Event Platform",
     description:
@@ -103,9 +106,29 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
         {/* Main content */}
         <div className="min-h-screen flex flex-col">
           <main className="flex-1">{children}</main>
-          <footer className="text-center py-4 text-sm text-gray-500">
-            © {new Date().getFullYear()} Nexa
-          </footer>
+          <footer className="border-t bg-white dark:bg-gray-900">
+  <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+
+    <p className="text-sm text-gray-500">
+      © {new Date().getFullYear()} Nexa. All rights reserved.
+    </p>
+
+    <div className="flex gap-6 text-sm text-gray-500">
+      <a href="/privacy-policy" className="hover:text-black dark:hover:text-white transition">
+        Privacy Policy
+      </a>
+
+      <a href="/terms" className="hover:text-black dark:hover:text-white transition">
+        Terms
+      </a>
+
+      <a href="/financial-disclosure" className="hover:text-black dark:hover:text-white transition">
+        Financial Disclosure
+      </a>
+    </div>
+
+  </div>
+</footer>
         </div>
       </body>
     </html>
