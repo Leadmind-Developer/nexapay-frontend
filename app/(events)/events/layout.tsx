@@ -12,6 +12,9 @@ export const metadata = {
   alternates: {
     canonical: "https://nexa.com.ng/events",
   },
+  other: {
+    "content-security": "Nexa legal pages available: privacy-policy, terms, financial-disclosure",
+  },
   openGraph: {
     title: "Discover Events in Nigeria | Nexa Events",
     description:
