@@ -19,7 +19,7 @@ const features = [
 
 export default function Steps() {
   return (
-    <section className="py-20 bg-gradient-to-b from-white to-indigo-50 text-black">
+    <section className="py-20 bg-gradient-to-b from-white to-indigo-50 text-gray-900">
 
       {/* ================= HEADER ================= */}
 
@@ -38,7 +38,7 @@ export default function Steps() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6, delay: 0.1 }}
-        className="text-center text-black-300 max-w-2xl mx-auto mb-12 px-4"
+        className="text-center text-gray-600 max-w-2xl mx-auto mb-12 px-4"
       >
         Launch your event in minutes, reach thousands of attendees, and manage everything from ticket sales to check-ins — all in one place.
       </motion.p>
