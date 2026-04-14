@@ -1,58 +1,117 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Terms of Service – Nexa App</title>
-<style>
-  body { font-family: Arial, sans-serif; color:#333; line-height:1.6; margin:40px; }
-  h1,h2 { color:#c80000; }
-</style>
-</head>
-<body>
-<h1>Terms of Service</h1>
-<p><strong>Effective Date:</strong> October 29, 2025</p>
+export const metadata = {
+  title: "Terms of Service – Nexa App",
+  description: "Read the Terms of Service for using Nexa App and its services.",
+};
 
-<h2>1. Acceptance of Terms</h2>
-<p>By using the Nexa App, you agree to these Terms of Service. If you do not agree, please discontinue use immediately.</p>
+export default function TermsPage() {
+  return (
+    <main className="min-h-screen bg-white text-gray-800 px-6 py-12 md:px-20">
+      <div className="max-w-4xl mx-auto">
 
-<h2>2. Service Overview</h2>
-<p>Nexa App provides digital payment services, including airtime and data purchases, bill payments, and fund transfers.</p>
+        {/* HEADER */}
+        <h1 className="text-3xl md:text-4xl font-bold text-red-600 mb-4">
+          Terms of Service
+        </h1>
 
-<h2>3. Account Registration</h2>
-<p>You must provide accurate and current information when creating an account. You are responsible for maintaining the confidentiality of your PIN and Face ID access.</p>
+        <p className="mb-8">
+          <strong>Effective Date:</strong> October 29, 2025
+        </p>
 
-<h2>4. Prohibited Uses</h2>
-<ul>
-  <li>Using the app for fraudulent or unlawful purposes</li>
-  <li>Attempting to disrupt or reverse engineer the app</li>
-  <li>Impersonating others or submitting false information</li>
-</ul>
+        {/* SECTION 1 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          1. Acceptance of Terms
+        </h2>
+        <p className="mb-4">
+          By using the Nexa App, you agree to these Terms of Service. If you do not agree, please discontinue use immediately.
+        </p>
 
-<h2>5. Transactions and Payments</h2>
-<p>Nexa App enables users to make payments for digital services such as airtime, data subscriptions, and bill payments. Payments are processed securely through third-party payment providers.</p>
+        {/* SECTION 2 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          2. Service Overview
+        </h2>
+        <p className="mb-4">
+          Nexa App provides digital payment services, including airtime and data purchases, bill payments, and fund transfers.
+        </p>
 
-<p>While most transactions are processed instantly and are generally non-reversible, users may contact support in cases of failed or disputed transactions. Resolution will be handled in accordance with our internal policies and third-party provider guidelines.</p>
+        {/* SECTION 3 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          3. Account Registration
+        </h2>
+        <p className="mb-4">
+          You must provide accurate and current information when creating an account. You are responsible for maintaining the confidentiality of your PIN and Face ID access.
+        </p>
 
-<h2>11. Financial Service Disclaimer</h2>
-<p>Nexa App is not a bank or financial institution. We provide a platform that facilitates payments and service access. All financial transactions are processed through licensed third-party payment providers.</p>
-    
+        {/* SECTION 4 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          4. Prohibited Uses
+        </h2>
+        <ul className="list-disc pl-6 mb-4 space-y-1">
+          <li>Using the app for fraudulent or unlawful purposes</li>
+          <li>Attempting to disrupt or reverse engineer the app</li>
+          <li>Impersonating others or submitting false information</li>
+        </ul>
 
-<h2>6. Intellectual Property</h2>
-<p>All content, logos, and software components of Nexa App are owned by Broadshift Technologies Limited and protected under copyright law.</p>
+        {/* SECTION 5 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          5. Transactions and Payments
+        </h2>
+        <p className="mb-4">
+          Nexa App enables users to make payments for digital services such as airtime, data subscriptions, and bill payments. Payments are processed securely through third-party payment providers.
+        </p>
+        <p className="mb-4">
+          While most transactions are processed instantly and are generally non-reversible, users may contact support in cases of failed or disputed transactions. Resolution will be handled in accordance with our internal policies and third-party provider guidelines.
+        </p>
 
-<h2>7. Limitation of Liability</h2>
-<p>We are not liable for any indirect, incidental, or consequential damages arising from your use of the app.</p>
+        {/* SECTION 6 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          6. Intellectual Property
+        </h2>
+        <p className="mb-4">
+          All content, logos, and software components of Nexa App are owned by Broadshift Technologies Limited and protected under copyright law.
+        </p>
 
-<h2>8. Termination</h2>
-<p>We may suspend or terminate your account for violation of these Terms or misuse of the platform.</p>
+        {/* SECTION 7 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          7. Limitation of Liability
+        </h2>
+        <p className="mb-4">
+          We are not liable for any indirect, incidental, or consequential damages arising from your use of the app.
+        </p>
 
-<h2>9. Changes to Terms</h2>
-<p>We reserve the right to update these Terms at any time. The latest version will always be available on our website.</p>
+        {/* SECTION 8 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          8. Termination
+        </h2>
+        <p className="mb-4">
+          We may suspend or terminate your account for violation of these Terms or misuse of the platform.
+        </p>
 
-<h2>10. Contact Us</h2>
-<p><strong>Broadshift Technologies Limited</strong><br>
-Email: <a href="mailto:support@nexaapp.com">support@nexaapp.com</a><br>
-Address: Lagos, Nigeria</p>
-</body>
-</html>
+        {/* SECTION 9 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          9. Changes to Terms
+        </h2>
+        <p className="mb-4">
+          We reserve the right to update these Terms at any time. The latest version will always be available on our website.
+        </p>
+
+        {/* SECTION 10 */}
+        <h2 className="text-xl font-semibold text-red-600 mt-8 mb-2">
+          10. Contact Us
+        </h2>
+        <p className="mb-4">
+          <strong>Broadshift Technologies Limited</strong><br />
+          Email:{" "}
+          <a
+            href="mailto:support@nexaapp.com"
+            className="text-red-600 underline"
+          >
+            support@nexaapp.com
+          </a>
+          <br />
+          Address: Lagos, Nigeria
+        </p>
+
+      </div>
+    </main>
+  );
+}
