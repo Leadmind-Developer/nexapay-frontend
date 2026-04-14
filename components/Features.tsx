@@ -60,11 +60,11 @@ export default function Steps() {
               {idx + 1}
             </div>
 
-            <h3 className="mt-6 text-xl font-semibold mb-2 text-white">
+            <h3 className="mt-6 text-xl font-semibold mb-2 text-black">
               {item.title}
             </h3>
 
-            <p className="text-gray-300 text-sm md:text-base">
+            <p className="text-black-300 text-sm md:text-base">
               {item.desc}
             </p>
           </motion.div>
