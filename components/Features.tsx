@@ -19,7 +19,7 @@ const features = [
 
 export default function Steps() {
   return (
-    <section className="py-20 bg-gradient-to-br from-white to-gray-900 text-black">
+    <section className="py-20 bg-gradient-to-b from-white to-indigo-50 text-black">
 
       {/* ================= HEADER ================= */}
 
