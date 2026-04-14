@@ -70,9 +70,29 @@ export default function EventsLayout({ children }: { children: ReactNode }) {
           <main className="flex-1 w-full">{children}</main>
 
           {/* Footer */}
-          <footer className="text-center py-6 text-sm text-gray-500 border-t border-gray-200 dark:border-gray-700">
-            © {new Date().getFullYear()} Nexa Events
-          </footer>
+          <footer className="border-t bg-white dark:bg-gray-900">
+  <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+
+    <p className="text-sm text-gray-500">
+      © {new Date().getFullYear()} Nexa. All rights reserved.
+    </p>
+
+    <div className="flex gap-6 text-sm text-gray-500">
+      <a href="/privacy-policy" className="hover:text-black dark:hover:text-white transition">
+        Privacy Policy
+      </a>
+
+      <a href="/terms" className="hover:text-black dark:hover:text-white transition">
+        Terms
+      </a>
+
+      <a href="/financial-disclosure" className="hover:text-black dark:hover:text-white transition">
+        Financial Disclosure
+      </a>
+    </div>
+
+  </div>
+</footer>
         </div>
       </body>
     </html>
