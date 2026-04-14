@@ -67,7 +67,7 @@ export default function TermsPage() {
           6. Intellectual Property
         </h2>
         <p className="mb-4">
-          All content, logos, and software components of Nexa App are owned by Broadshift Technologies Limited and protected under copyright law.
+          All content, logos, and software components of Nexa App are owned by Techtrep and protected under copyright law.
         </p>
 
         {/* SECTION 7 */}
@@ -99,7 +99,7 @@ export default function TermsPage() {
           10. Contact Us
         </h2>
         <p className="mb-4">
-          <strong>Broadshift Technologies Limited</strong><br />
+          <strong>Techtrep</strong><br />
           Email:{" "}
           <a
             href="mailto:support@nexaapp.com"
