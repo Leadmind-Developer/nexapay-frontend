@@ -17,7 +17,7 @@ export default function FinancialDisclosurePage() {
       </p>
 
       <p className="mb-6">
-        Nexa App is operated by <strong>Broadshift Technologies Limited</strong>. This page explains how financial transactions are handled within the app.
+        Nexa App is operated by <strong>Techtrep</strong>. This page explains how financial transactions are handled within the app.
       </p>
 
       <h2 className="text-2xl font-semibold text-red-700 mt-8 mb-3">
@@ -76,7 +76,7 @@ export default function FinancialDisclosurePage() {
       <p className="mb-2">For financial or transaction-related inquiries, please contact:</p>
 
       <div className="border p-4 rounded-lg bg-gray-50">
-        <p><strong>Broadshift Technologies Limited</strong></p>
+        <p><strong>Techtrep</strong></p>
         <p>Email: support@nexaapp.com</p>
         <p>Lagos, Nigeria</p>
       </div>
