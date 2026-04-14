@@ -56,7 +56,7 @@ export default function Steps() {
             className="relative bg-white/10 backdrop-blur-md border border-white/10 p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl transition w-72 sm:w-64 md:w-60 flex flex-col items-center text-center"
           >
             {/* NUMBER BADGE */}
-            <div className="absolute -top-5 bg-indigo-600 text-white text-lg font-bold w-10 h-10 rounded-full flex items-center justify-center shadow-md">
+            <div className="absolute -top-5 bg-indigo-600 text-black text-lg font-bold w-10 h-10 rounded-full flex items-center justify-center shadow-md">
               {idx + 1}
             </div>
 
