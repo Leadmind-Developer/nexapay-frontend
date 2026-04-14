@@ -22,7 +22,7 @@ export default function PrivacyPolicyPage() {
 
       <p className="mb-6">
         Nexa App (“we”, “our”, “us”), developed and operated by{" "}
-        <strong>Broadshift Technologies Limited</strong>, respects your privacy.
+        <strong>Techtrep</strong>, respects your privacy.
         This Privacy Policy explains how we collect, use, and protect your information
         when you use our mobile or web applications (“Services”).
       </p>
@@ -128,7 +128,7 @@ export default function PrivacyPolicyPage() {
       </h2>
 
       <p>
-        <strong>Broadshift Technologies Limited</strong><br />
+        <strong>Techtrep</strong><br />
         Email:{" "}
         <a className="text-blue-600 underline" href="mailto:privacy@nexaapp.com">
           privacy@nexaapp.com
