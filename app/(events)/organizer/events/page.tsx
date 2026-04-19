@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { getEventImage } from "@/lib/getEventImage";
-import { useAuth } from "@/components/providers/AuthProvider";
-import { useRouter } from "next/navigation";
 
 /* ================= TYPES ================= */
 
@@ -35,27 +33,9 @@ function isEnded(event: Event) {
 /* ================= PAGE ================= */
 
 export default function OrganizerEventsPage() {
-
-  /* ------------------------------------------------------------------ */
-  /* AUTH STATE                                                          */
-  /* ------------------------------------------------------------------ */
-
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
-  
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"all" | "active" | "ended">("all");
-
-  /* ------------------------------------------------------------------ */
-  /* REDIRECT IF NOT AUTHENTICATED                                      */
-  /* ------------------------------------------------------------------ */
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/login");
-    }
-  }, [authLoading, user, router]);
 
   useEffect(() => {
     api
