@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // List of routes that require authentication
-const protectedRoutes = ["/transactions", "/dashboard", "/webhooks"];
+const protectedRoutes = ["/transactions", "/dashboard", "/organizer", "/webhooks"];
 
 // Pages for mobile redirection
 const LANDING_PAGES = ["/"]; // ✅ Only redirect from root
@@ -37,5 +37,5 @@ export function middleware(req: NextRequest) {
 
 // Define which routes the middleware should run on
 export const config = {
-  matcher: ["/", "/landing", "/transactions/:path*", "/dashboard/:path*", "/webhooks/:path*"],
+  matcher: ["/", "/landing", "/transactions/:path*", "/dashboard/:path*", "/organizer/:path*", "/webhooks/:path*"],
 };
