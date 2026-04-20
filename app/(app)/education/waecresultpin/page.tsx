@@ -35,7 +35,12 @@ export default function EducationPage() {
     api
       .get(`/vtpass/education/${serviceID}/variations`)
       .then(res => {
-        setVariations(res.data || []);
+        const data = res.data || [];
+        setVariations(data);
+
+        if (data.length > 0) {
+          setVariationCode(data[0].variation_code);
+        }
       })
       .catch(() => {
         console.error("Failed to load WAEC variations:", err);
