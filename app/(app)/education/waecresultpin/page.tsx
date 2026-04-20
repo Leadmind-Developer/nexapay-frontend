@@ -33,11 +33,12 @@ export default function EducationPage() {
   /* ================= LOAD VARIATIONS ================= */
   useEffect(() => {
     api
-      .get("/vtpass/education/variations")
+      .get(`/vtpass/education/${serviceID}/variations`)
       .then(res => {
         setVariations(res.data || []);
       })
       .catch(() => {
+        console.error("Failed to load WAEC variations:", err);
         setVariations([]);
       });
   }, []);
