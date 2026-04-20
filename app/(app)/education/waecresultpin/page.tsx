@@ -43,7 +43,7 @@ export default function EducationPage() {
         }
       })
       .catch(() => {
-        console.error("Failed to load WAEC variations:", err);
+        console.error("Failed to load WAEC variations:");
         setVariations([]);
       });
   }, []);
