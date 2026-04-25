@@ -4,10 +4,10 @@ import AuthForm from "@/components/AuthForm";
 
 export default function LoginPage() {
   return (
-    <AuthPage plainBackground>
-      {/* videoSrc="/videos/login-bg.mp4" */}
-     {/* imageSrc="/images/login-bg.jpg" // desktop still image
-    > */}
+    <AuthPage
+      videoSrc="/videos/login-bg.mp4"
+      imageSrc="/images/login-bg.jpg" // desktop still image
+    >
       <AuthForm mode="login" />
     </AuthPage>
   );
