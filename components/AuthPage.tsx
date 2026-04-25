@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useRef, useEffect, useState } from "react";
+import { ReactNode, useRef, useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 
 interface AuthPageProps {
@@ -14,27 +14,25 @@ export default function AuthPage({
   imageSrc,
   children,
 }: AuthPageProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [isMobile, setIsMobile] = useState(false);
-  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const [viewportHeight, setViewportHeight] = useState<number>(0);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
   /* -------------------------------------------------------------------------- */
-  /* 📱 Detect mobile + dynamic viewport height (keyboard safe)                  */
+  /* 📱 Viewport + mobile detection (optimized)                                  */
   /* -------------------------------------------------------------------------- */
+  const updateViewport = useCallback(() => {
+    const height =
+      window.visualViewport?.height ?? window.innerHeight;
+
+    setViewportHeight(height);
+    setIsMobile(window.innerWidth < 768);
+  }, []);
+
   useEffect(() => {
-    const updateViewport = () => {
-      setIsMobile(window.innerWidth < 768);
-
-      // Use visualViewport when available (iOS Safari keyboard fix)
-      const height =
-        window.visualViewport?.height || window.innerHeight;
-
-      setViewportHeight(height);
-    };
-
     updateViewport();
 
     window.addEventListener("resize", updateViewport);
@@ -44,33 +42,50 @@ export default function AuthPage({
       window.removeEventListener("resize", updateViewport);
       window.visualViewport?.removeEventListener("resize", updateViewport);
     };
-  }, []);
+  }, [updateViewport]);
 
   /* -------------------------------------------------------------------------- */
-  /* 🎥 Safe video autoplay                                                      */
+  /* 🎥 Safe video autoplay (iOS/Android compatible)                            */
   /* -------------------------------------------------------------------------- */
   useEffect(() => {
-    if (videoRef.current && videoSrc) {
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {});
+    const video = videoRef.current;
+    if (!video || !videoSrc) return;
+
+    const playVideo = async () => {
+      try {
+        await video.play();
+      } catch {
+        // Autoplay blocked – silently ignore (expected on some devices)
       }
-    }
+    };
+
+    playVideo();
   }, [videoSrc]);
 
   /* -------------------------------------------------------------------------- */
-  /* 📏 Auto-detect long forms → enable scroll                                    */
+  /* 📏 Overflow detection (debounced + safe observer)                          */
   /* -------------------------------------------------------------------------- */
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
 
-    const observer = new ResizeObserver(() => {
-      const el = containerRef.current!;
-      setIsOverflowing(el.scrollHeight > el.clientHeight);
-    });
+    let frame: number;
 
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
+    const checkOverflow = () => {
+      frame = requestAnimationFrame(() => {
+        setIsOverflowing(el.scrollHeight > el.clientHeight + 2);
+      });
+    };
+
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(el);
+
+    checkOverflow();
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   }, []);
 
   return (
@@ -81,7 +96,7 @@ export default function AuthPage({
       }}
     >
       {/* ---------------------------------------------------------------------- */}
-      {/* Desktop background image                                                */}
+      {/* Desktop background image                                               */}
       {/* ---------------------------------------------------------------------- */}
       <div
         className="hidden md:block absolute inset-0 bg-cover bg-center"
@@ -89,7 +104,7 @@ export default function AuthPage({
       />
 
       {/* ---------------------------------------------------------------------- */}
-      {/* Mobile video background                                                 */}
+      {/* Mobile video background                                                */}
       {/* ---------------------------------------------------------------------- */}
       <video
         ref={videoRef}
@@ -98,24 +113,20 @@ export default function AuthPage({
         loop
         autoPlay
         playsInline
-        className={`block md:hidden absolute inset-0 object-cover ${
+        preload="metadata"
+        className={`block md:hidden absolute inset-0 w-full h-full object-cover ${
           isMobile ? "object-top" : "object-center"
         }`}
       />
 
       {/* ---------------------------------------------------------------------- */}
-      {/* Auth content                                                            */}
+      {/* Content layer                                                          */}
       {/* ---------------------------------------------------------------------- */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="
-          relative z-10
-          flex flex-col items-center
-          px-4 pt-28 md:pt-24
-          w-full
-        "
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative z-10 flex flex-col items-center px-4 pt-24 md:pt-20 w-full"
         style={{
           height: viewportHeight ? `${viewportHeight}px` : "100vh",
         }}
@@ -124,8 +135,9 @@ export default function AuthPage({
           ref={containerRef}
           className={`
             w-full max-w-md
-            bg-black/30 backdrop-blur-md
+            bg-black/40 backdrop-blur-md
             p-6 rounded-2xl shadow-lg
+            transition-all duration-200
 
             ${isOverflowing ? "overflow-y-auto overscroll-contain" : ""}
             max-h-full
