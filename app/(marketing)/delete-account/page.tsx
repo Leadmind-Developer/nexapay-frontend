@@ -12,7 +12,7 @@ const DeleteAccount = () => {
 
       <ol>
         <li>
-          Send an email to <a href="mailto:support@nexaapp.com">support@nexaapp.com</a> from your registered email address
+          Send an email to <a href="mailto:support@nexa.com.ng">support@nexa.com.ng</a> from your registered email address
         </li>
         <li>Use the subject: "Account Deletion Request"</li>
         <li>Include your registered phone number</li>
