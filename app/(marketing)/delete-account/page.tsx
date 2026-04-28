@@ -1,0 +1,38 @@
+import React from "react";
+
+const DeleteAccount = () => {
+  return (
+    <div style={{ maxWidth: 600, margin: "0 auto", padding: "20px", lineHeight: 1.6 }}>
+      <h1>Delete Your Nexa Account</h1>
+
+      <p>
+        If you would like to delete your Nexa account and associated data,
+        please follow the steps below:
+      </p>
+
+      <ol>
+        <li>
+          Send an email to <a href="mailto:support@nexaapp.com">support@nexaapp.com</a> from your registered email address
+        </li>
+        <li>Use the subject: "Account Deletion Request"</li>
+        <li>Include your registered phone number</li>
+      </ol>
+
+      <p>We will process your request within 72 hours.</p>
+
+      <p>
+        <strong>Data Deletion Details:</strong>
+      </p>
+
+      <ul>
+        <li>Your personal information will be deleted</li>
+        <li>
+          Your transaction history may be retained where required for legal or
+          regulatory purposes
+        </li>
+      </ul>
+    </div>
+  );
+};
+
+export default DeleteAccount;
