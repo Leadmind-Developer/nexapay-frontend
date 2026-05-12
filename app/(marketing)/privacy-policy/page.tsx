@@ -33,13 +33,13 @@ export default function PrivacyPolicyPage() {
 
       <ul className="list-disc pl-6 space-y-2">
         <li>
-          <strong>Contact Information:</strong> Name, phone number, and email address — used for account registration, verification, and communication.
+          <strong>Contact Information:</strong> Name, phone number, and email address - used for account registration, verification, and communication.
         </li>
         <li>
-          <strong>Identifiers:</strong> Device ID or installation ID — used to secure and improve your experience.
+          <strong>Identifiers:</strong> Device ID or installation ID - used to secure and improve your experience.
         </li>
         <li>
-          <strong>Transaction Data:</strong> Payment history, transaction IDs, and purchase details — used for receipts and service records.
+          <strong>Transaction Data:</strong> Payment history, transaction IDs, and purchase details - used for receipts and service records.
         </li>
         <li>
           <strong>User Content:</strong> Feedback or support messages you send us.
@@ -102,8 +102,8 @@ export default function PrivacyPolicyPage() {
 
       <p className="mb-6">
         You may request to access, update, or delete your data by contacting us at{" "}
-        <a className="text-blue-600 underline" href="mailto:privacy@nexaapp.com">
-          privacy@nexaapp.com
+        <a className="text-blue-600 underline" href="mailto:privacy@nexa.com.ng">
+          privacy@nexa.com.ng
         </a>.
       </p>
 
@@ -130,8 +130,8 @@ export default function PrivacyPolicyPage() {
       <p>
         <strong>Techtrep</strong><br />
         Email:{" "}
-        <a className="text-blue-600 underline" href="mailto:privacy@nexaapp.com">
-          privacy@nexaapp.com
+        <a className="text-blue-600 underline" href="mailto:privacy@nexa.com.ng">
+          privacy@nexa.com.ng
         </a>
         <br />
         Address: Lagos, Nigeria
