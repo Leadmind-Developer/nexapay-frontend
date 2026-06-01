@@ -125,9 +125,9 @@ export default function DashboardPage() {
   /* ------------------------------------------------------------------ */
 
   const quickActions = [
-    { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26}/> },
-    { title: "Send Other", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26}/> },
-    { title: "Send Nexa", screen: "/dashboard/internaltransfer", icon: <IoPaperPlaneOutline size={26}/> },
+    { title: "Add Money", screen: "/dashboard/addmoney", icon: <IoAddCircleOutline size={26}/>, disabled: false, },
+    { title: "Send Other", screen: "/dashboard/withdraw", icon: <IoSwapHorizontalOutline size={26}/>, disabled: true, },
+    { title: "Send Nexa", screen: "/dashboard/internaltransfer", icon: <IoPaperPlaneOutline size={26}/>, disabled: true, },
   ];
 
   const services = [
@@ -210,19 +210,32 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-4">
-          {quickActions.map((q) => (
-            <motion.div key={q.title} whileHover={{ scale: 1.05 }}>
-              <Link
-                href={q.screen}
-                className="bg-white dark:bg-gray-800 rounded-xl p-4 flex flex-col items-center shadow"
-              >
-                {q.icon}
-                <p className="text-sm font-semibold mt-2">{q.title}</p>
-              </Link>
-            </motion.div>
-          ))}
+<div className="grid grid-cols-3 gap-4">
+  {quickActions.map((q) => (
+    <motion.div
+      key={q.title}
+      whileHover={!q.disabled ? { scale: 1.05 } : undefined}
+    >
+      {q.disabled ? (
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 flex flex-col items-center shadow opacity-50 cursor-not-allowed">
+          {q.icon}
+          <p className="text-sm font-semibold mt-2">{q.title}</p>
+          <span className="text-xs text-gray-500 mt-1">
+            Temporarily Disabled
+          </span>
         </div>
+      ) : (
+        <Link
+          href={q.screen}
+          className="bg-white dark:bg-gray-800 rounded-xl p-4 flex flex-col items-center shadow"
+        >
+          {q.icon}
+          <p className="text-sm font-semibold mt-2">{q.title}</p>
+        </Link>
+      )}
+    </motion.div>
+  ))}
+</div>
 
         {/* Services */}
 <div>
