@@ -484,7 +484,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           </>
         )}
 
-  {redirectFailed && step === "input" && mode === "login" && (
+  {redirectFailed && (step === "verify" || step === "2fa" || step === "input") && mode === "login"}
   <div className="mt-4 space-y-2 p-3 border border-yellow-300 bg-yellow-50 rounded-lg text-center">
     <p className="text-sm text-yellow-800">
       If you are not redirected automatically, continue here:
