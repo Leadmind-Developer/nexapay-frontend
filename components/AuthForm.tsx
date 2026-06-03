@@ -58,13 +58,9 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   // Redirect Helper
   // -------------------------
 
-  const startRedirectWatchdog = (timeout = 30000) => {
-  const target = "/dashboard";
-
+  const startRedirectWatchdog = (timeout = 30000) => { 
   const timer = setTimeout(() => {
-    setRedirectFailed(true);
-    // fallback hard navigation
-    window.location.href = target;
+    setRedirectFailed(true);    
   }, timeout);
 
   return timer;
@@ -484,26 +480,28 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           </>
         )}
 
-  {redirectFailed && (step === "verify" || step === "2fa" || step === "input") && mode === "login"}
-  <div className="mt-4 space-y-2 p-3 border border-yellow-300 bg-yellow-50 rounded-lg text-center">
-    <p className="text-sm text-yellow-800">
-      If you are not redirected automatically, continue here:
-      <br />
-      <a
-        href="https://nexa.com.ng/dashboard"
-        className="font-medium underline"
-      >
-        nexa.com.ng/dashboard
-      </a>
-    </p>
+        {redirectFailed &&
+  (step === "verify" || step === "2fa" || step === "input") &&
+  mode === "login" && (
+    <div className="mt-4 space-y-2 p-3 border border-yellow-300 bg-yellow-50 rounded-lg text-center">
+      <p className="text-sm text-yellow-800">
+        If you are not redirected automatically, continue here:
+        <br />
+        <a
+          href="https://nexa.com.ng/dashboard"
+          className="font-medium underline"
+        >
+          nexa.com.ng/dashboard
+        </a>
+      </p>
 
-    <button
-      onClick={() => (window.location.href = "/dashboard")}
-      className="text-sm text-blue-600 underline"
-    >
-      Open dashboard
-    </button>
-  </div>
+      <button
+        onClick={() => (window.location.href = "/dashboard")}
+        className="text-sm text-blue-600 underline"
+      >
+        Open dashboard
+      </button>
+    </div>
 )}
 
         {message && <p className="text-center text-sm text-green-600">{message}</p>}
