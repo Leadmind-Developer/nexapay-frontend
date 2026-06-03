@@ -150,7 +150,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         // primary navigation attempt
         router.replace("/dashboard");
         // cleanup fallback if navigation succeeds quickly
-        setTimeout(() => clearTimeout(timer), 3000);
+        setTimeout(() => clearTimeout(redirectTimer), 3000);
       } else {
         setMessage("Registration successful. Please login.");
 
