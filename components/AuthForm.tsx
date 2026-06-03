@@ -54,6 +54,21 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const [resendTimer, setResendTimer] = useState(0);
 
   // -------------------------
+  // Redirect Helper
+  // -------------------------
+
+  const startRedirectWatchdog = (timeout = 30000) => {
+  const target = "/dashboard";
+
+  const timer = setTimeout(() => {
+    // fallback hard navigation
+    window.location.href = target;
+  }, timeout);
+
+  return timer;
+};
+
+  // -------------------------
   // Resend OTP timer
   // -------------------------
   useEffect(() => {
@@ -125,12 +140,20 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
       // Login/register success with HttpOnly cookie
       if (mode === "login") {
-        setMessage("Login successful. Redirecting…");
+        setMessage("Authentication successful. You will be redirected automatically.");
+        
+        // start fallback BEFORE navigation
+        const redirectTimer = startRedirectWatchdog(30000);
+        
         await verifyLogin(); // ✅ no args needed for cookie-based login
+
+        // primary navigation attempt
         router.replace("/dashboard");
       } else {
         setMessage("Registration successful. Please login.");
-        setTimeout(() => {
+
+        // cleanup fallback if navigation succeeds quickly
+        setTimeout(() => clearTimeout(redirectTimer), 5000);
           setMode("login");
           setStep("input");
         }, 700);
@@ -177,9 +200,19 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         return;
       }
 
-      setMessage("Login successful. Redirecting…");
+      setMessage("Authentication successful. You will be redirected automatically.");
+
+      // start fallback BEFORE navigation
+      const redirectTimer = startRedirectWatchdog(30000);
+      
       await verifyLogin(); // ✅ cookie-based login
+
+      // primary navigation attempt
       router.replace("/dashboard");
+
+      // cleanup fallback if navigation succeeds quickly
+      setTimeout(() => clearTimeout(redirectTimer), 5000);
+      
     } catch (err: any) {
       setError(err.response?.data?.message || "OTP verification failed");
     } finally {
@@ -207,9 +240,19 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         return;
       }
 
-      setMessage("Login successful. Redirecting…");
+      setMessage("Authentication successful. You will be redirected automatically.");
+
+      // start fallback BEFORE navigation
+      const redirectTimer = startRedirectWatchdog(30000);
+      
       await verifyLogin(); // ✅ cookie-based login
+
+      // primary navigation attempt
       router.replace("/dashboard");
+
+      // cleanup fallback if navigation succeeds quickly
+      setTimeout(() => clearTimeout(redirectTimer), 5000);
+      
     } catch (err: any) {
       setError(err.response?.data?.message || "2FA verification failed");
     } finally {
@@ -328,7 +371,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
             <button
               onClick={handleStart}
-              disabled={loading || !identifier || !password}
+              disabled={loading || !firstName || !lastName || !userID || !email || !password || !confirmPassword}
               className="w-full py-3 rounded-lg bg-blue-600 text-white"
             >
               {loading ? "Please wait…" : "Create Account"}
