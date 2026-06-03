@@ -18,8 +18,10 @@ export default function ApproveRefundDialog({
 }: Props) {
   if (!refund) return null;
 
+  const safeRefund = refund;
+
   async function approve() {
-    await RefundAPI.approve(refund.id);
+    await RefundAPI.approve(safeRefund.id);
 
     onSuccess();
     onClose();
@@ -28,14 +30,10 @@ export default function ApproveRefundDialog({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
       <div className="bg-white p-6 rounded-xl w-[450px]">
-        <h2 className="text-xl font-bold">
-          Approve Refund
-        </h2>
+        <h2 className="text-xl font-bold">Approve Refund</h2>
 
         <p className="mt-4">
-          Refund ₦
-          {refund.amount.toLocaleString()}
-          ?
+          Refund ₦{safeRefund.amount.toLocaleString()}?
         </p>
 
         <p className="text-sm text-gray-500 mt-2">
@@ -43,10 +41,7 @@ export default function ApproveRefundDialog({
         </p>
 
         <div className="flex gap-2 mt-5">
-          <button
-            onClick={onClose}
-            className="border px-4 py-2 rounded"
-          >
+          <button onClick={onClose} className="border px-4 py-2 rounded">
             Cancel
           </button>
 
