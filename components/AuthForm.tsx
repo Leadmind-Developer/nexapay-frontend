@@ -52,6 +52,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
+  const [redirectFailed, setRedirectFailed] = useState(false);
 
   // -------------------------
   // Redirect Helper
@@ -61,6 +62,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   const target = "/dashboard";
 
   const timer = setTimeout(() => {
+    setRedirectFailed(true);
     // fallback hard navigation
     window.location.href = target;
   }, timeout);
@@ -473,6 +475,24 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
             </button>
           </>
         )}
+
+        {redirectFailed && (
+        <div className="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg text-sm text-center">
+          If you are not redirected automatically, please go to{" "}
+         <a
+           href="https://nexa.com.ng/dashboard"
+           className="underline font-medium"
+         >
+            nexa.com.ng/dashboard
+        </a>
+      </div>
+     )}
+        <button
+          onClick={() => (window.location.href = "/dashboard")}
+          className="mt-2 text-sm text-blue-600 underline"
+         >
+           Go to dashboard now
+         </button>
 
         {message && <p className="text-center text-sm text-green-600">{message}</p>}
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
