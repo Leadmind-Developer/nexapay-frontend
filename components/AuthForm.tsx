@@ -156,7 +156,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
         // primary navigation attempt
         router.replace("/dashboard");
         // cleanup fallback if navigation succeeds quickly
-        setTimeout(() => clearTimeout(redirectTimer), 3000);
+        // setTimeout(() => clearTimeout(redirectTimer), 3000);
       } else {
         setMessage("Registration successful. Please login.");
 
@@ -218,7 +218,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       router.replace("/dashboard");
 
       // cleanup fallback if navigation succeeds quickly
-      setTimeout(() => clearTimeout(redirectTimer), 5000);
+      // setTimeout(() => clearTimeout(redirectTimer), 5000);
       
     } catch (err: any) {
       setError(err.response?.data?.message || "OTP verification failed");
@@ -258,7 +258,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
       router.replace("/dashboard");
 
       // cleanup fallback if navigation succeeds quickly
-      setTimeout(() => clearTimeout(redirectTimer), 5000);
+      // setTimeout(() => clearTimeout(redirectTimer), 5000);
       
     } catch (err: any) {
       setError(err.response?.data?.message || "2FA verification failed");
