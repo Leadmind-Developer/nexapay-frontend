@@ -80,6 +80,14 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
   }, [resendTimer]);
 
   // -------------------------
+  // Reset redirect state
+  // -------------------------
+
+  useEffect(() => {
+  setRedirectFailed(false);
+}, [step, mode]);
+
+  // -------------------------
   // Start login/register
   // -------------------------
   async function handleStart() {
@@ -476,23 +484,27 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
           </>
         )}
 
-        {redirectFailed && (
-        <div className="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg text-sm text-center">
-          If you are not redirected automatically, please go to{" "}
-         <a
-           href="https://nexa.com.ng/dashboard"
-           className="underline font-medium"
-         >
-            nexa.com.ng/dashboard
-        </a>
-      </div>
-     )}
-        <button
-          onClick={() => (window.location.href = "/dashboard")}
-          className="mt-2 text-sm text-blue-600 underline"
-         >
-           Go to dashboard now
-         </button>
+  {redirectFailed && step === "input" && mode === "login" && (
+  <div className="mt-4 space-y-2 p-3 border border-yellow-300 bg-yellow-50 rounded-lg text-center">
+    <p className="text-sm text-yellow-800">
+      If you are not redirected automatically, continue here:
+      <br />
+      <a
+        href="https://nexa.com.ng/dashboard"
+        className="font-medium underline"
+      >
+        nexa.com.ng/dashboard
+      </a>
+    </p>
+
+    <button
+      onClick={() => (window.location.href = "/dashboard")}
+      className="text-sm text-blue-600 underline"
+    >
+      Open dashboard
+    </button>
+  </div>
+)}
 
         {message && <p className="text-center text-sm text-green-600">{message}</p>}
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
