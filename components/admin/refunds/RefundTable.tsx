@@ -1,26 +1,76 @@
-// components/admin/refunds/types.ts
+// components/admin/refunds/RefundTable.tsx
 
-export interface Refund {
-  id: string;
-  userId: number;
+"use client";
 
-  amount: number;
+import { Refund } from "./types";
 
-  sourceType: string;
-  sourceId: string;
+interface Props {
+  refunds: Refund[];
+  onApprove: (refund: Refund) => void;
+  onReject: (refund: Refund) => void;
+}
 
-  reason?: string;
+export default function RefundTable({
+  refunds,
+  onApprove,
+  onReject,
+}: Props) {
+  return (
+    <table className="w-full border">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Amount</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th />
+        </tr>
+      </thead>
 
-  status: "PENDING" | "COMPLETED" | "REJECTED";
+      <tbody>
+        {refunds.map((refund) => (
+          <tr key={refund.id}>
+            <td>
+              {refund.user?.firstName}{" "}
+              {refund.user?.lastName}
+            </td>
 
-  reference: string;
+            <td>
+              ₦
+              {refund.amount.toLocaleString()}
+            </td>
 
-  createdAt: string;
+            <td>
+              {refund.sourceType}
+            </td>
 
-  user: {
-    id: number;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-  };
+            <td>{refund.status}</td>
+
+            <td className="space-x-2">
+              {refund.status ===
+                "PENDING" && (
+                <>
+                  <button
+                    onClick={() =>
+                      onApprove(refund)
+                    }
+                  >
+                    Approve
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      onReject(refund)
+                    }
+                  >
+                    Reject
+                  </button>
+                </>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
