@@ -145,7 +145,7 @@ export default function Hero() {
           </a>
 
           <a
-            href="https://play.google.com/store/apps/details?id=YOUR_APP_PACKAGE"
+            href="https://play.google.com/store/apps/details?id=com.techtrep.nexa"
             target="_blank"
             className="bg-black px-4 py-3 rounded-lg font-semibold hover:bg-gray-900 transition flex items-center gap-2 text-white"
           >
