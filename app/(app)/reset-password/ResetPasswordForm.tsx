@@ -5,14 +5,14 @@ import {useRouter, useSearchParams} from "next/navigation";
 import AuthPage from "@/components/AuthPage";
 import api from "@/lib/api";
 
-export default function ResetPasswordPage(){
+
+export default function ResetPasswordForm(){
 
 const router = useRouter();
 const searchParams = useSearchParams();
 
 const identifier =
  searchParams.get("identifier") || "";
-
 
 const [otp,setOtp] = useState("");
 const [password,setPassword] = useState("");
