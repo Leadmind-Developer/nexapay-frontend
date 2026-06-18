@@ -121,7 +121,7 @@ export default function Hero() {
           className="flex justify-start gap-5 flex-wrap"
         >
           <a
-            href="https://wa.me/2348012345678?text=Hi%20I%20want%20to%20buy%20some%20services"
+            href="https://wa.me/2347016075305?text=Hi%20I%20want%20to%20buy%20some%20services"
             target="_blank"
             className="bg-green-500 px-8 py-3 rounded-lg font-semibold hover:bg-green-600 transition flex items-center gap-2 text-white"
           >
