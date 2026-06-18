@@ -31,9 +31,7 @@ export default function ForgotPasswordPage() {
       setMessage("OTP sent. Check your email or phone.");
 
       setTimeout(() => {
-        router.push(
-          `/reset-password?identifier=${encodeURIComponent(identifier)}`
-        );
+        router.push(`/reset-password?i=${identifier}`);
       }, 800);
 
     } catch (err: any) {
