@@ -12,7 +12,9 @@ const router = useRouter();
 const searchParams = useSearchParams();
 
 const identifier =
- searchParams.get("identifier") || "";
+ searchParams.get("identifier") || 
+ searchParams.get("i") ||
+ "";
 
 const [otp,setOtp] = useState("");
 const [password,setPassword] = useState("");
