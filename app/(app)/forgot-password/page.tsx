@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import AuthLayout from "@/components/auth/AuthLayout";
-import AuthInput from "@/components/auth/AuthInput";
-import AuthSubmit from "@/components/auth/AuthSubmit";
+import AuthPage from "@/components/AuthPage";
 import { AuthAPI } from "@/lib/auth/auth.api";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -18,24 +17,115 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError("");
     setMessage("");
+
     try {
-      await AuthAPI.forgot({ identifier });
-      setMessage("OTP sent! Check your email or phone.");
-      router.push(`/auth/reset-password?i=${identifier}`);
+      await AuthAPI.forgot({
+        identifier: identifier.trim().toLowerCase(),
+      });
+
+      setMessage("OTP sent. Check your email or phone.");
+
+      setTimeout(() => {
+        router.push(`/reset-password?i=${identifier}`);
+      }, 800);
+
     } catch (err: any) {
-      setError(err.response?.data?.message || "Request failed");
-    } finally { setLoading(false); }
+      setError(
+        err.response?.data?.message || "Request failed"
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
+
   return (
-    <AuthLayout
-      title="Forgot Password"
-      footer={<a href="/auth/login" className="text-blue-600">Back to login</a>}
+    <AuthPage
+      videoSrc="/videos/login-bg.mp4"
+      imageSrc="/images/login-bg.jpg"
     >
-      <AuthInput placeholder="Email / Phone / Username" value={identifier} onChange={setIdentifier} />
-      <AuthSubmit onClick={handleForgot} loading={loading}>Send OTP</AuthSubmit>
-      {message && <p className="text-green-600 text-sm">{message}</p>}
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-    </AuthLayout>
+
+      <div className="
+        max-w-md 
+        mx-auto 
+        bg-white 
+        dark:bg-gray-800
+        rounded-2xl 
+        shadow 
+        p-6 
+        space-y-6
+      ">
+
+        <h1 className="text-2xl font-semibold text-center">
+          Forgot Password
+        </h1>
+
+
+        <p className="text-center text-sm text-gray-500">
+          Enter your email, phone or username and we will send you a reset OTP.
+        </p>
+
+
+        <input
+          className="
+            w-full
+            p-3
+            border
+            rounded-lg
+            dark:bg-gray-700
+          "
+          placeholder="Email / Phone / Username"
+          value={identifier}
+          onChange={(e) =>
+            setIdentifier(
+              e.target.value.toLowerCase().replace(/\s/g, "")
+            )
+          }
+        />
+
+
+        <button
+          onClick={handleForgot}
+          disabled={loading || !identifier}
+          className="
+            w-full
+            py-3
+            rounded-lg
+            bg-blue-600
+            text-white
+            disabled:opacity-50
+          "
+        >
+          {loading ? "Sending..." : "Send OTP"}
+        </button>
+
+
+        <div className="text-center text-sm">
+
+          <a
+            href="/login"
+            className="text-blue-600 hover:underline"
+          >
+            Back to login
+          </a>
+
+        </div>
+
+
+        {message && (
+          <p className="text-center text-sm text-green-600">
+            {message}
+          </p>
+        )}
+
+        {error && (
+          <p className="text-center text-sm text-red-600">
+            {error}
+          </p>
+        )}
+
+      </div>
+
+    </AuthPage>
   );
 }
