@@ -424,7 +424,7 @@ export default function AuthForm({ mode: initialMode }: AuthFormProps) {
 
             <div className="text-center mt-2">
               <a
-                href="/reset-password"
+                href="/forgot-password"
                 className="text-sm text-blue-600 hover:underline"
               >
                 Forgot password?
