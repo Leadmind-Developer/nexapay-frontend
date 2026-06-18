@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthPage from "@/components/AuthPage";
-import { AuthAPI } from "@/lib/auth/auth.api";
+import api from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -14,13 +14,18 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
 
   async function handleForgot() {
+    if (!identifier.trim()) {
+      setError("Enter your email, phone or username");
+      return;
+    }
+    
     setLoading(true);
     setError("");
     setMessage("");
 
     try {
-      await AuthAPI.forgot({
-        identifier: identifier.trim().toLowerCase(),
+      await api.post("/auth/password/forgot", {
+        identifier: identifier.trim(),
       });
 
       setMessage("OTP sent. Check your email or phone.");
