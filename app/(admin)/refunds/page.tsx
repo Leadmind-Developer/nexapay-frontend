@@ -29,11 +29,21 @@ export default function RefundsPage() {
       useState<Refund | null>(null);
 
   async function loadRefunds() {
-    const res =
-      await RefundAPI.list();
+  try {
+    const res = await RefundAPI.list();
 
-    setRefunds(res.data.data);
+    console.log("REFUNDS:", res.data);
+
+    setRefunds(res.data.data || []);
+  } catch (err: any) {
+    console.error(
+      "Refund loading failed:",
+      err.response?.data || err.message
+    );
+
+    setRefunds([]);
   }
+}
 
   useEffect(() => {
     loadRefunds();
