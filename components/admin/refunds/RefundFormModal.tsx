@@ -35,7 +35,7 @@ export default function RefundFormModal({
 
       await RefundAPI.create({
         userId: Number(form.userId),
-        amount: Number(form.amount),
+        amount: Number(form.amount) * 100,
         sourceType: form.sourceType,
         sourceId: form.sourceId,
         reason: form.reason,
