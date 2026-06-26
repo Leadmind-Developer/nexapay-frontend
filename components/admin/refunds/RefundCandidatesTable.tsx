@@ -42,7 +42,7 @@ export default function RefundCandidatesTable({
             <td>{txn.serviceID}</td>
 
             <td>
-              ₦{txn.amount.toLocaleString()}
+              ₦{(txn.amount / 100).toLocaleString()}
             </td>
 
             <td>
