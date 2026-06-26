@@ -33,7 +33,7 @@ export default function ApproveRefundDialog({
         <h2 className="text-xl font-bold">Approve Refund</h2>
 
         <p className="mt-4">
-          Refund ₦{(safeRefund.amount / 100).toLocaleString()}?
+          Refund ₦{safeRefund.amount.toLocaleString()}?
         </p>
 
         <p className="text-sm text-gray-500 mt-2">
