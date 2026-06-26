@@ -45,12 +45,13 @@ export default function ApproveRefundDialog({
   }, [loading, onClose]);
 
   if (!refund) return null;
+  const currentRefund = refund;
 
   async function approve() {
     try {
       setLoading(true);
 
-      await RefundAPI.approve(refund.id);
+      await RefundAPI.approve(currentRefund.id);
 
       onSuccess();
       onClose();
@@ -117,8 +118,8 @@ export default function ApproveRefundDialog({
               </span>
 
               <span className="font-medium">
-                {refund.user?.firstName}{" "}
-                {refund.user?.lastName}
+                {currentRefund.user?.firstName}{" "}
+                {currentRefund.user?.lastName}
               </span>
             </div>
 
@@ -128,7 +129,7 @@ export default function ApproveRefundDialog({
               </span>
 
               <span className="font-semibold text-lg">
-                {formatAmount(refund.amount)}
+                {formatAmount(currentRefund.amount)}
               </span>
             </div>
 
@@ -137,7 +138,7 @@ export default function ApproveRefundDialog({
                 Source
               </span>
 
-              <span>{refund.sourceType}</span>
+              <span>{currentRefund.sourceType}</span>
             </div>
 
             <div className="flex justify-between py-2">
@@ -146,7 +147,7 @@ export default function ApproveRefundDialog({
               </span>
 
               <span className="font-mono text-xs">
-                {refund.reference}
+                {currentRefund.reference}
               </span>
             </div>
           </div>
