@@ -37,5 +37,5 @@ export function middleware(req: NextRequest) {
 
 // Define which routes the middleware should run on
 export const config = {
-  matcher: ["/", "/landing", "/transactions/:path*", "/dashboard/:path*", "/organizer/:path*", "/webhooks/:path*"],
+  matcher: ["/", "/landing", "/transactions/:path*", "/dashboard/:path*", "/organizer/:path*", "/refunds/:path*", "/webhooks/:path*"],
 };
