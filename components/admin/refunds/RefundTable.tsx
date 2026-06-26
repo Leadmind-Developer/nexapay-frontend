@@ -37,7 +37,7 @@ export default function RefundTable({
 
             <td>
               ₦
-              {(refund.amount.toLocaleString()}
+              {refund.amount.toLocaleString()}
             </td>
 
             <td>
