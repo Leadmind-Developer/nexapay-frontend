@@ -33,25 +33,46 @@ function formatDate(date: string) {
 }
 
 function serviceName(serviceID: string) {
-  const services: Record<string, string> = {
-    ikeja-electric: "IKEDC",
-    ikedc: "IKEDC",
-    eko-electric: "EKEDC",
-    ekedc: "EKEDC",
-    aedc: "AEDC",
-    phed: "PHED",
-    bedc: "BEDC",
-    ibedc: "IBEDC",
-    kaduna-electric: "KAEDCO",
-    jos-electric: "JED",
-    startimes: "StarTimes",
-    gotv: "GOtv",
-    dstv: "DStv",
-    airtel: "Airtel",
-    mtn: "MTN",
-    glo: "Glo",
-    "9mobile": "9mobile",
-  };
+ const services: Record<string, string> = {
+  "ikeja-electric": "IKEDC",
+  ikedc: "IKEDC",
+
+  "eko-electric": "EKEDC",
+  ekedc: "EKEDC",
+
+  "abuja-electric": "AEDC",
+  aedc: "AEDC",
+
+  "ibadan-electric": "IBEDC",
+  ibedc: "IBEDC",
+
+  "kano-electric": "KEDCO",
+  kedco: "KEDCO",
+
+  "jos-electric": "JED",
+  jed: "JED",
+
+  "kaduna-electric": "KAEDCO",
+  kaedco: "KAEDCO",
+
+  "portharcourt-electric": "PHED",
+  phed: "PHED",
+
+  "enugu-electric": "EEDC",
+  eedc: "EEDC",
+
+  "benin-electric": "BEDC",
+  bedc: "BEDC",
+
+  mtn: "MTN",
+  glo: "Glo",
+  airtel: "Airtel",
+  "9mobile": "9mobile",
+
+  gotv: "GOtv",
+  dstv: "DStv",
+  startimes: "StarTimes",
+};
 
   return services[serviceID] || serviceID;
 }
