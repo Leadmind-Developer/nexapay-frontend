@@ -1,18 +1,15 @@
-// lib/refunds.ts
-
 import api from "./api";
 
 export const RefundAPI = {
   list: () => api.get("/refunds"),
 
-  create: (payload: {
-    userId: number;
-    amount: number;
-    sourceType: string;
-    sourceId: string;
-    reason?: string;
-  }) =>
-    api.post("/refunds", payload),
+  candidates: () =>
+    api.get("/refunds/candidates"),
+
+  create: (transactionId: string) =>
+    api.post("/refunds", {
+      transactionId,
+    }),
 
   approve: (id: string) =>
     api.post(`/refunds/${id}/approve`),
