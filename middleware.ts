@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // List of routes that require authentication
-const protectedRoutes = ["/transactions", "/dashboard", "/organizer", "/webhooks"];
+const protectedRoutes = ["/transactions", "/dashboard", "/organizer", "/refunds", "/webhooks"];
 
 // Pages for mobile redirection
 const LANDING_PAGES = ["/"]; // ✅ Only redirect from root
