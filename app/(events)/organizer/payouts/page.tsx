@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import api from "@/lib/api";
 
 export default function OrganizerPayoutsPage() {
   const [balance, setBalance] = useState(0);
@@ -15,19 +16,20 @@ export default function OrganizerPayoutsPage() {
     async function fetchPayouts() {
       try {
         setLoading(true);
-        const res = await fetch("/api/organizer/payouts", {
-          credentials: "include", // for cookies
-        });
-        if (!res.ok) throw new Error("Failed to fetch payouts");
-        const data = await res.json();
-
+        const { data } = await api.get("/payouts/organizer/payouts");
+          
         setBalance(data.balance || 0);
-        setPending(data.pending?.length || 0);
+        setPending(data.pending || 0);
         setPaidOut(data.paidOut || 0);
         setHistory(data.history || []);
       } catch (err: any) {
         console.error(err);
-        setError(err.message || "Something went wrong");
+        
+        setError(
+          err.response?.data?.error ||
+          err.message ||
+          "Failed to fetch payouts"
+        );
       } finally {
         setLoading(false);
       }
