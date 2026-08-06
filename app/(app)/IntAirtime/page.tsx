@@ -4,9 +4,9 @@ import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 import BannersWrapper from "@/components/BannersWrapper";
 import { useCheckout } from "@/hooks/useCheckout";
-import NotAvailable from "@/components/NotAvailable";
 
-/* ================= TYPES (Backend-aligned) ================= */
+/* ================= TYPES ================= */
+
 type Country = {
   code: string;
   name: string;
@@ -20,7 +20,7 @@ type ProductType = {
 type Operator = {
   operator_id: string;
   name: string;
-  operator_image?: string;  
+  operator_image?: string;
 };
 
 type Variation = {
@@ -32,19 +32,7 @@ type Variation = {
 
 type Stage = "form" | "review";
 
-/* ================= PAGE ================= */
-export default function IntAirtimePage() {  
-
-  // 🔒 TEMPORARILY DISABLED
-  // return (
-    // <NotAvailable
-      // title="International Airtime Not Available"
-      // message="International Airtime is temporarily unavailable. Please try again later."
-   // />
-  // );
-
-  // ⛔ everything below remains unchanged
-  
+export default function IntAirtimePage() {
   const [stage, setStage] = useState<Stage>("form");
 
   const [countries, setCountries] = useState<Country[]>([]);
@@ -52,18 +40,16 @@ export default function IntAirtimePage() {
   const [operators, setOperators] = useState<Operator[]>([]);
   const [variations, setVariations] = useState<Variation[]>([]);
 
-  const [country, setCountry] = useState<string>("");
-  const [productType, setProductType] = useState<string>("");
-  const [operator, setOperator] = useState<string>("");
-  const [variation, setVariation] = useState<string>("");
+  const [country, setCountry] = useState("");
+  const [productType, setProductType] = useState("");
+  const [operator, setOperator] = useState("");
+  const [variation, setVariation] = useState("");
 
   const [billersCode, setBillersCode] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
-  const [amount, setAmount] = useState<number>(0);
-  const [minLen, setMinLen] = useState<number>(0);
-  const [maxLen, setMaxLen] = useState<number>(20);
+  const [amount, setAmount] = useState(0);
 
   const {
     stage: checkoutStage,
@@ -72,45 +58,53 @@ export default function IntAirtimePage() {
     checkout,
   } = useCheckout();
 
-  /* ================= LOOKUPS ================= */
+  /* ================= Countries ================= */
 
-  /** Countries */
   useEffect(() => {
     api
       .get("/vtpass/international/countries")
-      .then(res => setCountries(res.data?.data ?? []))
+      .then((res) => setCountries(res.data?.data ?? []))
       .catch(() => setCountries([]));
   }, []);
 
-  /** Product Types */
+  /* ================= Product Types ================= */
+
   useEffect(() => {
     if (!country) {
       setProductTypes([]);
+      setOperators([]);
+      setVariations([]);
       return;
     }
 
     api
       .get(`/vtpass/international/product-types/${country}`)
-      .then(res => setProductTypes(res.data?.data ?? []))
+      .then((res) => setProductTypes(res.data?.data ?? []))
       .catch(() => setProductTypes([]));
   }, [country]);
 
-  /** Operators */
+  /* ================= Operators ================= */
+
   useEffect(() => {
     if (!country || !productType) {
       setOperators([]);
+      setVariations([]);
       return;
     }
 
     api
       .get("/vtpass/international/operators", {
-        params: { code: country, product_type_id: productType },
+        params: {
+          code: country,
+          product_type_id: productType,
+        },
       })
-      .then(res => setOperators(res.data?.data ?? []))
+      .then((res) => setOperators(res.data?.data ?? []))
       .catch(() => setOperators([]));
   }, [country, productType]);
 
-  /** Variations */
+  /* ================= Variations ================= */
+
   useEffect(() => {
     if (!operator || !productType) {
       setVariations([]);
@@ -119,33 +113,27 @@ export default function IntAirtimePage() {
 
     api
       .get("/vtpass/international/variations", {
-        params: { operator_id: operator, product_type_id: productType },
+        params: {
+          operator_id: operator,
+          product_type_id: productType,
+        },
       })
-      .then(res => setVariations(res.data?.data ?? []))
+      .then((res) => setVariations(res.data?.data ?? []))
       .catch(() => setVariations([]));
   }, [operator, productType]);
 
-  /* ================= DERIVED ================= */
+  /* ================= Selected Amount ================= */
 
-  /** Amount */
   useEffect(() => {
     const selected = variations.find(
-      v => v.variation_code === variation
+      (v) => v.variation_code === variation
     );
-    
-    setAmount(Number(selected?.variation_amount || 0));
+
+    setAmount(Number(selected?.variation_amount ?? 0));
   }, [variation, variations]);
 
-  /** Phone length */
-  useEffect(() => {
-    const selected = operators.find(
-      o => o.operator_id === operator
-    );
-    setMinLen(selected?.min_length ?? 0);
-    setMaxLen(selected?.max_length ?? 20);
-  }, [operator, operators]);
+  /* ================= Checkout ================= */
 
-  /* ================= CHECKOUT ================= */
   const handleCheckout = () => {
     checkout({
       endpoint: "/vtpass/international/checkout",
@@ -162,114 +150,133 @@ export default function IntAirtimePage() {
     });
   };
 
-  /* ================= UI ================= */
   return (
     <BannersWrapper page="int-airtime">
       <div className="max-w-md mx-auto px-4 space-y-4 text-gray-900 dark:text-gray-100">
 
-        {/* ===== FORM ===== */}
         {checkoutStage === "idle" && stage === "form" && (
-          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 space-y-4 shadow">
-            <h2 className="text-xl font-bold">International Airtime</h2>
+          <div className="bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg p-6 shadow space-y-4">
 
-            {/* Country */}
+            <h2 className="text-xl font-bold">
+              International Airtime
+            </h2>
+
             <select
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
               value={country}
-              onChange={e => {
+              onChange={(e) => {
                 setCountry(e.target.value);
+
                 setProductType("");
                 setOperator("");
                 setVariation("");
+
+                setOperators([]);
+                setVariations([]);
               }}
             >
               <option value="">Select Country</option>
-              {countries.map(c => (
-                <option key={c.code} value={c.code}>
-                  {c.name}
+
+              {countries.map((country) => (
+                <option
+                  key={country.code}
+                  value={country.code}
+                >
+                  {country.name}
                 </option>
               ))}
             </select>
 
-            {/* Product */}
             <select
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
               value={productType}
-              onChange={e => {
+              onChange={(e) => {
                 setProductType(e.target.value);
+
                 setOperator("");
                 setVariation("");
+
+                setVariations([]);
               }}
             >
               <option value="">Select Product</option>
-              {productTypes.map(p => (
+
+              {productTypes.map((product) => (
                 <option
-                  key={p.product_type_id}
-                  value={p.product_type_id}
+                  key={product.product_type_id}
+                  value={product.product_type_id}
                 >
-                  {p.name}
+                  {product.name}
                 </option>
               ))}
             </select>
 
-            {/* Operator */}
             <select
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
               value={operator}
-              onChange={e => {
+              onChange={(e) => {
                 setOperator(e.target.value);
                 setVariation("");
               }}
             >
               <option value="">Select Operator</option>
-              {operators.map(o => (
+
+              {operators.map((operator) => (
                 <option
-                  key={o.operator_id}
-                  value={o.operator_id}
+                  key={operator.operator_id}
+                  value={operator.operator_id}
                 >
-                  {o.name}
+                  {operator.name}
                 </option>
               ))}
             </select>
 
-            {/* Amount */}
             <select
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
               value={variation}
-              onChange={e => setVariation(e.target.value)}
+              onChange={(e) => setVariation(e.target.value)}
             >
               <option value="">Select Amount</option>
-              {variations.map(v => (
-                <option key={v.variation_code} value={v.variation_code}>
-                  {v.name} — ₦{v.variation_amount}
+
+              {variations.map((variation) => (
+                <option
+                  key={variation.variation_code}
+                  value={variation.variation_code}
+                >
+                  {variation.name} — ₦{variation.variation_amount}
                 </option>
               ))}
             </select>
 
-            {/* Recipient */}
             <input
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
               value={billersCode}
-              onChange={e => setBillersCode(e.target.value)}
-              placeholder={`Recipient number ${minLen ? `(min ${minLen})` : ""}`}
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+              onChange={(e) => setBillersCode(e.target.value)}
+              placeholder="Recipient number"
             />
 
             <input
+              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
               value={phone}
-              onChange={e => setPhone(e.target.value)}
+              onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone (optional)"
-              className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
             />
 
             <input
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="Email (optional)"
               className="w-full p-3 border rounded dark:bg-gray-900 dark:border-gray-700"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email (optional)"
             />
 
             <button
-              disabled={!amount || !billersCode}
+              disabled={
+                !country ||
+                !productType ||
+                !operator ||
+                !variation ||
+                !billersCode
+              }
               onClick={() => setStage("review")}
               className="w-full bg-yellow-500 text-white py-3 rounded font-semibold disabled:opacity-60"
             >
@@ -278,8 +285,7 @@ export default function IntAirtimePage() {
           </div>
         )}
 
-        {/* ===== REVIEW / PROCESSING / SUCCESS / ERROR ===== */}
-        {/* (unchanged from your version) */}
+        {/* Keep your existing Review / Processing / Success / Error UI below unchanged */}
 
       </div>
     </BannersWrapper>
