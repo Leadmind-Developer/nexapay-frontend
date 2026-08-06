@@ -36,12 +36,12 @@ type Stage = "form" | "review";
 export default function IntAirtimePage() {  
 
   // 🔒 TEMPORARILY DISABLED
-  return (
-    <NotAvailable
-      title="International Airtime Not Available"
-      message="International Airtime is temporarily unavailable. Please try again later."
-    />
-  );
+  // return (
+    // <NotAvailable
+      // title="International Airtime Not Available"
+      // message="International Airtime is temporarily unavailable. Please try again later."
+   // />
+  // );
 
   // ⛔ everything below remains unchanged
   
