@@ -13,21 +13,21 @@ type Country = {
 };
 
 type ProductType = {
-  id: string;
+  product_type_id: number;
   name: string;
 };
 
 type Operator = {
-  id: string;
+  operator_id: string;
   name: string;
-  min_length?: number;
-  max_length?: number;
+  operator_image?: string;  
 };
 
 type Variation = {
   variation_code: string;
   name: string;
-  amount: number;
+  variation_amount: string;
+  fixedPrice: string;
 };
 
 type Stage = "form" | "review";
@@ -129,13 +129,18 @@ export default function IntAirtimePage() {
 
   /** Amount */
   useEffect(() => {
-    const selected = variations.find(v => v.variation_code === variation);
-    setAmount(selected?.amount ?? 0);
+    const selected = variations.find(
+      v => v.variation_code === variation
+    );
+    
+    setAmount(Number(selected?.variation_amount || 0));
   }, [variation, variations]);
 
   /** Phone length */
   useEffect(() => {
-    const selected = operators.find(o => o.id === operator);
+    const selected = operators.find(
+      o => o.operator_id === operator
+    );
     setMinLen(selected?.min_length ?? 0);
     setMaxLen(selected?.max_length ?? 20);
   }, [operator, operators]);
@@ -198,7 +203,10 @@ export default function IntAirtimePage() {
             >
               <option value="">Select Product</option>
               {productTypes.map(p => (
-                <option key={p.id} value={p.id}>
+                <option
+                  key={p.product_type_id}
+                  value={p.product_type_id}
+                >
                   {p.name}
                 </option>
               ))}
@@ -215,7 +223,10 @@ export default function IntAirtimePage() {
             >
               <option value="">Select Operator</option>
               {operators.map(o => (
-                <option key={o.id} value={o.id}>
+                <option
+                  key={o.operator_id}
+                  value={o.operator_id}
+                >
                   {o.name}
                 </option>
               ))}
@@ -230,7 +241,7 @@ export default function IntAirtimePage() {
               <option value="">Select Amount</option>
               {variations.map(v => (
                 <option key={v.variation_code} value={v.variation_code}>
-                  {v.name} — ₦{v.amount}
+                  {v.name} — ₦{v.variation_amount}
                 </option>
               ))}
             </select>
