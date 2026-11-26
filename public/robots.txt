@@ -11,10 +11,10 @@ Disallow: /reset-password
 Disallow: /otp
 Disallow: /auth
 Disallow: /mobile-auth
-// Disallow: /events/another-event
-// Disallow: /events/new-event
-// Disallow: /events/nexa-meet-up
-// Disallow: /events/event-for-nexa
+Disallow: /events/another-event
+Disallow: /events/new-event
+Disallow: /events/nexa-meet-up
+Disallow: /events/event-for-nexa
 
 # Block finance & user sections
 Disallow: /transactions
