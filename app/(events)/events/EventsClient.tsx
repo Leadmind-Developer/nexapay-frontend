@@ -292,21 +292,129 @@ export default function EventsClient({
           </div>
         )}
 
-        {!loading && !apiUnavailable && events.length === 0 && (
-          <div className="text-center py-16">
-            <h2 className="text-2xl font-semibold mb-2 text-gray-900">
-              {hasActiveFilters
-                ? "No matching events found"
-                : "No upcoming events at the moment"}
-            </h2>
+        
+{!loading && !apiUnavailable && events.length === 0 && (
+  <div className="py-16">
+    {hasActiveFilters ? (
+      <div className="text-center max-w-2xl mx-auto">
+        <h2 className="text-2xl font-semibold mb-3 text-gray-900">
+          No matching events found
+        </h2>
 
-            <p className="text-gray-600">
-              {hasActiveFilters
-                ? "Try changing your search or filters to discover other events."
-                : "There are currently no upcoming events. Please check back soon for new experiences."}
+        <p className="text-gray-600 mb-6">
+          We couldn't find events matching your current search or
+          filters. Try changing your search terms, selecting another
+          category or adjusting your location and ticket preferences.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSearch("");
+            setCategory("All");
+            setPrice("All");
+            setLocation("");
+            setSort("latest");
+          }}
+          className="bg-black text-white px-6 py-3 rounded-xl font-medium hover:bg-gray-800"
+        >
+          Clear all filters
+        </button>
+      </div>
+    ) : (
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            No Upcoming Events at the Moment
+          </h2>
+
+          <p className="text-gray-600 text-lg leading-8">
+            There are currently no upcoming events listed on Nexa.
+            We're looking forward to bringing you new opportunities
+            to connect, learn, celebrate and discover experiences
+            worth attending.
+          </p>
+
+          <p className="text-gray-600 leading-7 mt-4">
+            Nexa Events helps people discover events and gives
+            organizers a platform to publish events, manage
+            registrations, sell tickets and connect with attendees.
+            New events will appear here as organizers publish them.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-12">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              Looking for something to attend?
+            </h3>
+
+            <p className="text-gray-600 leading-7">
+              Check back regularly for conferences, business
+              networking opportunities, technology meetups,
+              workshops, entertainment and community experiences.
             </p>
           </div>
-        )}
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              Organizing an event?
+            </h3>
+
+            <p className="text-gray-600 leading-7 mb-4">
+              Bring your event to Nexa. Create an event, manage
+              ticket types, receive registrations and organize
+              your attendee experience from one platform.
+            </p>
+
+            <Link
+              href="/organizer/events"
+              className="inline-block bg-black text-white px-5 py-3 rounded-xl font-medium hover:bg-gray-800"
+            >
+              Get started with Nexa
+            </Link>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-8">
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">
+            Discover more about Nexa
+          </h3>
+
+          <p className="text-gray-600 leading-7 mb-5">
+            Whether you're attending an event or planning one,
+            Nexa provides tools to make event discovery, registration
+            and ticket management easier.
+          </p>
+
+          <div className="flex flex-wrap gap-4">
+            <Link
+              href="/about"
+              className="text-indigo-700 font-medium hover:underline"
+            >
+              About Nexa
+            </Link>
+
+            <Link
+              href="/faq"
+              className="text-indigo-700 font-medium hover:underline"
+            >
+              Frequently asked questions
+            </Link>
+
+            <Link
+              href="/support"
+              className="text-indigo-700 font-medium hover:underline"
+            >
+              Get support
+            </Link>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
 
         {!loading && !apiUnavailable && visibleEvents.length > 0 && (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
