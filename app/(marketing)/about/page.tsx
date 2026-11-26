@@ -1,3 +1,4 @@
+"use client";
 
 import React from "react";
 import { IoMailOutline, IoCallOutline, IoGlobeOutline } from "react-icons/io5";
