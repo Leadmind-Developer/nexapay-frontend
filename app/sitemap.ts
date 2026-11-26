@@ -1,17 +1,47 @@
-import { MetadataRoute } from "next";
+
+import type { MetadataRoute } from "next";
 
 const baseUrl = "https://nexa.com.ng";
 
-async function getEvents() {
+const apiBaseUrl = (
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "https://api.nexa.com.ng/api"
+).replace(/\/+$/, "");
+
+interface PublicEvent {
+  id: string;
+  slug: string;
+  published?: boolean;
+  updatedAt?: string;
+  startAt?: string;
+}
+
+async function getEvents(): Promise<PublicEvent[]> {
   try {
-    const res = await fetch(`${process.env.API_URL}/events`, {
-      cache: "no-store",
+    const res = await fetch(`${apiBaseUrl}/events`, {
+      next: { revalidate: 3600 },
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      throw new Error(
+        `Events API returned status ${res.status}`
+      );
+    }
 
-    return res.json();
-  } catch {
+    const data: unknown = await res.json();
+
+    if (!Array.isArray(data)) {
+      throw new Error("Events API returned an unexpected response format");
+    }
+
+    return data.filter(
+      (event): event is PublicEvent =>
+        typeof event?.slug === "string" &&
+        event.slug.length > 0 &&
+        event.published !== false
+    );
+  } catch (error) {
+    console.error("Sitemap: Failed to fetch public events:", error);
     return [];
   }
 }
@@ -67,12 +97,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const eventPages: MetadataRoute.Sitemap = events.map((event: any) => ({
-    url: `${baseUrl}/events/${event.id}`,
-    lastModified: new Date(event.updatedAt || event.startAt),
-    changeFrequency: "daily",
-    priority: 0.8,
-  }));
+  const eventPages: MetadataRoute.Sitemap = events.map((event) => {
+    const lastModifiedValue = event.updatedAt || event.startAt;
+    const lastModified = lastModifiedValue
+      ? new Date(lastModifiedValue)
+      : undefined;
+
+    return {
+      url: `${baseUrl}/events/${encodeURIComponent(event.slug)}`,
+      ...(lastModified &&
+      !Number.isNaN(lastModified.getTime())
+        ? { lastModified }
+        : {}),
+      changeFrequency: "daily",
+      priority: 0.8,
+    };
+  });
 
   return [...staticPages, ...eventPages];
 }
