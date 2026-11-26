@@ -403,7 +403,7 @@ export default function EventsClient({
             </Link>
 
             <Link
-              href="/support"
+              href="/Support"
               className="text-indigo-700 font-medium hover:underline"
             >
               Get support
