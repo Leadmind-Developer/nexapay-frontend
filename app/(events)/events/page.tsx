@@ -51,11 +51,12 @@ async function getEvents(): Promise<{
   }
 }
 
+
 export default async function EventsPage() {
   const { events, unavailable } = await getEvents();
 
   return (
-    <main>
+    <>
       <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -63,9 +64,9 @@ export default async function EventsPage() {
           </h1>
 
           <p className="mt-4 text-base leading-7 text-gray-600">
-            Find concerts, workshops, conferences, parties and other
-            experiences worth attending. Explore upcoming events, discover
-            something new and get your tickets with Nexa.
+            Discover upcoming concerts, workshops, conferences, parties and
+            other experiences. Explore events, find something new and get your
+            tickets with Nexa.
           </p>
         </div>
       </section>
@@ -74,6 +75,7 @@ export default async function EventsPage() {
         initialEvents={events}
         eventsUnavailable={unavailable}
       />
-    </main>
+    </>
   );
 }
+
