@@ -1,3 +1,4 @@
+
 User-agent: *
 Allow: /
 
@@ -30,12 +31,14 @@ Disallow: /organizer/
 Disallow: /api/
 Disallow: /webhooks/
 
-# Allow public marketing & events pages
+# Explicitly allow public pages
 Allow: /events
+Allow: /events/
 Allow: /about
 Allow: /contact
 Allow: /faq
 Allow: /support
 Allow: /landing
 
+# Sitemap
 Sitemap: https://nexa.com.ng/sitemap.xml
